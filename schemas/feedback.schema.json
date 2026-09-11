@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trail-coach.local/schemas/feedback.schema.json",
+  "title": "Trail Coach product feedback",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "message", "technical", "createdAt", "syncStatus"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "message": { "type": "string", "minLength": 1 },
+    "screenshotFile": { "type": ["string", "null"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "syncStatus": { "enum": ["local", "pending", "synced", "error"] },
+    "technical": {
+      "type": "object",
+      "required": [
+        "appVersion",
+        "route",
+        "featureId",
+        "capturedAt",
+        "viewport",
+        "screen",
+        "devicePixelRatio",
+        "userAgent",
+        "language",
+        "online"
+      ],
+      "properties": {
+        "appVersion": { "type": "string" },
+        "route": { "type": "string" },
+        "featureId": { "type": "string" },
+        "capturedAt": { "type": "string", "format": "date-time" },
+        "viewport": { "$ref": "#/$defs/dimensions" },
+        "screen": { "$ref": "#/$defs/dimensions" },
+        "devicePixelRatio": { "type": "number", "minimum": 0.1 },
+        "userAgent": { "type": "string" },
+        "language": { "type": "string" },
+        "online": { "type": "boolean" },
+        "lastError": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "dimensions": {
+      "type": "object",
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

@@ -1,0 +1,94 @@
+name: Deploy to GitHub Pages
+
+# CHANGE_REQUEST_004 — infra only. Builds the production PWA and publishes it to
+# GitHub Pages on every push to main. No secrets required: VITE_GOOGLE_CLIENT_ID
+# stays unset, so Drive sync remains disabled in this build (CR-005, later).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: no-personal-names
+        env:
+          PERSONAL_NAMES: ${{ secrets.PERSONAL_NAMES }}
+        run: |
+          if [ -z "$PERSONAL_NAMES" ]; then
+            echo "PERSONAL_NAMES secret missing"
+            exit 1
+          fi
+          if git grep -i -w -E "$PERSONAL_NAMES" -- . ':!pnpm-lock.yaml' ':!package-lock.json'; then
+            echo "Forbidden word found in the repository. See CHANGE_REQUEST_006."
+            exit 1
+          fi
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Not `pnpm run check`: its validate:repository step still requires
+      # CODEX_START_HERE.md/PLANS.md from the pre-police-pivot repo shape,
+      # which is a content question outside CR-004's infra-only scope.
+      - name: Validate schemas
+        run: pnpm run validate:schemas
+
+      - name: Type check
+        run: pnpm run typecheck
+
+      - name: Test
+        run: pnpm run test
+
+      - name: Build
+        run: pnpm run build
+
+      # Pull requests only prove the build/typecheck/test pass; only a push to
+      # main (a merge) actually publishes to Pages.
+      - name: Configure Pages
+        if: github.event_name == 'push'
+        uses: actions/configure-pages@v5
+
+      - name: Upload build
+        if: github.event_name == 'push'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trail-coach.local/schemas/app-export.schema.json",
+  "title": "Trail Coach Claude context export",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "exportedAt",
+    "app",
+    "athlete",
+    "goal",
+    "plan",
+    "recentActivities",
+    "sessionFeedback",
+    "productFeedback"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "exportedAt": { "type": "string", "format": "date-time" },
+    "app": {
+      "type": "object",
+      "required": ["name", "stateSchemaVersion"],
+      "properties": {
+        "name": { "const": "Trail Coach" },
+        "stateSchemaVersion": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "athlete": { "type": ["object", "null"] },
+    "goal": { "type": ["object", "null"] },
+    "plan": { "type": ["object", "null"] },
+    "recentActivities": { "type": "array", "items": { "type": "object" } },
+    "sessionFeedback": { "type": "array", "items": { "type": "object" } },
+    "productFeedback": { "type": "array", "items": { "type": "object" } }
+  }
+}

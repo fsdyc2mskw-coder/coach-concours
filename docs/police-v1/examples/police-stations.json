@@ -1,0 +1,204 @@
+{
+  "catalogVersion": "official-circuit-local-1.0",
+  "locale": "fr-CH",
+  "sourceDocument": "docs/POLICE_TEST.md",
+  "stations": [
+    {
+      "id": "station-01-slalom",
+      "order": 1,
+      "name": "Slalom entre piquets",
+      "officialSteps": [
+        "Mettre le gilet pare-balles.",
+        "Courir jusqu'au bout des piquets.",
+        "Revenir en slalom."
+      ],
+      "officialFacts": ["La vidéo officielle indique une course de 18 m."],
+      "criticalRules": [],
+      "qualities": ["speed", "agility", "transition"],
+      "equipment": ["protective-vest", "poles", "18m-space"],
+      "approximationObjectives": ["18 m acceleration", "slalom return", "vest-to-run transition"],
+      "relationships": []
+    },
+    {
+      "id": "station-02-obstacle",
+      "order": 2,
+      "name": "Franchissement obstacle",
+      "officialSteps": [
+        "Franchir l'obstacle avec une balle de tennis dans la main.",
+        "Poser la balle dans la boîte rouge de l'autre côté.",
+        "Franchir l'obstacle au retour sans balle.",
+        "Recommencer."
+      ],
+      "officialFacts": ["Cinq franchissements à l'aller avec balle et quatre au retour sans balle."],
+      "criticalRules": ["Respecter le compte 5 avec balle et 4 sans balle."],
+      "qualities": ["agility", "power", "coordination", "transition"],
+      "equipment": ["stable-obstacle", "tennis-balls", "red-container"],
+      "approximationObjectives": ["approach confidence", "controlled low crossing", "5-out-4-back sequence"],
+      "relationships": []
+    },
+    {
+      "id": "station-03-wall-bars",
+      "order": 3,
+      "name": "Franchissement espaliers",
+      "officialSteps": [
+        "Franchir l'espalier.",
+        "Contourner les cônes.",
+        "Franchir l'espalier."
+      ],
+      "officialFacts": ["La descente peut être normale en avant, en arrière, ou par saut."],
+      "criticalRules": ["La bascule est interdite."],
+      "qualities": ["strength", "agility", "coordination"],
+      "equipment": ["wall-bars", "cones"],
+      "approximationObjectives": ["climb-over mechanics", "cone transition", "rule recall"],
+      "relationships": []
+    },
+    {
+      "id": "station-04-mannequin",
+      "order": 4,
+      "name": "Déplacement du mannequin",
+      "officialSteps": [
+        "Saisir le mannequin.",
+        "Le tirer jusqu'au piquet au milieu de la salle.",
+        "Contourner le piquet.",
+        "Ramener le mannequin derrière la ligne blanche."
+      ],
+      "officialFacts": [],
+      "criticalRules": ["Ne pas saisir le mannequin par la poignée située derrière la tête."],
+      "qualities": ["strength", "grip", "agility"],
+      "equipment": ["mannequin", "pole", "marked-line"],
+      "approximationObjectives": ["suitable drag", "turn around marker", "finish behind line"],
+      "relationships": []
+    },
+    {
+      "id": "station-05-trolley",
+      "order": 5,
+      "name": "Déplacement d'une masse",
+      "officialSteps": [
+        "Pousser le chariot du cône rouge jusqu'au bout de la salle.",
+        "Alterner avec l'atelier 6 pour poser les écrous.",
+        "Tirer le chariot jusqu'au point de départ au cône rouge."
+      ],
+      "officialFacts": [],
+      "criticalRules": ["Respecter l'alternance avec l'atelier 6."],
+      "qualities": ["strength", "grip", "transition"],
+      "equipment": ["trolley", "red-cone", "room-length"],
+      "approximationObjectives": ["push", "transition to dexterity", "pull"],
+      "relationships": [
+        {
+          "type": "interleaves_with",
+          "stationId": "station-06-nuts",
+          "sequence": "push -> place nuts -> pull -> remove nuts"
+        }
+      ]
+    },
+    {
+      "id": "station-06-nuts",
+      "order": 6,
+      "name": "Écrous",
+      "officialSteps": [
+        "Choisir une couleur et prendre un gros et deux petits écrous.",
+        "Les positionner sur les trois vis correspondantes.",
+        "Alterner avec l'atelier 5 pour ramener le chariot.",
+        "Enlever les écrous et les remettre dans le bac."
+      ],
+      "officialFacts": [],
+      "criticalRules": ["Respecter la couleur, les tailles et l'alternance avec l'atelier 5."],
+      "qualities": ["dexterity", "cognition", "transition"],
+      "equipment": ["coloured-nuts", "matching-bolts", "container"],
+      "approximationObjectives": ["colour-size sorting", "placement under fatigue", "remove and return"],
+      "relationships": [
+        {
+          "type": "interleaves_with",
+          "stationId": "station-05-trolley",
+          "sequence": "push -> place nuts -> pull -> remove nuts"
+        }
+      ]
+    },
+    {
+      "id": "station-07-rope-pull",
+      "order": 7,
+      "name": "Déplacement d'une masse à la corde",
+      "officialSteps": [
+        "Tirer le sac de 30 kg à l'aide de la corde.",
+        "Traverser la salle.",
+        "Tirer le sac de 30 kg."
+      ],
+      "officialFacts": ["Le sac pèse 30 kg.", "Les jambes peuvent prendre appui sur les caissons."],
+      "criticalRules": [],
+      "qualities": ["strength", "grip", "coordination"],
+      "equipment": ["30kg-bag", "rope", "boxes", "room-length"],
+      "approximationObjectives": ["braced rope pull", "grip endurance", "cross-and-repeat sequence"],
+      "relationships": []
+    },
+    {
+      "id": "station-08-hoops-basketball",
+      "order": 8,
+      "name": "Cerceaux et ballon",
+      "officialSteps": [
+        "Prendre le ballon de basket dans les bras et traverser les cerceaux selon les couleurs.",
+        "Au retour, dribbler du côté du pied demandé selon les couleurs."
+      ],
+      "officialFacts": [
+        "Jaune: pieds joints, pas de dribble.",
+        "Bleu: pied droit, dribble droit.",
+        "Rouge: pied gauche, dribble gauche."
+      ],
+      "criticalRules": ["Associer sans erreur couleur, pied et côté de dribble."],
+      "qualities": ["coordination", "agility", "cognition"],
+      "equipment": ["basketball", "yellow-blue-red-hoops"],
+      "approximationObjectives": ["colour-action recall", "floor-marker footwork", "matching-side dribble"],
+      "relationships": []
+    },
+    {
+      "id": "station-09-mobile-bench",
+      "order": 9,
+      "name": "Banc mobile",
+      "officialSteps": [
+        "Monter sur le banc.",
+        "Prendre la balle après avoir posé les deux pieds.",
+        "Traverser le banc.",
+        "Échanger les balles.",
+        "Revenir au départ.",
+        "Poser la balle.",
+        "Traverser une dernière fois sans balle."
+      ],
+      "officialFacts": ["Après une chute, reprendre à l'endroit de la chute."],
+      "criticalRules": [
+        "Poser les deux pieds avant de prendre la balle.",
+        "Ne pas s'appuyer sur la balle ou le cône pour se tourner."
+      ],
+      "qualities": ["balance", "coordination", "dexterity"],
+      "equipment": ["mobile-bench", "balls", "cone"],
+      "approximationObjectives": ["low stable beam", "two-feet-before-object", "unsupported turn and exchange"],
+      "relationships": []
+    },
+    {
+      "id": "station-10-skipping-rope",
+      "order": 10,
+      "name": "Corde à sauter",
+      "officialSteps": ["Sauter à la corde selon la fiche affichée contre le mur."],
+      "officialFacts": ["Le choix de la fiche est aléatoire."],
+      "criticalRules": ["En cas d'erreur, recommencer le bloc en cours jusqu'à sa réussite."],
+      "qualities": ["coordination", "balance", "cognition", "speed"],
+      "equipment": ["skipping-rope", "random-pattern-card"],
+      "approximationObjectives": ["rope rhythm", "pattern recall", "restart-current-block rule"],
+      "relationships": []
+    },
+    {
+      "id": "station-11-racket-ball",
+      "order": 11,
+      "name": "Parcours appui avec raquette de ping-pong",
+      "officialSteps": [
+        "Poser la balle de ping-pong en équilibre au centre de la raquette.",
+        "Traverser les obstacles."
+      ],
+      "officialFacts": ["Si la balle tombe, la ramasser et reprendre là où elle est tombée."],
+      "criticalRules": ["Tenir la raquette par la poignée, main fermée."],
+      "qualities": ["balance", "dexterity", "coordination", "cognition"],
+      "equipment": ["ping-pong-racket", "ping-pong-ball", "obstacles"],
+      "approximationObjectives": ["stationary balance", "walk and turns", "drop-point recovery"],
+      "relationships": []
+    }
+  ]
+}
+

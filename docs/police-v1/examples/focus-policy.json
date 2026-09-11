@@ -1,0 +1,87 @@
+{
+  "policyVersion": "police-focus-1.1",
+  "primaryGoalKind": "police_physical_test",
+  "completeWeek": {
+    "principalTrainingDays": {
+      "exact": 5
+    },
+    "sessionCounts": {
+      "crossfit": {
+        "exact": 1
+      },
+      "stationTechnique": {
+        "exact": 1
+      },
+      "coordinationBalance": {
+        "exact": 1
+      },
+      "roomExplosive": {
+        "exact": 1
+      },
+      "outdoorExplosiveRun": {
+        "exact": 1
+      }
+    },
+    "embeddedMemoryGames": {
+      "exactPerPoliceSession": 1,
+      "minimumPerCompleteWeek": 3,
+      "allowSeparateFinalTest": false,
+      "countAsPrincipalTrainingDay": false
+    },
+    "hardDays": {
+      "maximumConsecutive": 2,
+      "warnWhenAdjacent": true
+    }
+  },
+  "requiredPoliceComposition": [
+    "technique_cognition",
+    "balance_coordination",
+    "room_explosive"
+  ],
+  "initialHighPriorityStations": [
+    "station-02-obstacle",
+    "station-08-hoops-basketball",
+    "station-09-mobile-bench",
+    "station-10-skipping-rope",
+    "station-11-racket-ball"
+  ],
+  "ultimateRule": "learn_complete_circuit_by_heart",
+  "memoryGameModes": [
+    "video_detective",
+    "station_order",
+    "rule_match",
+    "transition_choice",
+    "find_mistake"
+  ],
+  "stationDrillSelection": {
+    "targetDrillsPerStationMinimum": 2,
+    "targetDrillsPerStationMaximum": 3,
+    "requireStationMappingAndRationale": true
+  },
+  "runningLimits": {
+    "maximumSessionsPerCompleteWeek": 1,
+    "maximumAutoPlannedDistanceKm": 12,
+    "maximumAutoPlannedElevationGainM": 450,
+    "intent": "explosive_intervals",
+    "raceDate": "2026-10-11",
+    "raceReplacesWeeklyRun": true
+  },
+  "protectedEvents": [
+    "goal-police-2026-11-20",
+    "event-trail-2026-10-11"
+  ],
+  "conflictReductionOrder": [
+    "reject_sixth_training_day",
+    "reject_second_run",
+    "preserve_low_load_police_technique_and_memory",
+    "protect_room_outdoor_explosive_spacing",
+    "remove_redundant_general_conditioning",
+    "reduce_police_integration_volume_before_deleting_police_exposure"
+  ],
+  "bestTimeEligibility": {
+    "scope": "full_circuit",
+    "fidelity": "exact",
+    "outcome": "clean",
+    "requiredStationCount": 11
+  }
+}

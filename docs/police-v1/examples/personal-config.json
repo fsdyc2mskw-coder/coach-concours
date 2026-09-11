@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "police-v1-proposal",
+  "profile": {
+    "id": "me",
+    "displayName": "the athlete",
+    "locale": "fr-CH",
+    "timezone": "Europe/Zurich",
+    "trainingDaysPerWeek": 5,
+    "preferredTrainingDays": [],
+    "preferredRestDays": [],
+    "crossfitWeekday": "monday",
+    "crossfitScheduleMode": "fixed",
+    "roomSessionWeekday": null,
+    "roomScheduleMode": "fixed",
+    "currentComfortableRunKm": 6,
+    "recentWeeklyRunKm": null,
+    "equipment": [
+      {
+        "equipmentId": "basketball",
+        "availability": "available"
+      },
+      {
+        "equipmentId": "coloured-hoops-or-markers",
+        "availability": "available"
+      },
+      {
+        "equipmentId": "skipping-rope",
+        "availability": "available"
+      },
+      {
+        "equipmentId": "table-tennis-racket-ball",
+        "availability": "available"
+      },
+      {
+        "equipmentId": "usable-space-18m",
+        "availability": "available"
+      },
+      {
+        "equipmentId": "round-balance-board",
+        "availability": "available",
+        "notes": "Decathlon floating/round board, approximately 39.5 cm, non-slip"
+      },
+      {
+        "equipmentId": "agility-ladder",
+        "availability": "available",
+        "notes": "Available in the CrossFit room"
+      },
+      {
+        "equipmentId": "large-plyometric-box",
+        "availability": "available",
+        "notes": "Available in the CrossFit room; exact police-station equivalence not verified"
+      }
+    ],
+    "exactCircuitAccessDates": []
+  },
+  "goals": {
+    "primary": {
+      "id": "goal-police-2026-11-20",
+      "kind": "police_physical_test",
+      "name": "Test d'aptitude physique police",
+      "eventDate": "2026-11-20",
+      "officialLimitSec": 375,
+      "personalTargetSec": 371,
+      "reportedBaselineSec": 510,
+      "reportedBaselineOutcome": "unknown",
+      "requiredStationIds": [
+        "station-01-slalom",
+        "station-02-obstacle",
+        "station-03-wall-bars",
+        "station-04-mannequin",
+        "station-05-trolley",
+        "station-06-nuts",
+        "station-07-rope-pull",
+        "station-08-hoops-basketball",
+        "station-09-mobile-bench",
+        "station-10-skipping-rope",
+        "station-11-racket-ball"
+      ]
+    },
+    "secondary": {
+      "id": "event-trail-2026-10-11",
+      "kind": "trail_maintenance_event",
+      "name": "Trail 12 km",
+      "eventDate": "2026-10-11",
+      "distanceKm": 12,
+      "elevationGainM": 400,
+      "priority": "secondary",
+      "intent": "finish-maintenance"
+    }
+  },
+  "initialStationConcerns": [
+    {
+      "stationId": "station-02-obstacle",
+      "priority": "very_high",
+      "concernTags": ["fear"],
+      "confidence": null
+    },
+    {
+      "stationId": "station-08-hoops-basketball",
+      "priority": "very_high",
+      "concernTags": ["coordination"],
+      "confidence": null
+    },
+    {
+      "stationId": "station-09-mobile-bench",
+      "priority": "high",
+      "concernTags": ["slow", "hesitant", "proprioception"],
+      "confidence": null
+    },
+    {
+      "stationId": "station-10-skipping-rope",
+      "priority": "high",
+      "concernTags": ["wrong_starting_foot", "coordination"],
+      "confidence": null
+    },
+    {
+      "stationId": "station-11-racket-ball",
+      "priority": "high",
+      "concernTags": ["slow", "hesitant", "precision"],
+      "confidence": null
+    }
+  ],
+  "detailedHomeScore": null,
+  "detailedHomeScoreStatus": "to_be_provided_later",
+  "ultimateRule": "learn_complete_circuit_by_heart"
+}

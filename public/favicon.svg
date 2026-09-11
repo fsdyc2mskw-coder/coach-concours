@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Trail Coach">
+  <rect width="64" height="64" rx="16" fill="#132019"/>
+  <path d="M8 47 25 18l8 13 6-9 17 25H8Z" fill="#dce9d5"/>
+  <path d="M16 49c10-2 11-13 20-13 7 0 7 8 14 9" fill="none" stroke="#efb45b" stroke-width="4" stroke-linecap="round"/>
+</svg>
