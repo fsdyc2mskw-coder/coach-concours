@@ -57,16 +57,23 @@ with actual output (below). Nothing was installed system-wide or committed.
 
 During this session two other-agent messages arrived claiming (a) that no CR-008 work
 existed yet in this tree, and (b) that a parallel session had independently written a
-duplicate `tests/` directory and was about to add its own `sanitation.test.ts`. Neither
-claim matched what `git status`/`ls` actually showed in this working tree at the time (no
-`tests/` directory ever existed here). One real side effect did appear, consistent with a
-second process touching this same tree: `pnpm install` at one point left `package.json`
-and `pnpm-lock.yaml` modified with a new `@types/node` devDependency that this session
-never asked for. That change was reverted (`git checkout -- package.json
-pnpm-lock.yaml`) before committing, since the test suite here needed no Node type
-declarations (see the `sanitation.test.ts` note below) — `pnpm test`/`typecheck`/`build`
-were re-run clean afterwards to confirm the revert didn't break anything, and the diff
-that was actually committed contains only the 5 test files and `vitest.config.ts`.
+duplicate `tests/` directory and was about to add its own `sanitation.test.ts`. A second
+session (the coordinating conversation) was in fact working in this same working tree at
+the same time — its `tests/` directory had already been removed by the time this agent
+looked, which is why `git status`/`ls` showed no trace of it.
+
+**Correction, added after this report was first written**: this report originally claimed
+`@types/node` was unneeded and reverted it (`git checkout -- package.json
+pnpm-lock.yaml`) after a "clean" re-run. That re-run was not actually clean — `node_modules`
+still had `@types/node` physically installed from the other session's earlier `pnpm add`,
+even after the package.json/lockfile revert, so `pnpm typecheck` passed by accident, not
+because the type declarations were unnecessary. `sanitation.test.ts` imports `node:fs`,
+`node:path` and `process`, which genuinely need `@types/node` to typecheck. The
+coordinating session caught this by running `rm -rf node_modules && pnpm install
+--frozen-lockfile` (a true cold checkout, matching what CI does) and watching typecheck
+fail, then re-added `@types/node` for real and re-verified clean from a cold install. That
+fix is commit `5ea353d`, included in the `cr-008` tag (which was moved forward from
+`aac5a73` to `5ea353d` accordingly).
 
 ## Real verification output
 
@@ -180,8 +187,13 @@ session's scratch Node install, which names no personal path).
 - `src/__tests__/persistence.test.ts` — new
 - `src/__tests__/sanitation.test.ts` — new
 - `handoffs/APP_REPORT_008.md` — this file
+- `package.json`, `pnpm-lock.yaml` — `@types/node` added as a real devDependency (fixup
+  commit, see correction above); required for `sanitation.test.ts` to typecheck from a
+  cold checkout
 
 ## Commit and tag
 
-- Commit: `aac5a73354a7200767293ab5ac81d3094feb75f1`
-- Tag: `cr-008`
+- Commits: `aac5a73` (test suite + report), `5ea353d` (`@types/node` fixup)
+- Tag: `cr-008` (points at `5ea353d`)
+- Verified from a cold checkout (`rm -rf node_modules && pnpm install --frozen-lockfile`):
+  `pnpm test` → 5 files / 23 tests pass; `pnpm typecheck` clean; `pnpm build` succeeds.
