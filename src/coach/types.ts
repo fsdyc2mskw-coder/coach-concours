@@ -20,9 +20,18 @@ export type PlanPhase =
 export type CompletionStatus = 'done' | 'partial' | 'skipped';
 export type MovementQuality = 'crisp' | 'mixed' | 'degraded';
 
+// CHANGE_REQUEST_009 block grammar: every block carries the same four slots
+// instead of one mixed paragraph. `faire` is mandatory; `regle`, `noter` and
+// `details` are optional and simply not rendered when absent. `short` is an
+// optional short label for the day's flow strip (falls back to the first two
+// words of `title` when absent).
 export interface ExerciseBlock {
   title: string;
-  prescription: string;
+  short?: string;
+  faire: string;
+  regle?: string;
+  noter?: string;
+  details?: string;
   stationMappings: number[];
   approximation?: boolean;
 }
