@@ -159,6 +159,23 @@ worker copies the CR into `handoffs/` itself"), this report.
 
 ## Commit and tag
 
-Commit: see the pull request "CR-009 navy/sand theme and four-slot block grammar" opened from
-branch `cr-009-theme-and-block-grammar`. Not merged by this session — the athlete merges on
-GitHub (gate 2); the tag `cr-009` is set on the merge commit, not by the coder.
+Commit `7d59ce3` on branch `cr-009-theme-and-block-grammar` (parent: `59d9f38`, the
+"Mirror 00_COCKPIT.md v2.13" commit that was already sitting locally, unpushed, at the start
+of this session — fast-forwarded onto `origin/main` first so this branch and the eventual pull
+request would not carry it as an unrelated diff).
+
+**This session could not push or open the pull request itself**: the sandboxed environment it
+ran in has no GitHub credentials (`git push` fails with "could not read Username for
+'https://github.com': Device not configured"; no `gh` CLI either). Both `main` (the CR-008
+mirror commit) and this branch need a push from a machine that is actually signed in — GitHub
+Desktop, as used for CR-008, or an authenticated terminal:
+
+```
+git push origin main
+git push origin cr-009-theme-and-block-grammar
+```
+
+then open a pull request from `cr-009-theme-and-block-grammar` into `main` titled "CR-009
+navy/sand theme and four-slot block grammar" (do not merge — that is gate 2, the athlete's).
+Not merged by this session in any case. The tag `cr-009` is set on the merge commit, never by
+the coder.
