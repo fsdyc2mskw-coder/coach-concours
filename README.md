@@ -145,3 +145,4 @@ Commencer par [`docs/index.md`](./docs/index.md), [`docs/PRODUCT.md`](./docs/PRO
 ## Licence
 
 Code original distribué sous licence MIT. Voir [`LICENSE`](./LICENSE) et [`NOTICE.md`](./NOTICE.md).
+
