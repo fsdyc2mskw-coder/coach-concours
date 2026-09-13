@@ -1,8 +1,8 @@
 # 00_COCKPIT, Coach Concours
 
 > **Start here.** Single entry point. Every agent and every human reads this, then works in
-> exactly one folder. Version 2.12, 13 September 2026 (Sunday night).
-> Previous versions archived in `90_Archive/` (v2.1 to v2.11).
+> exactly one folder. Version 2.13, 13 September 2026 (Sunday, late night).
+> Previous versions archived in `90_Archive/` (v2.1 to v2.12).
 > **Sanitation rule (v2.9)**: no person's name (the athlete, family, friends, coaches, earlier
 > contributors), no e-mail, no personal hostname, device name or personal folder path in
 > this file, in any handoff or in the repository. The person training is **the athlete**.
@@ -19,19 +19,19 @@
 
 ```
 7 Sep 2026 ─────────────── 11 Oct ──────────────────── 20 Nov 2026
-Week 1 done · Week 2 starts     Trail 12 km / 400 m D+         POLICE TEST, 11 stations
-14 Sep maintenance only         limit 6:15 · target 6:11 · baseline 8:30
+Week 1 done · Week 2 starts Trail 12 km / 400 m D+ POLICE TEST, 11 stations
+14 Sep maintenance only limit 6:15 · target 6:11 · baseline 8:30
 ```
 
 Athlete: **the athlete**. Locale fr-CH, timezone Europe/Zurich.
 
 ```
-Mon    crossfit                coach's class, app only records it
-       police_technique        fresh skill + memory, HIIT ≤ 10 min LAST before cool-down
-       police_strength_transitions  power → HIIT 10-20 min → precision under fatigue, M5
-       police_integration      linking stations into chunks, HIIT 10-20 min, M3+M4
-Sat/Sun trail_maintenance      ONE easy run, 7-8 km → 12 km, run only
-       + 2 days with no principal session
+Mon crossfit coach's class, app only records it
+ police_technique fresh skill + memory, HIIT ≤ 10 min LAST before cool-down
+ police_strength_transitions power → HIIT 10-20 min → precision under fatigue, M5
+ police_integration linking stations into chunks, HIIT 10-20 min, M3+M4
+Sat/Sun trail_maintenance ONE easy run, 7-8 km → 12 km, run only
+ + 2 days with no principal session
 Every police session has exactly ONE HIIT block (stamina + explosiveness). Running
 intervals are one form of it. Never a 2nd run, never a 6th day.
 ```
@@ -39,10 +39,10 @@ intervals are one form of it. Never a 2nd run, never a 6th day.
 ## 2. Two worlds, one contract
 
 ```
-THINKING WORLD          CONTRACT                     CODING WORLD
-Cowork / Claude         structured files              Claude Code (cloud, on the GitHub repo)
-Drive folders 02, 03    rules + cards + handoffs      repo + GitHub Actions + GitHub Pages
-                        (02/rules, 02/exercise_cards, 04 ↔ repo handoffs/)
+THINKING WORLD CONTRACT CODING WORLD
+Cowork / Claude structured files Claude Code (cloud, on the GitHub repo)
+Drive folders 02, 03 rules + cards + handoffs repo + GitHub Actions + GitHub Pages
+ (02/rules, 02/exercise_cards, 04 ↔ repo handoffs/)
 
 No sport brainstorming in the code environment. No code in Cowork.
 The only door between the two worlds is folder 04, mirrored as handoffs/ in the repo.
@@ -64,7 +64,7 @@ Codex are no longer part of the loop (10 Sep); Claude Code is the coder.
 | Drive `03_Weekly_plans/` | `WEEK_n_PROPOSED` → `WEEK_n_REVIEW` → `WEEK_n_FINAL` · `WEEK_n_NOTES.md` (the athlete's words + Garmin summary) · the Sunday JSON export until Drive sync is actually connected | the athlete + Claude | one FINAL per week, frozen once trained |
 | Drive `04_App_handoffs/` ↔ repo `handoffs/` | `CHANGE_REQUEST_nnn` (with a `tier:` line), `APP_REPORT_nnn` | both worlds | the only door; every APP_REPORT ends with the commit hash and tag |
 | **GitHub repository** `coach-concours` under the athlete's GitHub account | the code (React/TypeScript/Vite PWA), CI in `.github/workflows/deploy.yml` (no-personal-names, validate, typecheck, test, build, publish) | Claude Code | source of truth for code; sanitised since CR-006 (tag `cr-006`); one git tag per change request |
-| **GitHub Pages** `https://<github-username>.github.io/coach-concours/` | the published app, rebuilt on every push to `main` | GitHub Actions | live since 13 Sep; **CR-005's commits are local only, not yet pushed** — the deployed build does not have Drive sync until the athlete pushes and sets the `VITE_GOOGLE_CLIENT_ID` secret |
+| **GitHub Pages** `https://<github-username>.github.io/coach-concours/` | the published app, rebuilt on every push to `main` | GitHub Actions | **live**, rebuilt clean by CR-008's push (run #7, 51 s, build+deploy both green) |
 | Drive `05_App_code/` | `STATUS_...md`, `snapshots/` (SHA256 files; a zip only at a named milestone), `state/` (created 13 Sep; organisational only — the app cannot write into it, see decisions log) | the coder via the athlete | git holds the versions; no zip per change request (v2.8) |
 | Drive `90_Archive/` | superseded versions, transcripts, the earlier external package | nobody | history only |
 
@@ -77,50 +77,54 @@ is pasted in the same notes file. Notion is dropped. The `WEEK_n_FINAL` is the r
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-▼                                                                  │
+▼ │
 app proposes WEEK_n ──► Cowork review ──► WEEK_n_FINAL ──► athlete trains ─┤
-▲               │              │                  │                │
-│               ▼              ▼                  ▼                │
-│    wrong drill? → edit a CARD           done / partial / app form (numbers)
-│    wrong logic? → edit a RULE + CHANGE_REQUEST   skipped + WEEK_n_NOTES (words)
-│    app bug?     → CHANGE_REQUEST                       │ → Sunday: WEEK_n_REVIEW
+▲ │ │ │ │
+│ ▼ ▼ ▼ │
+│ wrong drill? → edit a CARD done / partial / app form (numbers)
+│ wrong logic? → edit a RULE + CHANGE_REQUEST skipped + WEEK_n_NOTES (words)
+│ app bug? → CHANGE_REQUEST │ → Sunday: WEEK_n_REVIEW
 └──── APP_REPORT ◄──────────────────────────────────┴──────────────────┘
 ```
 
 Until the card library is big enough for the app to generate alone, Claude writes
 `WEEK_n_FINAL` by hand with the athlete from the same rules and cards.
 
-## 5. App status (13 Sep, evening) and change-request queue
+## 5. App status (13 Sep, late night) and change-request queue
 
 ```
-WHAT RUNS TODAY (checked in a browser on 13 Sep, before CR-005)
-code on main (local, unpushed) = CR-003 + CR-004 + CR-005 + CR-006 + CR-007
-CR-005 implemented tonight (tag cr-005): Drive sync now runs on app open, after every
-  save and on reconnect, not just on a button press; conflict rule fixed to "higher
-  revision wins, tie keeps local" (it used to refuse and throw); account email is
-  masked on the Drive tab; CI now injects VITE_GOOGLE_CLIENT_ID at build time.
-  NOT YET LIVE: nothing pushed to origin, and no Google Cloud OAuth client id exists
-  yet, so the deployed app still has Drive sync disabled. See open items.
+WHAT RUNS TODAY (pushed to origin/main and verified live, 13 Sep late night)
+code on main = CR-003 + CR-004 + CR-005 + CR-006 + CR-007 + CR-008, all pushed
+CR-005: Drive sync runs on app open, after every save and on reconnect; conflict rule
+ "higher revision wins, tie keeps local"; account email masked; CI injects
+ VITE_GOOGLE_CLIENT_ID at build time. OAuth client id created and the repository
+ secret set (CR-005 close-out commit). Still open: run the five manual Drive-sync
+ tests from APP_REPORT_005.md on a real device — nobody has done this yet.
+CR-008: first real test suite landed. 5 files, 23 tests (week1, stations, calendar,
+ persistence, sanitation), CI Test step is real now, no longer vacuous. Verified from
+ a cold checkout (fresh node_modules, pnpm install --frozen-lockfile): test/typecheck/
+ build all pass. Pushed via GitHub Desktop; GitHub Actions run #7 succeeded (51 s).
+ One sanitation issue found in dead/unreachable legacy code (src/app/seed.ts, a
+ first-name-shaped literal in the unused AppState path) — flagged, left unfixed
+ (out of scope for CR-008), spawned as its own follow-up task for the athlete.
 Week 1 in the app: Thu/Fri/Sat = WEEK_1_FINAL v3 · Mon ok · Tue/Wed corrected by CR-007
 Weeks 2-11 in the app: old template (Fri standalone intervals, Sat circuit, no trail run) → CR-001
 storage: IndexedDB coach-concours-db + localStorage copy, one copy per device; tested:
-  save → close → reopen keeps status, effort, km, D+, min, note.
-zero test files: CI Test step passes vacuously (CR-008)
-sanitation: repo clean since CR-006
+ save → close → reopen keeps status, effort, km, D+, min, note.
+sanitation: repo clean since CR-006, except the one CR-008 finding above (dead code, not fixed)
 
 CODER QUEUE (Claude Code), one request per session, in this order:
-CR-008 [MID] infra  first real tests (week1, stations, calendar, persistence, sanitation) ← next
-CR-009 [MID] infra  navy + sand theme, four-slot block grammar, day header flow strip
+CR-009 [MID] infra navy + sand theme, four-slot block grammar, day header flow strip ← next
 CR-001 [TOP] engine app aligned with the 9 Sep rules (v2), Week 2 data if WEEK_2_FINAL exists
 CR-002 [TOP] engine one HIIT block per police session (v2), dose from recorded capacity
-later  [TOP] Level 2 feedback fields per card + adaptation rules (after ~25 cards)
+later [TOP] Level 2 feedback fields per card + adaptation rules (after ~25 cards)
 
 COWORK, in parallel:
 [TOP] WEEK_1_REVIEW from WEEK_1_NOTES (Friday notes + Saturday Garmin) → WEEK_2_FINAL
 [TOP] card template v2 (faire / règle / noter / détails) before CR-009 · decide the card list
 [MID] draft cards 5-10 at a time · [TOP] check vs S1
 [TOP] rules/adaptation.md v2: HIIT realism check, technique phase then baseline phase,
-      station baselines (from the 11 Sep temp notes)
+ station baselines (from the 11 Sep temp notes)
 ```
 
 ## 6. Precedence when documents disagree
@@ -137,6 +141,8 @@ COWORK, in parallel:
 
 | Date | Decision |
 |---|---|
+| 13 Sep late night | **CR-008 done** (tag `cr-008`, final commit `3e3baeb`, after two follow-up commits on top of `aac5a73`): first real test suite — `vitest.config.ts` + 5 files under `src/__tests__/` (week1, stations, calendar, persistence, sanitation), 23 tests, no app behaviour changed. **Two self-correction fixups landed on top of the first commit**: (1) `@types/node` was missing from `package.json`/`pnpm-lock.yaml` even though `sanitation.test.ts` needs it to typecheck — an earlier "clean" local verification was contaminated by a stray leftover install and passed by accident; caught by a true cold-checkout test (`rm -rf node_modules && pnpm install --frozen-lockfile`) and fixed for real; (2) `APP_REPORT_008.md` corrected to stop repeating that wrong claim. Pushed to `origin/main` via GitHub Desktop (this session had no git credentials); GitHub Actions run #7 succeeded, 51 s, build+deploy both green, live on Pages. One sanitation finding in dead code (`src/app/seed.ts`), left unfixed per CR-008's scope, flagged for a separate follow-up. Full detail, including two documented discrepancies between the CR's prose and the actual code (the CR-005 conflict logic lives in `coachDrive.ts`, not `driveSync.ts` as the CR assumed; the repo has two parallel state shapes, one of them legacy/dead) in `APP_REPORT_008.md`. |
+| 13 Sep late night | **CR-005 confirmed live**: OAuth client id created, `VITE_GOOGLE_CLIENT_ID` repository secret set (close-out commit `49e7d9b`). Manual on-device Drive-sync tests from `APP_REPORT_005.md` still not run — remains open. |
 | 13 Sep late night | **CR-005 done** (tag `cr-005`, commit `e2f7559`): Drive sync wired into `CoachConcoursApp` end to end — automatic on app open (silent reconnect), after every save (debounced) and on reconnect; conflict rule implemented literally ("higher revision wins, tie keeps local", replacing code that threw on conflict); Drive tab masks the account email and shows a pending-changes count; CI now injects `VITE_GOOGLE_CLIENT_ID` from a repository secret at build time (previously unset, so Drive sync was dead in every deployed build regardless of the app). **Deviation flagged, not hidden**: the synced file lives in a folder the app creates itself via the `drive.file` scope (`Coach Concours/Données application/coach-concours-state-v2.json`), not in the athlete's own `05_App_code/state/` — `drive.file` only ever grants access to files the app itself created, so it structurally cannot see a folder created by hand in Drive. Full detail in `APP_REPORT_005.md`. Drive folder `05_App_code/state/` created anyway, for the athlete's own organisation. |
 | 13 Sep | **Queue reordered**: CR-007 → CR-005 → CR-008 → CR-009 → CR-001 → CR-002. Drive sync moves to second place: the athlete wants her feedback in Drive, not on one phone |
 | 13 Sep | **Feedback rule**: numbers in the app (Level 1), words in `WEEK_n_NOTES.md`, Garmin pasted there. **Notion dropped.** The two `temp/` Google Docs become `WEEK_1_NOTES.md`; the "future CR" text goes to `rules/adaptation.md` v2, not to a change request |
@@ -170,13 +176,13 @@ COWORK, in parallel:
 
 ## 8. Open items (tier in brackets)
 
-- [ ] **The athlete (now, blocks CR-005 going live)**: create a Google Cloud OAuth client id
-      (Web application, authorized origin = the GitHub Pages URL) and add it as the GitHub
-      repository secret `VITE_GOOGLE_CLIENT_ID`. Five clicks listed in `APP_REPORT_005.md`.
-- [ ] **The athlete (now)**: push the local `main` branch (currently 2 commits ahead of
-      `origin/main`: CR-005 code + `APP_REPORT_005.md`) so CI runs and Pages redeploys.
-- [ ] **The athlete (once the client id exists)**: run the five manual Drive-sync tests listed
-      in `APP_REPORT_005.md` (two devices, offline save, conflict, disconnect, no secret leaked).
+- [ ] **The athlete**: run the five manual Drive-sync tests listed in `APP_REPORT_005.md`
+  (two devices, offline save, conflict, disconnect, no secret leaked) — the OAuth client id
+  and secret exist now, this is the only thing left to confirm Drive sync for real.
+- [ ] **[MID] Claude (Cowork or Claude Code)**: `src/app/seed.ts` carries a first-name-shaped
+  literal in its dead/unreachable legacy `AppState` demo path (flagged in `APP_REPORT_008.md`,
+  out of scope for CR-008 itself — a data/content change, not a test). Delete the dead file or
+  replace the literal with a neutral placeholder.
 - [ ] **The athlete (Sunday)**: fill the Level 1 form for Tue, Thu, Fri, Sat of Week 1 in the app; Export JSON to `03_Weekly_plans/`; paste the Saturday Garmin data (km, time, pace, D+, avg HR, splits) into `WEEK_1_NOTES.md`.
 - [ ] **[MID] Claude (Cowork)**: convert the two `temp/` Google Docs into `03_Weekly_plans/WEEK_1_NOTES.md`, archive the Docs.
 - [ ] **[TOP] The athlete + Claude (Cowork)**: `WEEK_1_REVIEW.md`, then `WEEK_2_FINAL.md` (Tuesday = Coordination & équilibre + short HIIT; one trail run; card ids and rules only).
