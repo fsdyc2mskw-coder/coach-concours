@@ -99,6 +99,20 @@ export const recipes: Record<string, SessionRecipe> = {
     cooldown: '2 min de marche facile en repassant le circuit poste 1 à 11 dans la tête.',
     memory: { id: 'memory-week1-fri-circuit', prompt: 'Récite les 11 postes du circuit dans l’ordre, sans les expliquer.', answer: 'Visualise puis récite de mémoire ; vérifie ensuite avec la source officielle. Aucune explication n’est demandée, seulement la restitution.' }
   },
+  week1Tue8Sep: {
+    id: 'week1-tue-2026-09-08-as-trained', version: 1, kind: 'running_intervals_exception',
+    title: 'Intervalles course (exception documentée)',
+    purpose: 'Séance de course déjà réalisée le mardi, en exception documentée. Ne compte pas comme la course de la semaine (samedi).',
+    durationMin: 47,
+    equipment: ['Chaussures de course', 'chronomètre'],
+    warmup: null,
+    blocks: [
+      { title: 'Échauffement course facile — 20 min', prescription: 'Footing facile, allure conversationnelle.', stationMappings: [] },
+      { title: '2 × 6 min à 6:00 min/km', prescription: 'Deux intervalles de 6 minutes à 6:00 min/km. Récupération entre les deux non enregistrée.', stationMappings: [] },
+      { title: 'Course facile — 15 min', prescription: 'Footing facile pour terminer la séance.', stationMappings: [] }
+    ],
+    cooldown: null
+  },
   week1Sat12Sep: {
     id: 'week1-sat-2026-09-12-trail', version: 1, kind: 'trail_event',
     title: 'Sortie trail de maintien (samedi 12 sept.)',

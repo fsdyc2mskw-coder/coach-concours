@@ -4,6 +4,7 @@ export type SessionKind =
   | 'outdoor_explosive_intervals'
   | 'police_technique'
   | 'police_balance_coordination'
+  | 'running_intervals_exception'
   | 'trail_event'
   | 'police_event';
 
@@ -89,6 +90,9 @@ export interface SessionResult {
   distanceKm?: number;
   elevationGainM?: number;
   durationMin?: number;
+  // CHANGE_REQUEST_007 record fields (Week 1 v3, Tuesday 8 Sep running-intervals exception).
+  intervalDistance1M?: number;
+  intervalDistance2M?: number;
   completedAt: string;
 }
 

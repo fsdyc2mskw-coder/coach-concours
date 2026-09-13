@@ -65,11 +65,18 @@ function sessionsForWeek(weekStart: string, weekEnd: string, phase: PlanPhase): 
   return planned;
 }
 
-const WEEK1_OVERRIDE_DATES = ['2026-09-10', '2026-09-11', '2026-09-12'] as const;
+const WEEK1_OVERRIDE_DATES = ['2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11', '2026-09-12'] as const;
 
 function week1Override(generated: PlannedSession[]): PlannedSession[] {
   const kept = generated.filter((session) => !(WEEK1_OVERRIDE_DATES as readonly string[]).includes(session.date));
   const overrides: PlannedSession[] = [
+    // CHANGE_REQUEST_007 — Tuesday 8 Sep as trained (running intervals, documented exception).
+    // Wednesday 9 Sep has no override entry: it renders as a rest day (WEEK_1_FINAL v3).
+    {
+      id: '2026-09-08:running_intervals_exception', date: '2026-09-08', dayLabel: 'MAR',
+      kind: 'running_intervals_exception', recipeId: recipes.week1Tue8Sep!.id,
+      status: 'proposed', phase: phaseFor('2026-09-08'), load: 'moderate', volumeFactor: 1
+    },
     {
       id: '2026-09-10:room_explosive_intervals', date: '2026-09-10', dayLabel: 'JEU',
       kind: 'room_explosive_intervals', recipeId: recipes.week1Thu10Sep!.id,
