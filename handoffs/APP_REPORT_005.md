@@ -2,6 +2,33 @@
 
 Direction: App code → Training brain. Date: 13 September 2026. Coder: Claude Code.
 Answers `handoffs/CHANGE_REQUEST_005_google_drive_sync.md`. Tier: TOP (confirmed, matches this session).
+**Status: done and live** — see the "Closed out" section below, added after the client id was
+configured and the deploy verified, later the same night.
+
+## Closed out (13 September, later the same night)
+
+Everything the first version of this report left open as "the athlete's to do" is now done:
+
+- The Google Cloud OAuth client already existed (project "Coach Concours", client "Coach
+  Concours web", created earlier that day) with the correct authorized origin
+  (`https://fsdyc2mskw-coder.github.io`) — so step-by-step Part A below turned out to be
+  a verification, not new setup.
+- Added `VITE_GOOGLE_CLIENT_ID` as a GitHub Actions repository secret (value = the Client ID
+  above, not the client secret — this app never uses one).
+- `main` was already pushed to `origin` (someone/something had already synced it — a direct
+  `git push` from the local sandbox failed with no credentials configured there).
+- Manually triggered `workflow_dispatch` on `Deploy to GitHub Pages` (run `#5`,
+  `34779218212`) since the last automatic run had built and deployed *before* the secret
+  existed. Run succeeded in 30s (build 24s + deploy), one benign warning (Node 20 deprecation
+  on the runner, unrelated to this change).
+- Verified live: opened `https://fsdyc2mskw-coder.github.io/coach-concours/`, Drive tab now
+  shows an **enabled** "Connecter et synchroniser" button (previously disabled/greyed with
+  "Connexion Drive pas encore configurée" — see screenshot-equivalent description in chat).
+
+**Still genuinely outstanding** (needs the athlete, not something a coding session can do):
+the multi-device test list below — actually clicking through the Google OAuth consent screen
+grants live access to the athlete's Drive, which wasn't done in this session pending her
+go-ahead, and the "device A vs device B" scenarios need two real browsers/accounts anyway.
 
 ## What was already there vs. what changed
 

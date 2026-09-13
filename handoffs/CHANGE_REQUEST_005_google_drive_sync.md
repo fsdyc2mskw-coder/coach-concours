@@ -1,7 +1,7 @@
 # CHANGE_REQUEST_005 — Google Drive sync of the app state
 
 Direction: Training brain → App code. Date: 13 September 2026. Author: the athlete + Claude.
-Status: **open**. Order: **second**, right after CR-007 (the athlete wants her feedback in Drive, not on one phone). Own session.
+Status: **done** (13 September 2026, tag `cr-005`; live on GitHub Pages the same night). Order: **second**, right after CR-007 (the athlete wants her feedback in Drive, not on one phone). Own session.
 Kind: infra · **Tier: TOP** (touches the persistence contract and OAuth)
 
 ## Read first
@@ -47,8 +47,12 @@ one file in her own Drive, no backend.
 - [ ] offline save, reconnect → remote file updated, `revision` +1
 - [ ] remote newer than local → local replaced, results preserved
 - [ ] disconnect → local data intact, remote file untouched
-- [ ] repository contains no client secret; CI `no-personal-names` still green
-- [ ] `pnpm typecheck`, `pnpm test`, `pnpm build` pass (the test harness arrives with CR-008; a manual test list is acceptable here)
+- [x] repository contains no client secret; CI `no-personal-names` still green — confirmed: only the
+      Client ID (not a secret) is stored, as the `VITE_GOOGLE_CLIENT_ID` GitHub Actions secret, never committed
+- [x] `pnpm typecheck`, `pnpm test`, `pnpm build` pass — confirmed via GitHub Actions run `34776962028+`, all green on `main`
+
+The four unchecked items are two-device/offline scenarios that need the athlete's own hands
+on a second device; see `APP_REPORT_005.md` for what was verified in a single browser instead.
 
 ## Out of scope
 
