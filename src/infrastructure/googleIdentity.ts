@@ -47,7 +47,10 @@ export interface GoogleSession {
   account: GoogleAccount;
 }
 
-export async function requestGoogleSession(clientId: string): Promise<GoogleSession> {
+export async function requestGoogleSession(
+  clientId: string,
+  options: { silent?: boolean } = {}
+): Promise<GoogleSession> {
   if (!clientId.trim()) {
     throw new Error('VITE_GOOGLE_CLIENT_ID n’est pas configuré.');
   }
@@ -73,7 +76,10 @@ export async function requestGoogleSession(clientId: string): Promise<GoogleSess
       },
       error_callback: () => reject(new Error('La fenêtre d’autorisation Google a échoué ou a été fermée.'))
     });
-    client.requestAccessToken({ prompt: 'consent' });
+    // A silent request (no popup) only succeeds if the browser still has a live
+    // Google session and consent was already granted; used to resync on app
+    // open without interrupting the athlete every time.
+    client.requestAccessToken({ prompt: options.silent ? '' : 'consent' });
   });
 
   const account = await fetchGoogleAccount(token.accessToken);

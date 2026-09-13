@@ -1,8 +1,10 @@
 name: Deploy to GitHub Pages
 
 # CHANGE_REQUEST_004 — infra only. Builds the production PWA and publishes it to
-# GitHub Pages on every push to main. No secrets required: VITE_GOOGLE_CLIENT_ID
-# stays unset, so Drive sync remains disabled in this build (CR-005, later).
+# GitHub Pages on every push to main.
+# CHANGE_REQUEST_005 — VITE_GOOGLE_CLIENT_ID is now injected from a repository
+# secret at build time. If the secret is not set, the build still succeeds and
+# Drive sync stays disabled (googleIdentity.ts rejects an empty client id).
 
 on:
   push:
@@ -67,6 +69,8 @@ jobs:
         run: pnpm run test
 
       - name: Build
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
         run: pnpm run build
 
       # Pull requests only prove the build/typecheck/test pass; only a push to

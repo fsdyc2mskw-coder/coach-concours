@@ -20,11 +20,12 @@ export async function syncCoachState(accessToken: string, local: CoachState, acc
     ? await client.getFile(local.drive.fileId).catch(() => null)
     : await client.findFile(STATE_FILE, data.id);
 
+  // CHANGE_REQUEST_005 sync rule: the copy with the higher revision wins; a
+  // tie keeps local. Never merge field by field, never delete the remote file.
   let state = local;
   if (remoteFile) {
     const remote = parseCoachState(JSON.parse(await client.readTextFile(remoteFile.id)) as unknown);
-    if (remote.revision > local.revision && Object.keys(local.results).length === 0) state = remote;
-    else if (remote.revision > local.revision) throw new Error('Une version plus récente existe sur Drive. Les saisies locales sont conservées : utilise l’autre appareil pour synchroniser, puis recharge ici.');
+    if (remote.revision > local.revision) state = remote;
   }
 
   const syncedAt = new Date().toISOString();
@@ -33,7 +34,8 @@ export async function syncCoachState(accessToken: string, local: CoachState, acc
     updatedAt: syncedAt,
     drive: {
       status: 'synced', fileId: remoteFile?.id ?? state.drive.fileId, rootFolderId: root.id,
-      backupsFolderId: backups.id, accountEmail, lastSyncAt: syncedAt
+      backupsFolderId: backups.id, accountEmail, lastSyncAt: syncedAt,
+      lastSyncRevision: state.revision, wasConnected: true, message: undefined
     }
   };
   const payload = JSON.stringify(stateForDrive(next), null, 2);

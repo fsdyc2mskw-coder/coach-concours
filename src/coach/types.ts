@@ -102,6 +102,8 @@ export interface DriveState {
   backupsFolderId?: string;
   accountEmail?: string;
   lastSyncAt?: string;
+  lastSyncRevision?: number;
+  wasConnected?: boolean;
   status: 'local' | 'synced' | 'pending' | 'error';
   message?: string;
 }
