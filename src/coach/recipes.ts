@@ -12,9 +12,9 @@ export const recipes: Record<string, SessionRecipe> = {
     equipment: ['Ballon de basket', 'repères colorés', 'corde à sauter', 'raquette et balle', 'appui stable'],
     warmup: '6 min : marche douce 2 min, mobilité des chevilles et épaules 2 min, puis pas lents avec arrêt stable 2 min.',
     blocks: [
-      { title: 'Couleurs et ballon — 10 min', prescription: 'Jaune : pieds joints sans dribble. Bleu : pied droit et main droite. Rouge : pied gauche et main gauche. Faire 4 × 45 s lentement, récupération 45 s. Commencer sans ballon et ajouter le dribble seulement après une séquence propre.', stationMappings: [8], approximation: true },
-      { title: 'Équilibre et transfert — 8 min', prescription: 'Près d’un appui stable, faire 3 × 20 s par jambe avec une portée avant puis latérale. Récupération 30 s. Ajouter 4 transferts d’un objet léger avec les deux pieds stables. Garder les yeux ouverts.', stationMappings: [9], approximation: true },
-      { title: 'Corde : bon pied — 8 min', prescription: 'Annoncer le motif et le pied de départ. Faire 4 × 20 s à rythme facile, récupération 40 s. Réinitialiser avant chaque bloc et reprendre seulement le bloc erroné.', stationMappings: [10], approximation: true }
+      { title: 'Couleurs et ballon — 10 min', faire: 'Jaune : pieds joints sans dribble. Bleu : pied droit et main droite. Rouge : pied gauche et main gauche. Faire 4 × 45 s lentement, récupération 45 s. Commencer sans ballon et ajouter le dribble seulement après une séquence propre.', stationMappings: [8], approximation: true },
+      { title: 'Équilibre et transfert — 8 min', faire: 'Près d’un appui stable, faire 3 × 20 s par jambe avec une portée avant puis latérale. Récupération 30 s. Ajouter 4 transferts d’un objet léger avec les deux pieds stables. Garder les yeux ouverts.', stationMappings: [9], approximation: true },
+      { title: 'Corde : bon pied — 8 min', faire: 'Annoncer le motif et le pied de départ. Faire 4 × 20 s à rythme facile, récupération 40 s. Réinitialiser avant chaque bloc et reprendre seulement le bloc erroné.', stationMappings: [10], approximation: true }
     ],
     cooldown: '5 min : marche lente, mobilité douce des chevilles et relâchement des épaules.',
     memory: { id: 'memory-s8-blue', prompt: 'Au poste 8, quelle action correspond au bleu ?', answer: 'Pied droit et dribble de la main droite. Jaune : pieds joints sans dribble ; rouge : pied gauche et main gauche.' }
@@ -25,8 +25,8 @@ export const recipes: Record<string, SessionRecipe> = {
     equipment: ['Échelle d’agilité', 'repères au sol', 'ballon', 'box basse et stable si adaptée', 'équipement personnel confirmé'],
     warmup: '10 min : 4 min de marche active ou trot facile, 3 min de mobilité chevilles/hanches, puis 3 min de passages lents dans l’échelle et d’approches contrôlées.',
     blocks: [
-      { title: 'Progression obstacle — 8 min', prescription: 'Faire 3 approches avec arrêt contrôlé, puis 3 franchissements d’une limite au sol. Passer à un obstacle bas stable seulement si le geste reste confiant. Revenir au sol dès que l’hésitation perturbe le mouvement.', stationMappings: [2], approximation: true },
-      { title: 'Micro-circuit police — 4 tours', prescription: '10 s d’échelle, 10 s de franchissement contrôlé, puis 10–20 s de navette, poussée, tirage, traînage ou porté relié à un poste. Récupérer 120 s en marchant. Arrêter après deux répétitions consécutives plus lentes, instables ou techniquement incorrectes.', stationMappings: [1, 2, 4, 5, 6, 7], approximation: true }
+      { title: 'Progression obstacle — 8 min', faire: 'Faire 3 approches avec arrêt contrôlé, puis 3 franchissements d’une limite au sol. Passer à un obstacle bas stable seulement si le geste reste confiant. Revenir au sol dès que l’hésitation perturbe le mouvement.', stationMappings: [2], approximation: true },
+      { title: 'Micro-circuit police — 4 tours', faire: '10 s d’échelle, 10 s de franchissement contrôlé, puis 10–20 s de navette, poussée, tirage, traînage ou porté relié à un poste. Récupérer 120 s en marchant. Arrêter après deux répétitions consécutives plus lentes, instables ou techniquement incorrectes.', stationMappings: [1, 2, 4, 5, 6, 7], approximation: true }
     ],
     cooldown: '8 min : marche lente 5 min puis mobilité douce 3 min. Noter l’hésitation à la box et la qualité des appuis.',
     memory: { id: 'memory-s2-count', prompt: 'Au poste 2, combien de passages aller et retour faut-il mémoriser ?', answer: '5 allers avec le ballon et 4 retours à vide. Le travail proposé reste une approximation tant que l’obstacle officiel n’est pas vérifié.' }
@@ -36,7 +36,7 @@ export const recipes: Record<string, SessionRecipe> = {
     purpose: 'Développer les accélérations répétées tout en préservant la posture, les appuis et le freinage.', durationMin: 35,
     equipment: ['Chaussures de course', 'chronomètre', 'terrain plat dégagé avec zone de ralentissement'],
     warmup: '12 min : 8 min de marche ou trot facile, 2 min de mobilité dynamique, puis 2 accélérations progressives de 10 s.',
-    blocks: [{ title: '6 × 20 s vite / 80 s facile', prescription: 'Courir vite mais sous la vitesse de sprint maximal pendant 20 s, puis marcher ou trottiner 80 s. Rester grand et ralentir progressivement. Écourter si la posture ou les appuis se dégradent.', stationMappings: [] }],
+    blocks: [{ title: '6 × 20 s vite / 80 s facile', faire: 'Courir vite mais sous la vitesse de sprint maximal pendant 20 s, puis marcher ou trottiner 80 s. Rester grand et ralentir progressivement. Écourter si la posture ou les appuis se dégradent.', stationMappings: [] }],
     cooldown: '10 min de marche ou trot très facile, sans cible de fréquence cardiaque.'
   },
   technique: {
@@ -45,9 +45,9 @@ export const recipes: Record<string, SessionRecipe> = {
     equipment: ['Repères colorés', 'ballon de basket', 'raquette et balle', 'appui stable'],
     warmup: '6 min : marche active 2 min, mobilité douce 2 min, puis pas lents et arrêts stables 2 min.',
     blocks: [
-      { title: 'Confiance obstacle — 10 min', prescription: 'Faire 3 approches et arrêts à une ligne. Traverser un rectangle au sol avec le ballon, le poser puis revenir à vide : 5 allers et 4 retours, lentement. Passer à un obstacle bas seulement s’il est adapté et stable.', stationMappings: [2], approximation: true },
-      { title: 'Coordination et précision — 14 min', prescription: 'Faire 4 × 30 s de repères colorés, 4 × 30 s de marche tandem avec demi-tour, puis 4 × 30 s de balle centrée sur la raquette. Récupérer 30 s entre les passages. Après une chute, reprendre au point de chute.', stationMappings: [8, 9, 11], approximation: true },
-      { title: 'Relier les gestes — 8 min', prescription: 'Faire 3 passages lents : courte séquence colorée, marche en ligne avec arrêt stable, puis quelques pas avec raquette et balle. Récupérer 60 s. Cette liaison est une approximation du circuit.', stationMappings: [8, 9, 11], approximation: true }
+      { title: 'Confiance obstacle — 10 min', faire: 'Faire 3 approches et arrêts à une ligne. Traverser un rectangle au sol avec le ballon, le poser puis revenir à vide : 5 allers et 4 retours, lentement. Passer à un obstacle bas seulement s’il est adapté et stable.', stationMappings: [2], approximation: true },
+      { title: 'Coordination et précision — 14 min', faire: 'Faire 4 × 30 s de repères colorés, 4 × 30 s de marche tandem avec demi-tour, puis 4 × 30 s de balle centrée sur la raquette. Récupérer 30 s entre les passages.', details: 'Après une chute, reprendre au point de chute.', stationMappings: [8, 9, 11], approximation: true },
+      { title: 'Relier les gestes — 8 min', faire: 'Faire 3 passages lents : courte séquence colorée, marche en ligne avec arrêt stable, puis quelques pas avec raquette et balle. Récupérer 60 s.', details: 'Cette liaison est une approximation du circuit.', stationMappings: [8, 9, 11], approximation: true }
     ],
     cooldown: '6 min : marche lente puis mobilité douce. Retenir un geste réussi et un point à reprendre.',
     memory: { id: 'memory-s5-s6', prompt: 'Quel est l’ordre d’alternance à retenir entre les postes 5 et 6 ?', answer: '5 → 6 → 5 → 6 : pousser, trier et placer, tirer en retour, puis retirer et rapporter les objets.' }
@@ -74,11 +74,11 @@ export const recipes: Record<string, SessionRecipe> = {
     equipment: ['Corde à sauter', 'box en bois 20 pouces', 'raquette et balle'],
     warmup: null,
     blocks: [
-      { title: 'Échauffement corde à sauter — 10 min', prescription: '40 sauts pieds joints, puis 20 sauts sur chaque jambe = 1 tour (≈ 50 s). 4 tours.', stationMappings: [] },
-      { title: 'Box jump, frais — 10 min', prescription: 'Box en bois 20 pouces (≈ 0,51 m). Sauts vers une hauteur proche de la hanche, sans élan. Puis sauts en regardant au loin, pas la box.', stationMappings: [2], approximation: true },
-      { title: 'Conditioning EMOM — 10 min', prescription: 'Chaque minute : 10 burpees. Reste de la minute : équilibre sur un pied, en alternant le pied chaque minute. Remplace l’EMOM prévu (burpees / rameur / kettlebell).', stationMappings: [9, 10, 11], approximation: true },
-      { title: 'Raquette et balle, facile — 3 min', prescription: 'Jeu d’équilibre facile avec la raquette et la balle, sol plat, pendant la récupération après l’EMOM. Aucun comptage de chutes n’a été enregistré : pas de référence fatiguée pour la semaine 1.', stationMappings: [11], approximation: true },
-      { title: 'Corde EMOM — 4 min', prescription: 'Chaque minute : 40 sauts libres, puis jeu de jambes en alternance pour le reste de la minute.', stationMappings: [] }
+      { title: 'Échauffement corde à sauter — 10 min', faire: '40 sauts pieds joints, puis 20 sauts sur chaque jambe = 1 tour (≈ 50 s). 4 tours.', stationMappings: [] },
+      { title: 'Box jump, frais — 10 min', faire: 'Box en bois 20 pouces (≈ 0,51 m). Sauts vers une hauteur proche de la hanche, sans élan. Puis sauts en regardant au loin, pas la box.', stationMappings: [2], approximation: true },
+      { title: 'Conditioning EMOM — 10 min', faire: 'Chaque minute : 10 burpees. Reste de la minute : équilibre sur un pied, en alternant le pied chaque minute.', details: 'Remplace l’EMOM prévu (burpees / rameur / kettlebell).', stationMappings: [9, 10, 11], approximation: true },
+      { title: 'Raquette et balle, facile — 3 min', faire: 'Jeu d’équilibre facile avec la raquette et la balle, sol plat, pendant la récupération après l’EMOM.', noter: 'Aucun comptage de chutes n’a été enregistré : pas de référence fatiguée pour la semaine 1.', stationMappings: [11], approximation: true },
+      { title: 'Corde EMOM — 4 min', faire: 'Chaque minute : 40 sauts libres, puis jeu de jambes en alternance pour le reste de la minute.', stationMappings: [] }
     ],
     cooldown: null
   },
@@ -90,11 +90,11 @@ export const recipes: Record<string, SessionRecipe> = {
     equipment: ['Échelle d’agilité', '5 balles de tennis', 'boîte de récupération', 'raquette et balle', 'repères colorés'],
     warmup: '5 min : marche, cercles de chevilles, cercles de hanches, rotations d’épaules, pas chassés contrôlés, 20 s de petits sauts au-dessus d’une ligne avant/arrière puis 20 s latéralement.',
     blocks: [
-      { title: 'Mémoire du circuit — 4 min', prescription: 'Yeux fermés, visualiser la salle et parcourir le circuit mentalement, poste 1 à 11. Réciter les 11 postes dans l’ordre, à voix haute. Choisir 3 postes : dire l’action, la condition de fin, et le poste suivant. Ne jamais demander d’explication.', stationMappings: [] },
-      { title: 'Poste 2, franchissement à la balle de tennis — 8 min', prescription: 'Règle officielle (S1) : franchir l’obstacle avec une balle de tennis en main, la déposer dans la boîte rouge de l’autre côté, revenir sans balle ; 5 passages aller, 4 retour. 2 tours complets à allure marchée, puis 1 tour à allure trottinée, toujours propre. 60–90 s de récupération entre les tours.', stationMappings: [2], approximation: true },
-      { title: 'Référence précision raquette-balle, fraîche — 5 min', prescription: '3 × 1 min de marche avec la balle en équilibre au centre de la raquette, raquette tenue par le manche, main fermée. 30 s de récupération entre les tours. Si la balle tombe, la ramasser et reprendre où elle est tombée. Référence autonome de la semaine 1 (pas de valeur fatiguée jeudi).', stationMappings: [11] },
-      { title: 'AMRAP 10 min', prescription: 'Autant de tours que possible en 10 minutes : 60 sauts à la corde, échelle aller-retour ×2, 10 jump squats (départ accroupi, saut le plus haut possible, réception accroupie, amortie avec tout le corps). Arrêter le tour en cours si la descente d’échelle ou une réception devient imprécise. Pas de bascule sur l’échelle.', stationMappings: [2, 3], approximation: true },
-      { title: 'Poste 8, couleurs sous fatigue — 5 min', prescription: 'Jaune : pieds joints. Bleu : pied droit et dire « main droite ». Rouge : pied gauche et dire « main gauche ». 3 × 45 s, 30 s de récupération.', stationMappings: [8], approximation: true }
+      { title: 'Mémoire du circuit — 4 min', short: 'mémoire', faire: 'Yeux fermés, visualiser la salle et parcourir le circuit mentalement, poste 1 à 11. Réciter les 11 postes dans l’ordre, à voix haute. Choisir 3 postes : dire l’action, la condition de fin, et le poste suivant.', details: 'Ne jamais demander d’explication.', stationMappings: [] },
+      { title: 'Poste 2, franchissement à la balle de tennis — 8 min', short: 'poste 2', regle: 'Règle officielle (S1) : franchir l’obstacle avec une balle de tennis en main, la déposer dans la boîte rouge de l’autre côté, revenir sans balle ; 5 passages aller, 4 retour.', faire: '2 tours complets à allure marchée, puis 1 tour à allure trottinée, toujours propre. 60–90 s de récupération entre les tours.', stationMappings: [2], approximation: true },
+      { title: 'Référence précision raquette-balle, fraîche — 5 min', short: 'raquette', faire: '3 × 1 min de marche avec la balle en équilibre au centre de la raquette, raquette tenue par le manche, main fermée. 30 s de récupération entre les tours.', details: 'Si la balle tombe, la ramasser et reprendre où elle est tombée.', noter: 'Référence autonome de la semaine 1 (pas de valeur fatiguée jeudi).', stationMappings: [11] },
+      { title: 'AMRAP 10 min', short: 'AMRAP', faire: 'Autant de tours que possible en 10 minutes : 60 sauts à la corde, échelle aller-retour ×2, 10 jump squats (départ accroupi, saut le plus haut possible, réception accroupie, amortie avec tout le corps).', details: 'Arrêter le tour en cours si la descente d’échelle ou une réception devient imprécise. Pas de bascule sur l’échelle.', stationMappings: [2, 3], approximation: true },
+      { title: 'Poste 8, couleurs sous fatigue — 5 min', short: 'poste 8', faire: 'Jaune : pieds joints. Bleu : pied droit et dire « main droite ». Rouge : pied gauche et dire « main gauche ». 3 × 45 s, 30 s de récupération.', stationMappings: [8], approximation: true }
     ],
     cooldown: '2 min de marche facile en repassant le circuit poste 1 à 11 dans la tête.',
     memory: { id: 'memory-week1-fri-circuit', prompt: 'Récite les 11 postes du circuit dans l’ordre, sans les expliquer.', answer: 'Visualise puis récite de mémoire ; vérifie ensuite avec la source officielle. Aucune explication n’est demandée, seulement la restitution.' }
@@ -107,9 +107,9 @@ export const recipes: Record<string, SessionRecipe> = {
     equipment: ['Chaussures de course', 'chronomètre'],
     warmup: null,
     blocks: [
-      { title: 'Échauffement course facile — 20 min', prescription: 'Footing facile, allure conversationnelle.', stationMappings: [] },
-      { title: '2 × 6 min à 6:00 min/km', prescription: 'Deux intervalles de 6 minutes à 6:00 min/km. Récupération entre les deux non enregistrée.', stationMappings: [] },
-      { title: 'Course facile — 15 min', prescription: 'Footing facile pour terminer la séance.', stationMappings: [] }
+      { title: 'Échauffement course facile — 20 min', faire: 'Footing facile, allure conversationnelle.', stationMappings: [] },
+      { title: '2 × 6 min à 6:00 min/km', faire: 'Deux intervalles de 6 minutes à 6:00 min/km.', noter: 'Récupération entre les deux non enregistrée.', stationMappings: [] },
+      { title: 'Course facile — 15 min', faire: 'Footing facile pour terminer la séance.', stationMappings: [] }
     ],
     cooldown: null
   },
@@ -121,7 +121,7 @@ export const recipes: Record<string, SessionRecipe> = {
     equipment: ['Chaussures de trail'],
     warmup: null,
     blocks: [
-      { title: 'Sortie facile — ≈ 8 km, ≈ 150 m D+', prescription: 'Allure conversationnelle, majoritairement facile.', stationMappings: [] }
+      { title: 'Sortie facile — ≈ 8 km, ≈ 150 m D+', faire: 'Allure conversationnelle, majoritairement facile.', stationMappings: [] }
     ],
     cooldown: null
   }
@@ -131,3 +131,35 @@ export const recipeById = Object.values(recipes).reduce<Record<string, SessionRe
   result[recipe.id] = recipe;
   return result;
 }, {});
+
+// CHANGE_REQUEST_009 section B — day header flow strip. One node for the
+// warmup, one per exercise block, one for the cooldown; each carries a
+// minutes value pulled from its own text ("… — 8 min", "8 min : …") so the
+// strip never needs a separate duration field to stay in sync with the text.
+export interface FlowNode {
+  label: string;
+  minutes: number | null;
+}
+
+function minutesFromText(text: string): number | null {
+  const match = text.match(/(\d+)\s*min/);
+  return match ? Number(match[1]) : null;
+}
+
+function defaultShortLabel(title: string): string {
+  return title.split(' ').slice(0, 2).join(' ').replace(/[,.;:]+$/, '');
+}
+
+export function flowStrip(recipe: SessionRecipe): FlowNode[] {
+  const nodes: FlowNode[] = [];
+  if (recipe.warmup) {
+    nodes.push({ label: 'échauffement', minutes: minutesFromText(recipe.warmup) });
+  }
+  for (const block of recipe.blocks) {
+    nodes.push({ label: block.short ?? defaultShortLabel(block.title), minutes: minutesFromText(block.title) });
+  }
+  if (recipe.cooldown) {
+    nodes.push({ label: 'calme', minutes: minutesFromText(recipe.cooldown) });
+  }
+  return nodes;
+}

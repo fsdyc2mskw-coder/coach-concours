@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { recipeById } from './coach/recipes';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { flowStrip, recipeById } from './coach/recipes';
 import { generatePlan } from './coach/planner';
-import type { CoachState, LandingQuality, MovementQuality, PlannedSession, SessionResult } from './coach/types';
+import type { CoachState, ExerciseBlock, LandingQuality, MovementQuality, PlannedSession, SessionResult } from './coach/types';
 import { createDriveBackup, syncCoachState } from './infrastructure/coachDrive';
 import { loadCoachState, parseCoachState, saveCoachState } from './infrastructure/coachStorage';
 import { requestGoogleSession, revokeGoogleSession, type GoogleSession } from './infrastructure/googleIdentity';
@@ -189,28 +189,210 @@ function WeekView({ state, weekIndex, setWeekIndex, openId, setOpenId, saveResul
   const week = state.weeks[weekIndex]!;
   const completed = week.sessions.filter((session) => state.results[session.id]?.status === 'done').length;
   const days = daysOfWeek(week.startDate, week.endDate);
-  return <><section className="hero"><p className="eyebrow">TON PLAN, {state.athleteName.toUpperCase()}</p><h1>La qualité<br/><em>avant la vitesse.</em></h1><p>Technique police, explosivité et récupération dans une seule boucle.</p></section>
-    <section className="weekCard"><div className="weekNav"><button disabled={weekIndex === 0} onClick={() => setWeekIndex(weekIndex - 1)} aria-label="Semaine précédente">‹</button><div><p className="eyebrow">SEMAINE {String(weekIndex + 1).padStart(2, '0')} · {phaseLabel(week.phase)}</p><h2>{formatRange(week.startDate, week.endDate)}</h2></div><button disabled={weekIndex === state.weeks.length - 1} onClick={() => setWeekIndex(weekIndex + 1)} aria-label="Semaine suivante">›</button></div><div className="progressLine"><span>{completed} / {week.sessions.length} terminées</span><span>{Math.round((completed / week.sessions.length) * 100)} %</span></div><div className="track"><i style={{ width: `${(completed / week.sessions.length) * 100}%` }} /></div></section>
+  return <>
+    <section className="weekBanner"><div><p className="eyebrow">SEMAINE {String(weekIndex + 1).padStart(2, '0')} · {phaseLabel(week.phase)}</p><h2>{formatRange(week.startDate, week.endDate)}</h2></div><div className="weekBannerNav"><button disabled={weekIndex === 0} onClick={() => setWeekIndex(weekIndex - 1)} aria-label="Semaine précédente">‹</button><button disabled={weekIndex === state.weeks.length - 1} onClick={() => setWeekIndex(weekIndex + 1)} aria-label="Semaine suivante">›</button></div></section>
+    <div className="progressLine"><span>{completed} / {week.sessions.length} terminées</span><span>{Math.round((completed / week.sessions.length) * 100)} %</span></div><div className="track"><i style={{ width: `${(completed / week.sessions.length) * 100}%` }} /></div>
     <div className="sectionTitle"><h2>Cette semaine</h2><span>{week.sessions.length} séances · {days.length - week.sessions.length} repos</span></div><p className="caption">Le lundi est coaché. Les autres créneaux sont proposés et restent modifiables plus tard.</p>
-    <section className="schedule">{days.map((date) => { const planned = week.sessions.find((item) => item.date === date); if (!planned) return <RestRow key={date} date={date} />; const recipe = recipeById[planned.recipeId]!; const result = state.results[planned.id]; return <article className={`sessionCard ${openId === planned.id ? 'open' : ''} ${result?.status === 'done' ? 'done' : ''}`} key={planned.id}><button className="sessionHead" onClick={() => setOpenId(openId === planned.id ? null : planned.id)} aria-expanded={openId === planned.id}><DateBadge date={date}/><div className="sessionMeta"><span className="badge">{result?.status === 'done' ? '✓ Terminée' : planned.status === 'coached' ? 'Cours encadré' : planned.status === 'fixed_event' ? 'Date fixe' : 'Proposée'}</span><h3>{recipe.title}</h3><p>{recipe.durationMin ? `${Math.round(recipe.durationMin * planned.volumeFactor)} min` : 'Selon le cours ou l’événement'}</p></div><span className="expand">{openId === planned.id ? '−' : '+'}</span></button>{openId === planned.id && <SessionDetails planned={planned} result={result} revealed={!!recipe.memory && !!state.memoryReveals[recipe.memory.id]} reveal={reveal} save={saveResult} remove={removeResult} />}</article>; })}</section></>;
+    <section className="schedule">{days.map((date) => {
+      const planned = week.sessions.find((item) => item.date === date);
+      if (!planned) return <RestRow key={date} date={date} />;
+      const recipe = recipeById[planned.recipeId]!;
+      const result = state.results[planned.id];
+      const dayStatus = result?.status ?? (planned.status === 'coached' ? 'coached' : planned.status === 'fixed_event' ? 'fixed_event' : 'proposed');
+      const durationMin = recipe.durationMin ? Math.round(recipe.durationMin * planned.volumeFactor) : null;
+      const nodes = flowStrip(recipe);
+      return <article className={`sessionCard ${openId === planned.id ? 'open' : ''} ${result?.status === 'done' ? 'done' : ''}`} key={planned.id}>
+        <button className="sessionHead" onClick={() => setOpenId(openId === planned.id ? null : planned.id)} aria-expanded={openId === planned.id}>
+          <div className="sessionHead__row">
+            <DateBadge date={date} />
+            <h3>{planned.dayLabel} {new Date(`${date}T12:00:00Z`).getUTCDate()} · {recipe.title}{durationMin ? ` · ${durationMin} min` : ''}</h3>
+            <StatusDot status={dayStatus} />
+          </div>
+          {nodes.length > 0 ? (
+            <p className="flowStrip">
+              {nodes.map((node, index) => (
+                <span key={`${node.label}-${index}`}>
+                  {index > 0 ? ' → ' : ''}
+                  {node.label}
+                  {node.minutes !== null ? ` · ${node.minutes}` : ''}
+                </span>
+              ))}
+            </p>
+          ) : null}
+          {recipe.equipment.length > 0 ? (
+            <p className="equipmentChips">
+              <span className="equipmentChips__label">matériel : </span>
+              {recipe.equipment.map((item) => <span className="chip" key={item}>{item}</span>)}
+            </p>
+          ) : null}
+          <span className="expandRow">
+            <span className="expand">{openId === planned.id ? '▾' : '▸'}</span>
+            {recipe.blocks.length > 0 || nodes.length > 0 ? <span>{nodes.length || recipe.blocks.length} bloc{(nodes.length || recipe.blocks.length) > 1 ? 's' : ''}</span> : null}
+          </span>
+        </button>
+        {openId === planned.id && <SessionDetails planned={planned} result={result} revealed={!!recipe.memory && !!state.memoryReveals[recipe.memory.id]} reveal={reveal} save={saveResult} remove={removeResult} />}
+      </article>;
+    })}</section>
+  </>;
+}
+
+function StatusDot({ status }: { status: 'done' | 'partial' | 'skipped' | 'proposed' | 'coached' | 'fixed_event' }) {
+  const label = {
+    done: 'Terminée',
+    partial: 'Partielle',
+    skipped: 'Passée',
+    proposed: 'Proposée',
+    coached: 'Cours encadré',
+    fixed_event: 'Date fixe'
+  }[status];
+  return <span className={`statusDot statusDot--${status}`} title={label} aria-label={label} />;
 }
 
 function SessionDetails({ planned, result, revealed, reveal, save, remove }: { planned: PlannedSession; result?: SessionResult; revealed: boolean; reveal: (id: string) => void; save: (session: PlannedSession, result: Omit<SessionResult, 'sessionId' | 'completedAt'>) => void; remove: (session: PlannedSession) => void }) {
   const recipe = recipeById[planned.recipeId]!;
-  return <div className="sessionDetails"><p className="purpose">{recipe.purpose}</p>{planned.adaptationNote && <p className="adaptation"><b>Adaptation :</b> {planned.adaptationNote}</p>}<div className="equipment"><b>À prévoir</b><p>{recipe.equipment.join(' · ')}</p></div>{recipe.blocks.some((block) => block.approximation) && <p className="approx">Ces exercices développent les qualités du circuit. Ils restent des approximations sans équivalence avec un parcours officiel vérifié.</p>}{recipe.warmup && <ContentBlock title="Échauffement" text={recipe.warmup} />}{recipe.blocks.map((block) => <ContentBlock key={block.title} title={block.title} text={block.prescription} suffix={block.stationMappings.length ? `Postes ${block.stationMappings.join(', ')}` : undefined} />)}{recipe.memory && <div className="memory"><p className="eyebrow">LE CIRCUIT EN TÊTE</p><h4>{recipe.memory.prompt}</h4><p>Réponds de mémoire, puis vérifie.</p><button type="button" onClick={() => reveal(recipe.memory!.id)}>{revealed ? 'Masquer la réponse' : 'Voir la réponse'}<span>↗</span></button>{revealed && <p className="answer">{recipe.memory.answer}</p>}</div>}{recipe.cooldown && <ContentBlock title="Retour au calme" text={recipe.cooldown} />}<FeedbackForm planned={planned} saved={result} save={save} remove={remove} /></div>;
+  return <div className="sessionDetails">
+    <p className="purpose">{recipe.purpose}</p>
+    {planned.adaptationNote && <p className="adaptation"><b>Adaptation :</b> {planned.adaptationNote}</p>}
+    <div className="equipment"><b>À prévoir</b><p>{recipe.equipment.join(' · ')}</p></div>
+    {recipe.blocks.some((block) => block.approximation) && <p className="approx">Ces exercices développent les qualités du circuit. Ils restent des approximations sans équivalence avec un parcours officiel vérifié.</p>}
+    {recipe.warmup && <ContentBlock title="Échauffement" text={recipe.warmup} />}
+    {recipe.blocks.map((block, index) => <BlockCard key={block.title} index={index} block={block} />)}
+    {recipe.memory && <div className="memory"><p className="eyebrow">LE CIRCUIT EN TÊTE</p><h4>{recipe.memory.prompt}</h4><p>Réponds de mémoire, puis vérifie.</p><button type="button" onClick={() => reveal(recipe.memory!.id)}>{revealed ? 'Masquer la réponse' : 'Voir la réponse'}<span>↗</span></button>{revealed && <p className="answer">{recipe.memory.answer}</p>}</div>}
+    {recipe.cooldown && <ContentBlock title="Retour au calme" text={recipe.cooldown} />}
+    <FeedbackForm planned={planned} saved={result} save={save} remove={remove} />
+  </div>;
+}
+
+// CHANGE_REQUEST_009 section A — one block grammar. FAIRE is mandatory; RÈGLE,
+// NOTER and DÉTAILS render only when present. DÉTAILS is a native <details>
+// element so it is collapsed by default with no extra state to manage.
+function BlockCard({ index, block }: { index: number; block: ExerciseBlock }) {
+  return <article className="block">
+    <header className="block__head">
+      <span className="block__index">{index + 1}</span>
+      <h4>{block.title}</h4>
+      {block.regle ? <span className="block__tag">S1</span> : null}
+    </header>
+    {block.stationMappings.length ? <p className="block__stations">Postes {block.stationMappings.join(', ')}</p> : null}
+    <p className="block__line block__line--faire"><b>FAIRE</b> {block.faire}</p>
+    {block.regle ? <p className="block__line block__line--regle"><b>RÈGLE</b> {block.regle}</p> : null}
+    {block.noter ? <p className="block__line block__line--noter"><b>NOTER</b> {block.noter}</p> : null}
+    {block.details ? <details className="block__details"><summary>détails</summary><p>{block.details}</p></details> : null}
+  </article>;
 }
 
 function FeedbackForm({ planned, saved, save, remove }: { planned: PlannedSession; saved?: SessionResult; save: (session: PlannedSession, result: Omit<SessionResult, 'sessionId' | 'completedAt'>) => void; remove: (session: PlannedSession) => void }) {
-  const [effort, setEffort] = useState(saved?.effort ?? 0); const [status, setStatus] = useState<SessionResult['status']>(saved?.status ?? 'done'); const [note, setNote] = useState(saved?.note ?? ''); const [quality, setQuality] = useState<MovementQuality | ''>(saved?.movementQuality ?? ''); const [hesitation, setHesitation] = useState(saved?.boxHesitation ?? false); const [tags, setTags] = useState<NonNullable<SessionResult['overlapTags']>>(saved?.overlapTags ?? []);
+  const [effort, setEffort] = useState(saved?.effort ?? 0);
+  const [status, setStatus] = useState<SessionResult['status']>(saved?.status ?? 'done');
+  const [note, setNote] = useState(saved?.note ?? '');
+  const [quality, setQuality] = useState<MovementQuality | ''>(saved?.movementQuality ?? '');
+  const [hesitation, setHesitation] = useState(saved?.boxHesitation ?? false);
+  const [tags, setTags] = useState<NonNullable<SessionResult['overlapTags']>>(saved?.overlapTags ?? []);
   // CHANGE_REQUEST_003 record fields, Week 1 v3 only (Friday 11 Sep / Saturday 12 Sep).
-  const [memoryErrors, setMemoryErrors] = useState(numberToText(saved?.memoryErrors)); const [ballFumbles, setBallFumbles] = useState(numberToText(saved?.ballFumbles)); const [racketDropsR1, setRacketDropsR1] = useState(numberToText(saved?.racketDropsR1)); const [racketDropsR2, setRacketDropsR2] = useState(numberToText(saved?.racketDropsR2)); const [racketDropsR3, setRacketDropsR3] = useState(numberToText(saved?.racketDropsR3)); const [amrapRounds, setAmrapRounds] = useState(numberToText(saved?.amrapRounds)); const [landingQuality, setLandingQuality] = useState<LandingQuality | ''>(saved?.landingQuality ?? '');
-  const [distanceKm, setDistanceKm] = useState(numberToText(saved?.distanceKm)); const [elevationGainM, setElevationGainM] = useState(numberToText(saved?.elevationGainM)); const [durationMin, setDurationMin] = useState(numberToText(saved?.durationMin));
+  const [memoryErrors, setMemoryErrors] = useState(numberToText(saved?.memoryErrors));
+  const [ballFumbles, setBallFumbles] = useState(numberToText(saved?.ballFumbles));
+  const [racketDropsR1, setRacketDropsR1] = useState(numberToText(saved?.racketDropsR1));
+  const [racketDropsR2, setRacketDropsR2] = useState(numberToText(saved?.racketDropsR2));
+  const [racketDropsR3, setRacketDropsR3] = useState(numberToText(saved?.racketDropsR3));
+  const [amrapRounds, setAmrapRounds] = useState(numberToText(saved?.amrapRounds));
+  const [landingQuality, setLandingQuality] = useState<LandingQuality | ''>(saved?.landingQuality ?? '');
+  const [distanceKm, setDistanceKm] = useState(numberToText(saved?.distanceKm));
+  const [elevationGainM, setElevationGainM] = useState(numberToText(saved?.elevationGainM));
+  const [durationMin, setDurationMin] = useState(numberToText(saved?.durationMin));
   // CHANGE_REQUEST_007 record fields, Week 1 v3 only (Tuesday 8 Sep running-intervals exception).
-  const [intervalDistance1M, setIntervalDistance1M] = useState(numberToText(saved?.intervalDistance1M)); const [intervalDistance2M, setIntervalDistance2M] = useState(numberToText(saved?.intervalDistance2M));
-  const isCrossfit = planned.kind === 'crossfit_class'; const isRoom = planned.kind === 'room_explosive_intervals';
-  const isWeek1Friday = planned.recipeId === 'week1-fri-2026-09-11-v3'; const isWeek1Saturday = planned.recipeId === 'week1-sat-2026-09-12-trail';
+  const [intervalDistance1M, setIntervalDistance1M] = useState(numberToText(saved?.intervalDistance1M));
+  const [intervalDistance2M, setIntervalDistance2M] = useState(numberToText(saved?.intervalDistance2M));
+  const isCrossfit = planned.kind === 'crossfit_class';
+  const isRoom = planned.kind === 'room_explosive_intervals';
+  const isWeek1Friday = planned.recipeId === 'week1-fri-2026-09-11-v3';
+  const isWeek1Saturday = planned.recipeId === 'week1-sat-2026-09-12-trail';
   const isWeek1Tuesday = planned.recipeId === 'week1-tue-2026-09-08-as-trained';
-  return <form className="feedback" onSubmit={(event) => { event.preventDefault(); if (!effort) return; save(planned, { status, effort: effort as 1|2|3|4|5, note, ...(quality ? { movementQuality: quality } : {}), ...(isRoom ? { boxHesitation: hesitation } : {}), ...(isCrossfit ? { overlapTags: tags } : {}), ...(isWeek1Friday ? { ...textToNumber('memoryErrors', memoryErrors), ...textToNumber('ballFumbles', ballFumbles), ...textToNumber('racketDropsR1', racketDropsR1), ...textToNumber('racketDropsR2', racketDropsR2), ...textToNumber('racketDropsR3', racketDropsR3), ...textToNumber('amrapRounds', amrapRounds), ...(landingQuality ? { landingQuality } : {}) } : {}), ...(isWeek1Saturday ? { ...textToNumber('distanceKm', distanceKm), ...textToNumber('elevationGainM', elevationGainM), ...textToNumber('durationMin', durationMin) } : {}), ...(isWeek1Tuesday ? { ...textToNumber('intervalDistance1M', intervalDistance1M), ...textToNumber('intervalDistance2M', intervalDistance2M) } : {}) }); }}><h4>{saved ? 'Ton retour' : 'Après la séance'}</h4><div className="segmented">{(['done','partial','skipped'] as const).map((value) => <button type="button" className={status === value ? 'selected' : ''} onClick={() => setStatus(value)} key={value}>{value === 'done' ? 'Terminée' : value === 'partial' ? 'Partielle' : 'Passée'}</button>)}</div><label>Effort ressenti <small>1 très facile · 5 très difficile</small></label><div className="ratings">{[1,2,3,4,5].map((value) => <button type="button" aria-pressed={effort === value} className={effort === value ? 'selected' : ''} onClick={() => setEffort(value)} key={value}>{value}</button>)}</div>{(isRoom || planned.kind === 'outdoor_explosive_intervals') && <><label>Qualité du mouvement</label><div className="segmented">{(['crisp','mixed','degraded'] as const).map((value) => <button type="button" className={quality === value ? 'selected' : ''} onClick={() => setQuality(value)} key={value}>{value === 'crisp' ? 'Propre' : value === 'mixed' ? 'Variable' : 'Dégradée'}</button>)}</div></>}{isRoom && <label className="check"><input type="checkbox" checked={hesitation} onChange={(event) => setHesitation(event.target.checked)}/> Hésitation ou manque de confiance à la box</label>}{isCrossfit && <div className="tags"><label>Chevauchements à signaler</label>{(['grip','jumping','heavy_legs','hard_conditioning'] as const).map((tag) => <button type="button" key={tag} className={tags.includes(tag) ? 'selected' : ''} onClick={() => setTags(tags.includes(tag) ? tags.filter((item) => item !== tag) : [...tags, tag])}>{tag === 'grip' ? 'Grip' : tag === 'jumping' ? 'Sauts' : tag === 'heavy_legs' ? 'Jambes lourdes' : 'Conditioning dur'}</button>)}</div>}{isWeek1Friday && <div className="week1Fields"><label>Erreurs de mémoire <small>facultatif</small><input type="number" min={0} step={1} inputMode="numeric" value={memoryErrors} onChange={(event) => setMemoryErrors(event.target.value)} /></label><label>Balles échappées <small>facultatif</small><input type="number" min={0} step={1} inputMode="numeric" value={ballFumbles} onChange={(event) => setBallFumbles(event.target.value)} /></label><label>Chutes raquette R1 <small>facultatif</small><input type="number" min={0} step={1} inputMode="numeric" value={racketDropsR1} onChange={(event) => setRacketDropsR1(event.target.value)} /></label><label>Chutes raquette R2 <small>facultatif</small><input type="number" min={0} step={1} inputMode="numeric" value={racketDropsR2} onChange={(event) => setRacketDropsR2(event.target.value)} /></label><label>Chutes raquette R3 <small>facultatif</small><input type="number" min={0} step={1} inputMode="numeric" value={racketDropsR3} onChange={(event) => setRacketDropsR3(event.target.value)} /></label><label>Tours AMRAP <small>facultatif, ex. 4.5</small><input type="number" min={0} step={0.5} inputMode="decimal" value={amrapRounds} onChange={(event) => setAmrapRounds(event.target.value)} /></label><label>Qualité de réception <small>facultatif</small><div className="segmented">{(['clean','mixed','sloppy'] as const).map((value) => <button type="button" className={landingQuality === value ? 'selected' : ''} onClick={() => setLandingQuality(value)} key={value}>{value === 'clean' ? 'Propre' : value === 'mixed' ? 'Variable' : 'Bâclée'}</button>)}</div></label></div>}{isWeek1Saturday && <div className="week1Fields"><label>Distance (km) <small>facultatif</small><input type="number" min={0} step={0.1} inputMode="decimal" value={distanceKm} onChange={(event) => setDistanceKm(event.target.value)} /></label><label>Dénivelé D+ (m) <small>facultatif</small><input type="number" min={0} step={1} inputMode="numeric" value={elevationGainM} onChange={(event) => setElevationGainM(event.target.value)} /></label><label>Durée (min) <small>facultatif</small><input type="number" min={0} step={1} inputMode="numeric" value={durationMin} onChange={(event) => setDurationMin(event.target.value)} /></label></div>}{isWeek1Tuesday && <div className="week1Fields"><label>Distance intervalle 1 (m) <small>facultatif</small><input type="number" min={0} step={1} inputMode="numeric" value={intervalDistance1M} onChange={(event) => setIntervalDistance1M(event.target.value)} /></label><label>Distance intervalle 2 (m) <small>facultatif</small><input type="number" min={0} step={1} inputMode="numeric" value={intervalDistance2M} onChange={(event) => setIntervalDistance2M(event.target.value)} /></label></div>}<label>Note <small>facultative</small><textarea rows={3} maxLength={1500} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Sensations, appuis, hésitation…" /></label><button className="primary" disabled={!effort} type="submit">{saved ? 'Enregistrer les changements' : '✓ Enregistrer la séance'}</button>{saved && <button className="textButton" type="button" onClick={() => remove(planned)}>Retirer cette validation</button>}</form>;
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!effort) return;
+    save(planned, {
+      status,
+      effort: effort as 1 | 2 | 3 | 4 | 5,
+      note,
+      ...(quality ? { movementQuality: quality } : {}),
+      ...(isRoom ? { boxHesitation: hesitation } : {}),
+      ...(isCrossfit ? { overlapTags: tags } : {}),
+      ...(isWeek1Friday ? {
+        ...textToNumber('memoryErrors', memoryErrors),
+        ...textToNumber('ballFumbles', ballFumbles),
+        ...textToNumber('racketDropsR1', racketDropsR1),
+        ...textToNumber('racketDropsR2', racketDropsR2),
+        ...textToNumber('racketDropsR3', racketDropsR3),
+        ...textToNumber('amrapRounds', amrapRounds),
+        ...(landingQuality ? { landingQuality } : {})
+      } : {}),
+      ...(isWeek1Saturday ? {
+        ...textToNumber('distanceKm', distanceKm),
+        ...textToNumber('elevationGainM', elevationGainM),
+        ...textToNumber('durationMin', durationMin)
+      } : {}),
+      ...(isWeek1Tuesday ? {
+        ...textToNumber('intervalDistance1M', intervalDistance1M),
+        ...textToNumber('intervalDistance2M', intervalDistance2M)
+      } : {})
+    });
+  }
+
+  return <form className="feedback" onSubmit={submit}>
+    <h4>{saved ? 'Ton retour' : 'Après la séance'}</h4>
+    <div className="segmented">{(['done', 'partial', 'skipped'] as const).map((value) => <button type="button" className={status === value ? 'selected' : ''} onClick={() => setStatus(value)} key={value}>{value === 'done' ? 'Terminée' : value === 'partial' ? 'Partielle' : 'Passée'}</button>)}</div>
+    <label>Effort ressenti <small>1 très facile · 5 très difficile</small></label>
+    <div className="ratings">{[1, 2, 3, 4, 5].map((value) => <button type="button" aria-pressed={effort === value} className={effort === value ? 'selected' : ''} onClick={() => setEffort(value)} key={value}>{value}</button>)}</div>
+    {(isRoom || planned.kind === 'outdoor_explosive_intervals') && <>
+      <label>Qualité du mouvement</label>
+      <div className="segmented">{(['crisp', 'mixed', 'degraded'] as const).map((value) => <button type="button" className={quality === value ? 'selected' : ''} onClick={() => setQuality(value)} key={value}>{value === 'crisp' ? 'Propre' : value === 'mixed' ? 'Variable' : 'Dégradée'}</button>)}</div>
+    </>}
+    {isRoom && <label className="check"><input type="checkbox" checked={hesitation} onChange={(event) => setHesitation(event.target.checked)} /> Hésitation ou manque de confiance à la box</label>}
+    {isCrossfit && <div className="tags"><label>Chevauchements à signaler</label>{(['grip', 'jumping', 'heavy_legs', 'hard_conditioning'] as const).map((tag) => <button type="button" key={tag} className={tags.includes(tag) ? 'selected' : ''} onClick={() => setTags(tags.includes(tag) ? tags.filter((item) => item !== tag) : [...tags, tag])}>{tag === 'grip' ? 'Grip' : tag === 'jumping' ? 'Sauts' : tag === 'heavy_legs' ? 'Jambes lourdes' : 'Conditioning dur'}</button>)}</div>}
+    {isWeek1Friday && <div className="week1Fields">
+      <NumberField label="Erreurs de mémoire" value={memoryErrors} onChange={setMemoryErrors} step={1} />
+      <NumberField label="Balles échappées" value={ballFumbles} onChange={setBallFumbles} step={1} />
+      <NumberField label="Chutes raquette R1" value={racketDropsR1} onChange={setRacketDropsR1} step={1} />
+      <NumberField label="Chutes raquette R2" value={racketDropsR2} onChange={setRacketDropsR2} step={1} />
+      <NumberField label="Chutes raquette R3" value={racketDropsR3} onChange={setRacketDropsR3} step={1} />
+      <NumberField label="Tours AMRAP" value={amrapRounds} onChange={setAmrapRounds} step={0.5} placeholder="facultatif, ex. 4.5" />
+      <label>Qualité de réception <small>facultatif</small></label>
+      <div className="segmented">{(['clean', 'mixed', 'sloppy'] as const).map((value) => <button type="button" className={landingQuality === value ? 'selected' : ''} onClick={() => setLandingQuality(value)} key={value}>{value === 'clean' ? 'Propre' : value === 'mixed' ? 'Variable' : 'Bâclée'}</button>)}</div>
+    </div>}
+    {isWeek1Saturday && <div className="week1Fields">
+      <NumberField label="Distance" value={distanceKm} onChange={setDistanceKm} step={0.1} unit="km" />
+      <NumberField label="Dénivelé D+" value={elevationGainM} onChange={setElevationGainM} step={1} unit="m" />
+      <NumberField label="Durée" value={durationMin} onChange={setDurationMin} step={1} unit="min" />
+    </div>}
+    {isWeek1Tuesday && <div className="week1Fields">
+      <NumberField label="Distance intervalle 1" value={intervalDistance1M} onChange={setIntervalDistance1M} step={1} unit="m" />
+      <NumberField label="Distance intervalle 2" value={intervalDistance2M} onChange={setIntervalDistance2M} step={1} unit="m" />
+    </div>}
+    <label>Note <small>facultative</small></label>
+    <textarea rows={3} maxLength={1500} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Sensations, appuis, hésitation…" />
+    <button className="primary" disabled={!effort} type="submit">{saved ? 'Enregistrer les changements' : '✓ Enregistrer la séance'}</button>
+    {saved && <button className="textButton" type="button" onClick={() => remove(planned)}>Retirer cette validation</button>}
+  </form>;
+}
+
+// CHANGE_REQUEST_009 section D — one field per row: the label always sits on
+// its own line above a full-width box, and the unit (or "facultatif" when
+// there is none) lives inside the box as a placeholder instead of a second
+// text line, so nothing can wrap sideways into the previous field's box.
+function NumberField({ label, value, onChange, step, unit, placeholder }: { label: string; value: string; onChange: (value: string) => void; step: number; unit?: string; placeholder?: string }) {
+  return <label className="numField">
+    <span>{label}</span>
+    <input
+      type="number"
+      min={0}
+      step={step}
+      inputMode={step < 1 ? 'decimal' : 'numeric'}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder={placeholder ?? unit ?? 'facultatif'}
+    />
+  </label>;
 }
 
 function numberToText(value: number | undefined): string { return value === undefined ? '' : String(value); }
