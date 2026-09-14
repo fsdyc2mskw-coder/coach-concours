@@ -142,16 +142,31 @@ as AGENTS.md itself); rewriting the README is a good candidate for its own chang
   three colour mappings before this change request (test already existed and passes
   conceptually against unchanged data).
 
-## G. Verification — could not run locally
+## G. Verification
 
-**No Node.js/pnpm is installed in this session** (same situation CR-009's worker reported:
-"the worker had no Node, so CI is the gate"). `pnpm typecheck`, `pnpm test`, `pnpm build`
-and `pnpm run validate:schemas` were **not run**. I re-read every changed file by hand for
-type and reference errors (brace/paren balance checked programmatically for `planner.ts`)
-and traced every cross-file reference to the renamed/removed kinds and deleted files before
-committing, but this is not a substitute for the CI run. **The Actions run on the pull
-request (once someone can open it) is the real gate for this change request**, same as it
-was for CR-009.
+The PR's CI run (`build` job) failed at the Type check step on the first push: two
+`error TS2367` comparisons in `src/CoachConcoursApp.tsx` still checked
+`planned.kind === 'room_explosive_intervals'` / `'outdoor_explosive_intervals'` — the UI
+feedback-form gates (movement-quality field, box-hesitation checkbox) that section B's
+table did not cover because they live outside `recipes.ts`/`planner.ts`. This session had
+no Node.js at first (same situation CR-009's worker reported), then downloaded a portable
+Node 22 build to actually reproduce and fix CI's failure instead of guessing at it. Fixed
+by renaming the two string literals to `police_integration` and `police_strength_transitions`
+respectively (same re-tagging as their source recipes, `room` and `outdoor`; no behaviour
+change to which sessions show which feedback fields).
+
+After the fix, ran all four CI steps locally and all pass:
+
+```
+pnpm run validate:schemas   → OK (3/3 schemas)
+pnpm run typecheck          → clean
+pnpm run test               → 7 test files, 44 tests, all pass
+pnpm run build              → clean (dist/ generated, PWA precache built)
+```
+
+`pnpm run check`'s extra `validate:repository` step was not run against CI's exact
+invocation (CI does not run it either, see section D), but was exercised implicitly while
+fixing its `requiredFiles` list.
 
 ## H. Files touched
 

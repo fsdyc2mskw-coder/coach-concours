@@ -303,7 +303,10 @@ function FeedbackForm({ planned, saved, save, remove }: { planned: PlannedSessio
   const [intervalDistance1M, setIntervalDistance1M] = useState(numberToText(saved?.intervalDistance1M));
   const [intervalDistance2M, setIntervalDistance2M] = useState(numberToText(saved?.intervalDistance2M));
   const isCrossfit = planned.kind === 'crossfit_class';
-  const isRoom = planned.kind === 'room_explosive_intervals';
+  // CHANGE_REQUEST_001 — 'room' is re-tagged from `room_explosive_intervals`
+  // to `police_integration`; this still gates the same box-jump / movement-
+  // quality feedback fields, unchanged.
+  const isRoom = planned.kind === 'police_integration';
   const isWeek1Friday = planned.recipeId === 'week1-fri-2026-09-11-v3';
   const isWeek1Saturday = planned.recipeId === 'week1-sat-2026-09-12-trail';
   const isWeek1Tuesday = planned.recipeId === 'week1-tue-2026-09-08-as-trained';
@@ -344,7 +347,8 @@ function FeedbackForm({ planned, saved, save, remove }: { planned: PlannedSessio
     <div className="segmented">{(['done', 'partial', 'skipped'] as const).map((value) => <button type="button" className={status === value ? 'selected' : ''} onClick={() => setStatus(value)} key={value}>{value === 'done' ? 'Terminée' : value === 'partial' ? 'Partielle' : 'Passée'}</button>)}</div>
     <label>Effort ressenti <small>1 très facile · 5 très difficile</small></label>
     <div className="ratings">{[1, 2, 3, 4, 5].map((value) => <button type="button" aria-pressed={effort === value} className={effort === value ? 'selected' : ''} onClick={() => setEffort(value)} key={value}>{value}</button>)}</div>
-    {(isRoom || planned.kind === 'outdoor_explosive_intervals') && <>
+    {/* CHANGE_REQUEST_001 — 'outdoor' is re-tagged from `outdoor_explosive_intervals` to `police_strength_transitions`. */}
+    {(isRoom || planned.kind === 'police_strength_transitions') && <>
       <label>Qualité du mouvement</label>
       <div className="segmented">{(['crisp', 'mixed', 'degraded'] as const).map((value) => <button type="button" className={quality === value ? 'selected' : ''} onClick={() => setQuality(value)} key={value}>{value === 'crisp' ? 'Propre' : value === 'mixed' ? 'Variable' : 'Dégradée'}</button>)}</div>
     </>}
