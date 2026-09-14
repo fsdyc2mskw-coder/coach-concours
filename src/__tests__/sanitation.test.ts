@@ -10,10 +10,13 @@
 //
 // The default actually used by the running app (CoachConcoursApp.tsx →
 // src/infrastructure/coachStorage.ts's createInitialState) is `athleteName:
-// 'Athlète'`. src/app/seed.ts also has a default profile
-// (`displayName: 'Max'`) but that belongs to src/domain/types.ts's generic
-// AppState, which is not wired into the app (main.tsx renders only
-// CoachConcoursApp, backed by CoachState) — see APP_REPORT_008.md.
+// 'Athlète'`. `src/app/seed.ts` had a default profile (`displayName: 'Max'`)
+// for the generic `src/domain/types.ts` AppState, which was never wired into
+// the app (main.tsx renders only CoachConcoursApp, backed by CoachState) —
+// see APP_REPORT_008.md. CHANGE_REQUEST_001 deletes that dead code
+// (src/domain, src/App.tsx, src/app/*, src/infrastructure/storage.ts,
+// src/infrastructure/driveSync.ts and the components/screens that only it
+// used) — see APP_REPORT_001.md.
 import { describe, expect, it } from 'vitest';
 import { createInitialState } from '../infrastructure/coachStorage';
 

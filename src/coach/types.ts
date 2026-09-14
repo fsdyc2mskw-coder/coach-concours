@@ -1,11 +1,18 @@
+// CHANGE_REQUEST_001 — aligned with the 9 September rules (weekly_shape.md v2,
+// TRAINING_ENGINE.md). `police_balance_coordination`, `room_explosive_intervals`
+// and `outdoor_explosive_intervals` are gone from this active union: the
+// recipes that used to carry them are re-tagged (see recipes.ts), not
+// deleted. `running_intervals_exception` stays only for Week 1's documented
+// Tuesday exception (R-WS-08); it is never produced by the generator itself.
 export type SessionKind =
   | 'crossfit_class'
-  | 'room_explosive_intervals'
-  | 'outdoor_explosive_intervals'
   | 'police_technique'
-  | 'police_balance_coordination'
-  | 'running_intervals_exception'
+  | 'police_strength_transitions'
+  | 'police_integration'
+  | 'police_mock_test'
+  | 'trail_maintenance'
   | 'trail_event'
+  | 'running_intervals_exception'
   | 'police_event';
 
 export type PlanPhase =
