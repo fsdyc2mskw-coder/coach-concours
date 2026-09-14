@@ -1,8 +1,8 @@
 # 00_COCKPIT, Coach Concours
 
 > **Start here.** Single entry point. Every agent and every human reads this, then works in
-> exactly one folder. Version 2.13, 13 September 2026 (Sunday, late night).
-> Previous versions archived in `90_Archive/` (v2.1 to v2.12).
+> exactly one folder. Version 2.14, 14 September 2026 (Monday).
+> Previous versions archived in `90_Archive/` (v2.1 to v2.13).
 > **Sanitation rule (v2.9)**: no person's name (the athlete, family, friends, coaches, earlier
 > contributors), no e-mail, no personal hostname, device name or personal folder path in
 > this file, in any handoff or in the repository. The person training is **the athlete**.
@@ -90,11 +90,11 @@ app proposes WEEK_n ──► Cowork review ──► WEEK_n_FINAL ──► ath
 Until the card library is big enough for the app to generate alone, Claude writes
 `WEEK_n_FINAL` by hand with the athlete from the same rules and cards.
 
-## 5. App status (13 Sep, late night) and change-request queue
+## 5. App status (14 Sep) and change-request queue
 
 ```
-WHAT RUNS TODAY (pushed to origin/main and verified live, 13 Sep late night)
-code on main = CR-003 + CR-004 + CR-005 + CR-006 + CR-007 + CR-008, all pushed
+WHAT RUNS TODAY (pushed to origin/main and verified live, 14 Sep)
+code on main = CR-003 + CR-004 + CR-005 + CR-006 + CR-007 + CR-008 + CR-009, all pushed
 CR-005: Drive sync runs on app open, after every save and on reconnect; conflict rule
  "higher revision wins, tie keeps local"; account email masked; CI injects
  VITE_GOOGLE_CLIENT_ID at build time. OAuth client id created and the repository
@@ -107,6 +107,15 @@ CR-008: first real test suite landed. 5 files, 23 tests (week1, stations, calend
  One sanitation issue found in dead/unreachable legacy code (src/app/seed.ts, a
  first-name-shaped literal in the unused AppState path) — flagged, left unfixed
  (out of scope for CR-008), spawned as its own follow-up task for the athlete.
+CR-009: navy/sand theme, four-slot block grammar (faire/regle/noter/details), day-header
+ flow strip and equipment chips, status dot replacing the "Proposée" pill, and the phone
+ feedback-form label-wrap bug fixed (NumberField: label always above a full-width box,
+ unit/"facultatif" as placeholder). PR #1 merged 14 Sep, tag cr-009 on the merge commit
+ (afcb6d8). Coding session had no Node.js and no git-push credentials in its sandbox:
+ typecheck/test/build were checked by hand, not run locally, and the branch/PR were
+ pushed/opened by the athlete via GitHub Desktop and the GitHub web UI instead — CI ran
+ for real on push and came back green (1 skipped, 1 successful check), no conflicts.
+ Full detail in APP_REPORT_009.md, including the Week 1 block mapping table.
 Week 1 in the app: Thu/Fri/Sat = WEEK_1_FINAL v3 · Mon ok · Tue/Wed corrected by CR-007
 Weeks 2-11 in the app: old template (Fri standalone intervals, Sat circuit, no trail run) → CR-001
 storage: IndexedDB coach-concours-db + localStorage copy, one copy per device; tested:
@@ -114,8 +123,7 @@ storage: IndexedDB coach-concours-db + localStorage copy, one copy per device; t
 sanitation: repo clean since CR-006, except the one CR-008 finding above (dead code, not fixed)
 
 CODER QUEUE (Claude Code), one request per session, in this order:
-CR-009 [MID] infra navy + sand theme, four-slot block grammar, day header flow strip ← next
-CR-001 [TOP] engine app aligned with the 9 Sep rules (v2), Week 2 data if WEEK_2_FINAL exists
+CR-001 [TOP] engine app aligned with the 9 Sep rules (v2), Week 2 data if WEEK_2_FINAL exists ← next
 CR-002 [TOP] engine one HIIT block per police session (v2), dose from recorded capacity
 later [TOP] Level 2 feedback fields per card + adaptation rules (after ~25 cards)
 
@@ -139,6 +147,9 @@ COWORK, in parallel:
 
 ## 7. Decisions log (newest first)
 
+| Date | Decision |
+|---|---|
+| 14 Sep | **CR-009 done** (tag `cr-009`, merge commit `afcb6d8`, APP_REPORT_009.md). Theme, block grammar and the phone form-label bug are live on `main`. CI green on push. **Coder-environment gap surfaced**: the CR-009 coding session ran in a sandbox with no Node.js and no GitHub push credentials, so it could not run `pnpm typecheck/test/build` itself or push its own branch/open its own PR — the athlete did the push and PR creation from GitHub Desktop and github.com instead, and CI validated the code for real on that push. Section 2's "coder worker … opens a pull request" assumption does not hold in every environment; noted here rather than silently worked around |
 | Date | Decision |
 |---|---|
 | 13 Sep late night | **CR-008 done** (tag `cr-008`, final commit `3e3baeb`, after two follow-up commits on top of `aac5a73`): first real test suite — `vitest.config.ts` + 5 files under `src/__tests__/` (week1, stations, calendar, persistence, sanitation), 23 tests, no app behaviour changed. **Two self-correction fixups landed on top of the first commit**: (1) `@types/node` was missing from `package.json`/`pnpm-lock.yaml` even though `sanitation.test.ts` needs it to typecheck — an earlier "clean" local verification was contaminated by a stray leftover install and passed by accident; caught by a true cold-checkout test (`rm -rf node_modules && pnpm install --frozen-lockfile`) and fixed for real; (2) `APP_REPORT_008.md` corrected to stop repeating that wrong claim. Pushed to `origin/main` via GitHub Desktop (this session had no git credentials); GitHub Actions run #7 succeeded, 51 s, build+deploy both green, live on Pages. One sanitation finding in dead code (`src/app/seed.ts`), left unfixed per CR-008's scope, flagged for a separate follow-up. Full detail, including two documented discrepancies between the CR's prose and the actual code (the CR-005 conflict logic lives in `coachDrive.ts`, not `driveSync.ts` as the CR assumed; the repo has two parallel state shapes, one of them legacy/dead) in `APP_REPORT_008.md`. |
