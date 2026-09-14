@@ -1,4 +1,7 @@
 // CHANGE_REQUEST_008 — Week 1 test.
+// CHANGE_REQUEST_001 — kind values updated (Thursday: police_strength_transitions,
+// Saturday: trail_maintenance) to match handoffs/WEEK_1_FINAL_2026-09-07_to_13.md
+// v3's own wording verbatim; behaviour and data are otherwise unchanged.
 //
 // Asserts that the Week 1 (7-13 Sep 2026) data produced by src/coach/planner.ts
 // matches handoffs/WEEK_1_FINAL_2026-09-07_to_13.md v3 (Mon-Sun): 7 calendar
@@ -7,9 +10,6 @@
 // running_intervals_exception on Tuesday is an explicitly documented
 // exception that does not count as the week's run — see its own `purpose`
 // text in src/coach/recipes.ts and the handoff's design-rules section).
-//
-// No behaviour is changed by this file: it only describes what the current
-// code already does.
 import { describe, expect, it } from 'vitest';
 import { generatePlan } from '../coach/planner';
 import { recipes } from '../coach/recipes';
@@ -44,13 +44,13 @@ describe('week 1 (2026-09-07 to 2026-09-13), per WEEK_1_FINAL v3', () => {
     expect(byDate['2026-09-08']?.kind).toBe('running_intervals_exception');
     expect(byDate['2026-09-08']?.recipeId).toBe(recipes.week1Tue8Sep!.id);
 
-    expect(byDate['2026-09-10']?.kind).toBe('room_explosive_intervals');
+    expect(byDate['2026-09-10']?.kind).toBe('police_strength_transitions');
     expect(byDate['2026-09-10']?.recipeId).toBe(recipes.week1Thu10Sep!.id);
 
     expect(byDate['2026-09-11']?.kind).toBe('police_technique');
     expect(byDate['2026-09-11']?.recipeId).toBe(recipes.week1Fri11Sep!.id);
 
-    expect(byDate['2026-09-12']?.kind).toBe('trail_event');
+    expect(byDate['2026-09-12']?.kind).toBe('trail_maintenance');
     expect(byDate['2026-09-12']?.recipeId).toBe(recipes.week1Sat12Sep!.id);
 
     expect(week1!.sessions.map((session) => session.date)).toEqual([
@@ -62,9 +62,9 @@ describe('week 1 (2026-09-07 to 2026-09-13), per WEEK_1_FINAL v3', () => {
     ]);
   });
 
-  it('has Saturday as the only "week run" slot (trail_event/outdoor_explosive_intervals)', () => {
+  it('has Saturday as the only "week run" slot (trail_maintenance)', () => {
     const runSlots = week1!.sessions.filter(
-      (session) => session.kind === 'trail_event' || session.kind === 'outdoor_explosive_intervals'
+      (session) => session.kind === 'trail_maintenance' || session.kind === 'trail_event'
     );
     expect(runSlots).toHaveLength(1);
     expect(runSlots[0]?.date).toBe('2026-09-12');

@@ -1,4 +1,8 @@
-import type { GoogleAccount } from '../domain/types';
+export interface GoogleAccount {
+  email: string;
+  name: string;
+  picture?: string;
+}
 
 const GOOGLE_SCRIPT_ID = 'google-identity-services';
 const GOOGLE_SCRIPT_URL = 'https://accounts.google.com/gsi/client';

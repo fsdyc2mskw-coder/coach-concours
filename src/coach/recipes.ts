@@ -4,10 +4,16 @@ export const recipes: Record<string, SessionRecipe> = {
   crossfit: {
     id: 'crossfit-coached-v1', version: 1, kind: 'crossfit_class', title: 'CrossFit coaché',
     purpose: "Suivre le cours encadré du lundi. Le contenu est défini sur place par le coach et reste distinct de la séance personnelle en salle.",
-    durationMin: null, equipment: ['Matériel prévu par le coach du cours.'], warmup: null, blocks: [], cooldown: null
+    durationMin: null, equipment: ['Matériel prévu par le coach du cours.'], warmup: null, blocks: [], cooldown: null,
+    // CHANGE_REQUEST_001 — R-WS-12, module B (rules / prohibited-actions recall).
+    // Grounded in the official rule for station 3 (docs/police-v1/examples/police-stations.json).
+    memory: { id: 'memory-crossfit-station3-rule', prompt: 'Au poste 3 (espaliers), quel geste est interdit en descente ?', answer: 'La « bascule » est interdite. La descente peut être normale en avant, en arrière, ou par saut.' }
   },
   coordination: {
-    id: 'coordination-balance-v2', version: 2, kind: 'police_balance_coordination', title: 'Coordination & équilibre',
+    // CHANGE_REQUEST_001 — re-tagged from `police_balance_coordination` (removed
+    // kind) to `police_technique`; reused as Tuesday's fresh-skill session
+    // (cockpit decision, 13 Sep). Content and id unchanged.
+    id: 'coordination-balance-v2', version: 2, kind: 'police_technique', title: 'Coordination & équilibre',
     purpose: 'Installer les automatismes des postes 8 à 11 avec précision et sans finisher intense.', durationMin: 40,
     equipment: ['Ballon de basket', 'repères colorés', 'corde à sauter', 'raquette et balle', 'appui stable'],
     warmup: '6 min : marche douce 2 min, mobilité des chevilles et épaules 2 min, puis pas lents avec arrêt stable 2 min.',
@@ -20,7 +26,11 @@ export const recipes: Record<string, SessionRecipe> = {
     memory: { id: 'memory-s8-blue', prompt: 'Au poste 8, quelle action correspond au bleu ?', answer: 'Pied droit et dribble de la main droite. Jaune : pieds joints sans dribble ; rouge : pied gauche et main gauche.' }
   },
   room: {
-    id: 'room-explosive-v2', version: 2, kind: 'room_explosive_intervals', title: 'Explosivité en salle',
+    // CHANGE_REQUEST_001 — re-tagged from `room_explosive_intervals` (removed
+    // kind) to `police_integration`: its "micro-circuit police" block already
+    // links stations 1, 2, 4, 5, 6 and 7 into one sequence (role D in
+    // TRAINING_ENGINE.md). Content and id unchanged.
+    id: 'room-explosive-v2', version: 2, kind: 'police_integration', title: 'Explosivité en salle',
     purpose: 'Répéter des efforts explosifs courts tout en gardant des appuis précis, des réceptions stables et un franchissement confiant.', durationMin: 40,
     equipment: ['Échelle d’agilité', 'repères au sol', 'ballon', 'box basse et stable si adaptée', 'équipement personnel confirmé'],
     warmup: '10 min : 4 min de marche active ou trot facile, 3 min de mobilité chevilles/hanches, puis 3 min de passages lents dans l’échelle et d’approches contrôlées.',
@@ -32,13 +42,26 @@ export const recipes: Record<string, SessionRecipe> = {
     memory: { id: 'memory-s2-count', prompt: 'Au poste 2, combien de passages aller et retour faut-il mémoriser ?', answer: '5 allers avec le ballon et 4 retours à vide. Le travail proposé reste une approximation tant que l’obstacle officiel n’est pas vérifié.' }
   },
   outdoor: {
-    id: 'outdoor-explosive-v2', version: 2, kind: 'outdoor_explosive_intervals', title: 'Intervalles en extérieur',
+    // CHANGE_REQUEST_001 — re-tagged from `outdoor_explosive_intervals` (removed
+    // kind) to `police_strength_transitions`: it is the hard conditioning
+    // block of role C (power → conditioning → fatigue precision) in
+    // TRAINING_ENGINE.md. Not used by the weekly generator by default in this
+    // change request (see planner.ts); kept in the library as the floating
+    // running-interval block CR-002 wires into every police session.
+    id: 'outdoor-explosive-v2', version: 2, kind: 'police_strength_transitions', title: 'Intervalles en extérieur',
     purpose: 'Développer les accélérations répétées tout en préservant la posture, les appuis et le freinage.', durationMin: 35,
     equipment: ['Chaussures de course', 'chronomètre', 'terrain plat dégagé avec zone de ralentissement'],
     warmup: '12 min : 8 min de marche ou trot facile, 2 min de mobilité dynamique, puis 2 accélérations progressives de 10 s.',
     blocks: [{ title: '6 × 20 s vite / 80 s facile', faire: 'Courir vite mais sous la vitesse de sprint maximal pendant 20 s, puis marcher ou trottiner 80 s. Rester grand et ralentir progressivement. Écourter si la posture ou les appuis se dégradent.', stationMappings: [] }],
-    cooldown: '10 min de marche ou trot très facile, sans cible de fréquence cardiaque.'
+    cooldown: '10 min de marche ou trot très facile, sans cible de fréquence cardiaque.',
+    // CHANGE_REQUEST_001 — R-WS-12, module C (fatigued recall). Reuses the
+    // 5→6 alternation fact already established in the `technique` recipe below.
+    memory: { id: 'memory-strength-s5-s6-fatigued', prompt: 'Sous fatigue, quel est l’ordre d’alternance à retenir entre les postes 5 et 6 ?', answer: '5 → 6 → 5 → 6 : pousser, trier et placer, tirer en retour, puis retirer et rapporter les objets.' }
   },
+  // CHANGE_REQUEST_001 — kind unchanged (already `police_technique`); the
+  // weekly generator uses `coordination` for the Tuesday technique slot from
+  // 14 Sep on, so this recipe is now a library/bank entry, not scheduled by
+  // default. Left in place for manual reuse.
   technique: {
     id: 'police-technique-v2', version: 2, kind: 'police_technique', title: 'Technique du circuit',
     purpose: 'Construire la confiance à l’obstacle et relier des gestes propres pour les postes de coordination, équilibre et précision.', durationMin: 45,
@@ -57,17 +80,36 @@ export const recipes: Record<string, SessionRecipe> = {
     purpose: 'Participer au trail prévu. Cet événement remplace l’unique course de la semaine.', durationMin: null,
     equipment: ['Équipement prévu pour l’événement'], warmup: null, blocks: [], cooldown: null
   },
+  // CHANGE_REQUEST_001 — new recipe: the ordinary weekend run (R-WS-03/04/05),
+  // distinct from `trailEvent` (the fixed 11 Oct race, R-WS-06). Run-only, no
+  // police/balance/conditioning finisher (R-WS-04). Distance and D+ stay text
+  // guidance for now — see APP_REPORT_001.md for the open question on
+  // automatic week-to-week progression.
+  trailMaintenance: {
+    id: 'trail-maintenance-v1', version: 1, kind: 'trail_maintenance', title: 'Trail — sortie de maintien',
+    purpose: 'Course de maintien, majoritairement facile, allure conversationnelle. Progresse de 7-8 km vers 12 km sans jamais dépasser 12 km / 450 m D+ par génération automatique (R-WS-05). Course uniquement : aucun travail police, équilibre ou conditioning attaché (R-WS-04).',
+    durationMin: null,
+    equipment: ['Chaussures de trail'],
+    warmup: null,
+    blocks: [{ title: 'Sortie facile', faire: 'Allure conversationnelle, majoritairement facile. Distance et dénivelé à confirmer selon la forme et la phase (7-8 km au départ, jusqu’à 12 km / 450 m D+ maximum).', stationMappings: [] }],
+    cooldown: null
+  },
   policeEvent: {
     id: 'police-event-2026-11-20', version: 1, kind: 'police_event', title: 'Concours de police',
     purpose: 'Jour du concours : exécuter le circuit proprement et avec confiance.', durationMin: null,
     equipment: ['Équipement demandé par l’organisation'], warmup: null, blocks: [], cooldown: null
   },
   // CHANGE_REQUEST_003 — Week 1 (7-13 Sep 2026) as trained/finalised, WEEK_1_FINAL v3.
-  // `police_strength_transitions` and `trail_maintenance` are not yet real SessionKind
-  // values (that is CR-001); substituted below with the closest existing kind and noted
-  // in APP_REPORT_003. Free text only, no exercise-card ids yet (CR-003 explicitly allows this).
+  // Free text only, no exercise-card ids yet (CR-003 explicitly allows this).
+  // Kind values corrected to their real SessionKind by CHANGE_REQUEST_001 (see
+  // each recipe below); CR-003's original substitution is recorded in
+  // APP_REPORT_003.md for history.
   week1Thu10Sep: {
-    id: 'week1-thu-2026-09-10-as-trained', version: 1, kind: 'room_explosive_intervals',
+    // CHANGE_REQUEST_001 — kind corrected to `police_strength_transitions` to
+    // match handoffs/WEEK_1_FINAL_2026-09-07_to_13.md v3 verbatim ("Type:
+    // `police_strength_transitions`"). Content, id and dates unchanged
+    // (Week 1 stays frozen, R-WS-15).
+    id: 'week1-thu-2026-09-10-as-trained', version: 1, kind: 'police_strength_transitions',
     title: 'Séance police, telle qu’entraînée (jeudi 10 sept.)',
     purpose: "Séance principale police modifiée sur le moment pour rester réaliste : jambes lourdes après lundi/mardi, box 20 pouces disponible, pas de rameur ni de kettlebell.",
     durationMin: 37,
@@ -114,7 +156,11 @@ export const recipes: Record<string, SessionRecipe> = {
     cooldown: null
   },
   week1Sat12Sep: {
-    id: 'week1-sat-2026-09-12-trail', version: 1, kind: 'trail_event',
+    // CHANGE_REQUEST_001 — kind corrected to `trail_maintenance` to match
+    // handoffs/WEEK_1_FINAL_2026-09-07_to_13.md v3 verbatim ("Saturday 12
+    // September — Trail run (`trail_maintenance`)"). Content, id and dates
+    // unchanged (Week 1 stays frozen, R-WS-15).
+    id: 'week1-sat-2026-09-12-trail', version: 1, kind: 'trail_maintenance',
     title: 'Sortie trail de maintien (samedi 12 sept.)',
     purpose: 'Course facile de maintien. Course uniquement : pas de travail police, pas d’équilibre, pas de finisher de conditioning, pas d’intervalles.',
     durationMin: null,

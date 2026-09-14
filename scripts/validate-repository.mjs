@@ -3,17 +3,22 @@ import { dirname, extname, join, normalize, relative, resolve } from 'node:path'
 
 const root = process.cwd();
 const ignoredDirectories = new Set(['.git', 'node_modules', 'dist', 'coverage']);
+// CHANGE_REQUEST_001 — list corrected to the files that actually exist after
+// removing the dead Trail Coach code (src/domain, src/infrastructure/driveSync.ts)
+// and dropping CODEX_START_HERE.md/PLANS.md, which this script required but
+// which have not existed in the repository since before CR-004 (see that
+// change request's deploy.yml comment: this script is not run in CI for
+// exactly that reason).
 const requiredFiles = [
   'AGENTS.md',
-  'CODEX_START_HERE.md',
-  'PLANS.md',
+  'CLAUDE.md',
   'README.md',
   'package.json',
   'schemas/plan-update.schema.json',
   'src/main.tsx',
-  'src/domain/planEngine.ts',
-  'src/domain/planUpdates.ts',
-  'src/infrastructure/driveSync.ts'
+  'src/coach/planner.ts',
+  'src/coach/recipes.ts',
+  'src/infrastructure/coachStorage.ts'
 ];
 
 const errors = [];
