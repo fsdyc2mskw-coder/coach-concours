@@ -162,7 +162,6 @@ Added: `CLAUDE.md`, `handoffs/CHANGE_REQUEST_001_align_app_with_9Sep_rules.md`,
 
 ## Commit and tag
 
-Commit hash: filled in after commit (see the branch `cr-001-align-with-9sep-rules`). Tag
-`cr-001` is set on the merge commit once the athlete presses Merge — not by this session,
-and not yet applicable since the branch has not been pushed (section header "Push/PR
-blocker").
+Commit hash: `79cecdb` (branch `cr-001-align-with-9sep-rules`, not pushed — see "Push/PR
+blocker" above). Tag `cr-001` is set on the merge commit once the athlete presses Merge —
+not by this session, and not yet applicable since no pull request could be opened.
