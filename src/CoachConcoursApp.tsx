@@ -1,21 +1,43 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flowStrip, recipeById } from './coach/recipes';
 import { generatePlan } from './coach/planner';
-import type { CoachState, ExerciseBlock, LandingQuality, MovementQuality, PlannedSession, SessionResult } from './coach/types';
+import type {
+  CoachState,
+  ExerciseBlock,
+  LandingQuality,
+  MovementQuality,
+  PlannedSession,
+  ResultStatus,
+  SessionRecipe,
+  SessionResult
+} from './coach/types';
 import { createDriveBackup, syncCoachState } from './infrastructure/coachDrive';
 import { loadCoachState, parseCoachState, saveCoachState } from './infrastructure/coachStorage';
 import { requestGoogleSession, revokeGoogleSession, type GoogleSession } from './infrastructure/googleIdentity';
 
 type Tab = 'week' | 'journey' | 'drive';
 
+// CHANGE_REQUEST_010 — the week/session/block drill-down replaces the old
+// expand-in-place session card. Each screen is its own full view, matching
+// handoffs/MOCKUP_CR010.html's three phone frames.
+type Drill =
+  | { screen: 'list' }
+  | { screen: 'session'; sessionId: string; sessionTab: 'prevu' | 'fait' | 'retour'; focusBlock?: number }
+  | { screen: 'block'; sessionId: string; blockIndex: number };
+
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
 const AUTO_SYNC_DEBOUNCE_MS = 4_000;
+const DRAFT_SAVE_DEBOUNCE_MS = 500;
+// CHANGE_REQUEST_010 section B — weeks-left header. The police test date is
+// the state's own `planEndDate`; the trail event date is the fixed race date
+// already used elsewhere in the app (`recipes.trailEvent`, R-WS-06).
+const TRAIL_EVENT_DATE = '2026-10-11';
 
 export default function CoachConcoursApp() {
   const [state, setState] = useState<CoachState | null>(null);
-  const [tab, setTab] = useState<Tab>('week');
+  const [tab, setTabState] = useState<Tab>('week');
   const [weekIndex, setWeekIndex] = useState(0);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [drill, setDrill] = useState<Drill>({ screen: 'list' });
   const [session, setSession] = useState<GoogleSession | null>(null);
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
@@ -23,10 +45,8 @@ export default function CoachConcoursApp() {
   const autoSyncTimer = useRef<number | null>(null);
   sessionRef.current = session;
 
-  // CHANGE_REQUEST_005 sync rule: pull-then-push whenever a session is active,
-  // on app open, after every save (debounced) and when the browser regains a
-  // connection. Never merge field by field, never delete the remote file: the
-  // copy with the higher revision wins, a tie keeps local.
+  const setTab = (next: Tab) => { setTabState(next); setDrill({ screen: 'list' }); };
+
   const runSync = useCallback(async (active: GoogleSession, current: CoachState) => {
     const result = await syncCoachState(active.accessToken, current, active.account.email);
     await saveCoachState(result.state);
@@ -95,20 +115,26 @@ export default function CoachConcoursApp() {
     scheduleAutoSync();
   };
 
-  const saveResult = (planned: PlannedSession, result: Omit<SessionResult, 'sessionId' | 'completedAt'>) => {
+  const persistResult = (planned: PlannedSession, result: Omit<SessionResult, 'sessionId' | 'completedAt'>, message?: string) => {
     mutate((current) => {
       const results = { ...current.results, [planned.id]: { ...result, sessionId: planned.id, completedAt: new Date().toISOString() } };
       return { ...current, results, weeks: generatePlan(results) };
-    }, 'Séance enregistrée. La copie Drive sera mise à jour à la prochaine synchronisation.');
+    }, message);
   };
+
+  const saveResult = (planned: PlannedSession, result: Omit<SessionResult, 'sessionId' | 'completedAt'>) =>
+    persistResult(planned, result, 'Séance enregistrée. La copie Drive sera mise à jour à la prochaine synchronisation.');
+
+  // CHANGE_REQUEST_010 section D — every keystroke in the Retour tab writes
+  // through the same path as a validated save (so Drive sync picks it up),
+  // silently: no notice banner for a draft.
+  const saveDraft = (planned: PlannedSession, result: Omit<SessionResult, 'sessionId' | 'completedAt'>) => persistResult(planned, result);
 
   const removeResult = (planned: PlannedSession) => mutate((current) => {
     const results = { ...current.results };
     delete results[planned.id];
     return { ...current, results, weeks: generatePlan(results) };
   }, 'Validation retirée.');
-
-  const reveal = (memoryId: string) => mutate((current) => ({ ...current, memoryReveals: { ...current.memoryReveals, [memoryId]: !current.memoryReveals[memoryId] } }));
 
   const connectAndSync = async () => {
     if (!state) return;
@@ -145,9 +171,6 @@ export default function CoachConcoursApp() {
     setNotice('Session Google déconnectée. Les données locales restent disponibles.');
   };
 
-  // CHANGE_REQUEST_004 — manual backup independent of Google Drive/OAuth: a JSON
-  // download the athlete keeps herself, still available once Drive sync (CR-005)
-  // is on for a device that has never been connected, or as a last-resort copy.
   const exportData = () => {
     if (!state) return;
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
@@ -175,122 +198,316 @@ export default function CoachConcoursApp() {
 
   if (!state) return <main className="shell loading"><p>Chargement du plan…</p>{notice && <p role="alert">{notice}</p>}</main>;
 
+  const openSession = (planned: PlannedSession) => setDrill({ screen: 'session', sessionId: planned.id, sessionTab: 'prevu' });
+  const found = drill.screen !== 'list' ? findPlanned(state, drill.sessionId) : null;
+
   return <main className="shell">
-    <header className="topbar"><div className="brand"><span className="brandMark">C↗</span><span>COACH<br/><b>CONCOURS</b></span></div><span className={`syncDot syncDot--${state.drive.status}`}>{state.drive.status === 'synced' ? 'Drive à jour' : state.drive.status === 'pending' ? 'À synchroniser' : 'Copie locale'}</span></header>
-    {tab === 'week' && <WeekView state={state} weekIndex={weekIndex} setWeekIndex={(index) => { setWeekIndex(index); setOpenId(null); }} openId={openId} setOpenId={setOpenId} saveResult={saveResult} removeResult={removeResult} reveal={reveal} />}
-    {tab === 'journey' && <JourneyView state={state} />}
-    {tab === 'drive' && <DriveView state={state} session={session} busy={busy} sync={connectAndSync} backup={backup} disconnect={disconnect} exportData={exportData} importData={importData} />}
+    {drill.screen === 'list' && <header className="topbar"><div className="brand"><span className="brandMark">C↗</span><span>COACH<br /><b>CONCOURS</b></span></div><span className={`syncDot syncDot--${state.drive.status}`}>{state.drive.status === 'synced' ? 'Drive à jour' : state.drive.status === 'pending' ? 'À synchroniser' : 'Copie locale'}</span></header>}
+
+    {tab === 'week' && drill.screen === 'list' && <WeekScreen state={state} weekIndex={weekIndex} setWeekIndex={setWeekIndex} openSession={openSession} />}
+    {tab === 'week' && drill.screen === 'session' && found && <SessionScreen state={state} planned={found} sessionTab={drill.sessionTab} focusBlock={drill.focusBlock}
+      setTab={(sessionTab) => setDrill({ screen: 'session', sessionId: found.id, sessionTab })}
+      openBlock={(blockIndex) => setDrill({ screen: 'block', sessionId: found.id, blockIndex })}
+      back={() => setDrill({ screen: 'list' })}
+      save={saveResult} saveDraft={saveDraft} remove={removeResult} />}
+    {tab === 'week' && drill.screen === 'block' && found && <BlockScreen planned={found} blockIndex={drill.blockIndex}
+      back={() => setDrill({ screen: 'session', sessionId: found.id, sessionTab: 'prevu' })}
+      openRetour={() => setDrill({ screen: 'session', sessionId: found.id, sessionTab: 'retour', focusBlock: drill.blockIndex })} />}
+
+    {tab === 'journey' && drill.screen === 'list' && <JourneyView state={state} />}
+    {tab === 'drive' && drill.screen === 'list' && <DriveView state={state} session={session} busy={busy} sync={connectAndSync} backup={backup} disconnect={disconnect} exportData={exportData} importData={importData} />}
+
     {notice && <button className="notice" onClick={() => setNotice('')} type="button" aria-label="Fermer le message">{notice}<span>×</span></button>}
-    <nav className="bottomNav" aria-label="Navigation principale"><button className={tab === 'week' ? 'active' : ''} onClick={() => setTab('week')}><span>▤</span>Semaine</button><button className={tab === 'journey' ? 'active' : ''} onClick={() => setTab('journey')}><span>↗</span>Parcours</button><button className={tab === 'drive' ? 'active' : ''} onClick={() => setTab('drive')}><span>☁</span>Drive</button></nav>
+    {drill.screen === 'list' && <nav className="tabbar" aria-label="Navigation principale"><button className={tab === 'week' ? 'on' : ''} onClick={() => setTab('week')} aria-label="Semaine">▤</button><button className={tab === 'journey' ? 'on' : ''} onClick={() => setTab('journey')} aria-label="Parcours">↗</button><button className={tab === 'drive' ? 'on' : ''} onClick={() => setTab('drive')} aria-label="Drive">☁</button></nav>}
   </main>;
 }
 
-function WeekView({ state, weekIndex, setWeekIndex, openId, setOpenId, saveResult, removeResult, reveal }: { state: CoachState; weekIndex: number; setWeekIndex: (index: number) => void; openId: string | null; setOpenId: (id: string | null) => void; saveResult: (session: PlannedSession, result: Omit<SessionResult, 'sessionId' | 'completedAt'>) => void; removeResult: (session: PlannedSession) => void; reveal: (id: string) => void }) {
+function findPlanned(state: CoachState, sessionId: string): PlannedSession | null {
+  for (const week of state.weeks) {
+    const found = week.sessions.find((item) => item.id === sessionId);
+    if (found) return found;
+  }
+  return null;
+}
+
+// ---------- kind / load helpers, shared by the week card, the session chips
+// and the block screen (CHANGE_REQUEST_010) ----------
+
+const KIND_ICON: Record<PlannedSession['kind'], string> = {
+  crossfit_class: '🏋',
+  police_technique: '🎯',
+  police_strength_transitions: '⚡',
+  police_integration: '🧩',
+  police_mock_test: '🚨',
+  police_event: '🚔',
+  trail_maintenance: '🏃',
+  trail_event: '🏃',
+  running_intervals_exception: '🏃'
+};
+function kindIcon(kind: PlannedSession['kind']): string { return KIND_ICON[kind]; }
+
+const LOAD_BARS: Record<PlannedSession['load'], { count: number; color: string }> = {
+  low: { count: 1, color: 'var(--low)' },
+  moderate: { count: 2, color: 'var(--mid)' },
+  hard: { count: 3, color: 'var(--high)' },
+  event: { count: 3, color: 'var(--high)' }
+};
+function loadBars(load: PlannedSession['load']): { count: number; color: string } { return LOAD_BARS[load]; }
+
+const INTENSITY_WORD: Record<PlannedSession['load'], string> = {
+  low: 'Intensité faible',
+  moderate: 'Intensité modérée',
+  hard: 'Intensité forte',
+  event: 'Jour J'
+};
+function intensityWord(load: PlannedSession['load']): string { return INTENSITY_WORD[load]; }
+
+function mmss(min: number): string { return `${String(Math.max(0, Math.round(min))).padStart(2, '0')}:00`; }
+
+// The mockup's week-card subtitle carries a short curated hint ("postes 8 à
+// 11", "selon le cours") that is not itself a field in the data model. This
+// derives an equivalent hint from what the recipe already has (its stations,
+// or a fixed phrase for crossfit/trail), rather than inventing new copy —
+// see the APP_REPORT for this substitution.
+function sessionHint(recipe: SessionRecipe): string {
+  if (recipe.kind === 'crossfit_class') return 'selon le cours';
+  if (recipe.kind === 'trail_maintenance' || recipe.kind === 'trail_event') return 'course facile';
+  const stations = Array.from(new Set(recipe.blocks.flatMap((block) => block.stationMappings))).sort((a, b) => a - b);
+  if (stations.length >= 2 && stations[stations.length - 1]! - stations[0]! === stations.length - 1) return `postes ${stations[0]} à ${stations[stations.length - 1]}`;
+  if (stations.length) return `postes ${stations.join(', ')}`;
+  if (recipe.blocks.length) return `${recipe.blocks.length} bloc${recipe.blocks.length > 1 ? 's' : ''}`;
+  return '';
+}
+
+function weeksUntil(fromISO: string, targetISO: string): number {
+  const diffDays = Math.round((Date.parse(`${targetISO}T12:00:00Z`) - Date.parse(`${fromISO}T12:00:00Z`)) / 86_400_000);
+  return Math.max(0, Math.ceil(diffDays / 7));
+}
+
+// ---------- B. Week screen ----------
+
+function WeekScreen({ state, weekIndex, setWeekIndex, openSession }: { state: CoachState; weekIndex: number; setWeekIndex: (index: number) => void; openSession: (planned: PlannedSession) => void }) {
   const week = state.weeks[weekIndex]!;
-  const completed = week.sessions.filter((session) => state.results[session.id]?.status === 'done').length;
+  const completed = week.sessions.filter((planned) => state.results[planned.id]?.status === 'done').length;
   const days = daysOfWeek(week.startDate, week.endDate);
+  const today = new Date().toISOString().slice(0, 10);
+  const principal = week.sessions.find((planned) => planned.kind.startsWith('police_')) ?? week.sessions[0];
+  const headline = principal ? recipeById[principal.recipeId]!.title : phaseLabel(week.phase);
+  const weeksToTrail = weeksUntil(week.startDate, TRAIL_EVENT_DATE);
+  const weeksToPolice = weeksUntil(week.startDate, state.planEndDate);
+
   return <>
-    <section className="weekBanner"><div><p className="eyebrow">SEMAINE {String(weekIndex + 1).padStart(2, '0')} · {phaseLabel(week.phase)}</p><h2>{formatRange(week.startDate, week.endDate)}</h2></div><div className="weekBannerNav"><button disabled={weekIndex === 0} onClick={() => setWeekIndex(weekIndex - 1)} aria-label="Semaine précédente">‹</button><button disabled={weekIndex === state.weeks.length - 1} onClick={() => setWeekIndex(weekIndex + 1)} aria-label="Semaine suivante">›</button></div></section>
-    <div className="progressLine"><span>{completed} / {week.sessions.length} terminées</span><span>{Math.round((completed / week.sessions.length) * 100)} %</span></div><div className="track"><i style={{ width: `${(completed / week.sessions.length) * 100}%` }} /></div>
-    <div className="sectionTitle"><h2>Cette semaine</h2><span>{week.sessions.length} séances · {days.length - week.sessions.length} repos</span></div><p className="caption">Le lundi est coaché. Les autres créneaux sont proposés et restent modifiables plus tard.</p>
-    <section className="schedule">{days.map((date) => {
+    <section className="heroHead">
+      <div className="kicker">{phaseLabel(week.phase)} · semaine {weekIndex + 1} / {state.weeks.length}</div>
+      <h2>{headline}</h2>
+      <p>{weeksToTrail} semaine{weeksToTrail > 1 ? 's' : ''} avant le trail · {weeksToPolice} avant le test police</p>
+    </section>
+    <div className="wtabs">
+      <button disabled={weekIndex === 0} onClick={() => setWeekIndex(weekIndex - 1)}>{weekIndex > 0 ? formatRange(state.weeks[weekIndex - 1]!.startDate, state.weeks[weekIndex - 1]!.endDate) : '—'}</button>
+      <button className="on" disabled>Cette semaine</button>
+      <button disabled={weekIndex === state.weeks.length - 1} onClick={() => setWeekIndex(weekIndex + 1)}>{weekIndex < state.weeks.length - 1 ? formatRange(state.weeks[weekIndex + 1]!.startDate, state.weeks[weekIndex + 1]!.endDate) : '—'}</button>
+    </div>
+    <div className="prog"><b>Séances {completed}/{week.sessions.length}</b><span>{formatRange(week.startDate, week.endDate)}</span></div>
+    <div className="track"><i style={{ width: `${week.sessions.length ? (completed / week.sessions.length) * 100 : 0}%` }} /></div>
+
+    {days.map((date) => {
       const planned = week.sessions.find((item) => item.date === date);
-      if (!planned) return <RestRow key={date} date={date} />;
+      const dayLabel = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM'][new Date(`${date}T12:00:00Z`).getUTCDay()];
+      const isToday = date === today;
+      if (!planned) return <div key={date}><div className={`day${isToday ? ' today' : ''}`}>{isToday ? "Aujourd'hui" : `${dayLabel} ${new Date(`${date}T12:00:00Z`).getUTCDate()}`}</div><div className="rest">Repos</div></div>;
       const recipe = recipeById[planned.recipeId]!;
       const result = state.results[planned.id];
-      const dayStatus = result?.status ?? (planned.status === 'coached' ? 'coached' : planned.status === 'fixed_event' ? 'fixed_event' : 'proposed');
-      const durationMin = recipe.durationMin ? Math.round(recipe.durationMin * planned.volumeFactor) : null;
-      const nodes = flowStrip(recipe);
-      return <article className={`sessionCard ${openId === planned.id ? 'open' : ''} ${result?.status === 'done' ? 'done' : ''}`} key={planned.id}>
-        <button className="sessionHead" onClick={() => setOpenId(openId === planned.id ? null : planned.id)} aria-expanded={openId === planned.id}>
-          <div className="sessionHead__row">
-            <DateBadge date={date} />
-            <h3>{planned.dayLabel} {new Date(`${date}T12:00:00Z`).getUTCDate()} · {recipe.title}{durationMin ? ` · ${durationMin} min` : ''}</h3>
-            <StatusDot status={dayStatus} />
-          </div>
-          {nodes.length > 0 ? (
-            <p className="flowStrip">
-              {nodes.map((node, index) => (
-                <span key={`${node.label}-${index}`}>
-                  {index > 0 ? ' → ' : ''}
-                  {node.label}
-                  {node.minutes !== null ? ` · ${node.minutes}` : ''}
-                </span>
-              ))}
-            </p>
-          ) : null}
-          {recipe.equipment.length > 0 ? (
-            <p className="equipmentChips">
-              <span className="equipmentChips__label">matériel : </span>
-              {recipe.equipment.map((item) => <span className="chip" key={item}>{item}</span>)}
-            </p>
-          ) : null}
-          <span className="expandRow">
-            <span className="expand">{openId === planned.id ? '▾' : '▸'}</span>
-            {recipe.blocks.length > 0 || nodes.length > 0 ? <span>{nodes.length || recipe.blocks.length} bloc{(nodes.length || recipe.blocks.length) > 1 ? 's' : ''}</span> : null}
-          </span>
+      const bars = loadBars(planned.load);
+      const durationLabel = recipe.durationMin ? mmss(recipe.durationMin * planned.volumeFactor) : recipe.kind === 'crossfit_class' ? '' : '—';
+      const hint = sessionHint(recipe);
+      const cardClass = ['card', isToday ? 'today' : '', result?.status === 'done' ? 'done' : '', result?.status === 'draft' ? 'draft' : ''].filter(Boolean).join(' ');
+      return <div key={date}>
+        <div className={`day${isToday ? ' today' : ''}`}>{isToday ? "Aujourd'hui" : `${dayLabel} ${new Date(`${date}T12:00:00Z`).getUTCDate()}`}</div>
+        <button className={cardClass} type="button" onClick={() => openSession(planned)}>
+          <span className="tile">{kindIcon(planned.kind)}</span>
+          <span className="vbars">{[0, 1, 2].map((index) => <i key={index} style={index < bars.count ? { background: bars.color } : undefined} />)}</span>
+          <span className="txt"><b>{recipe.title}</b><small>{[durationLabel, hint].filter(Boolean).join(' · ')}</small></span>
+          <span className="more">···</span>
         </button>
-        {openId === planned.id && <SessionDetails planned={planned} result={result} revealed={!!recipe.memory && !!state.memoryReveals[recipe.memory.id]} reveal={reveal} save={saveResult} remove={removeResult} />}
-      </article>;
-    })}</section>
+      </div>;
+    })}
   </>;
 }
 
-function StatusDot({ status }: { status: 'done' | 'partial' | 'skipped' | 'proposed' | 'coached' | 'fixed_event' }) {
-  const label = {
-    done: 'Terminée',
-    partial: 'Partielle',
-    skipped: 'Passée',
-    proposed: 'Proposée',
-    coached: 'Cours encadré',
-    fixed_event: 'Date fixe'
-  }[status];
-  return <span className={`statusDot statusDot--${status}`} title={label} aria-label={label} />;
-}
+// ---------- C/D/F. Session screen ----------
 
-function SessionDetails({ planned, result, revealed, reveal, save, remove }: { planned: PlannedSession; result?: SessionResult; revealed: boolean; reveal: (id: string) => void; save: (session: PlannedSession, result: Omit<SessionResult, 'sessionId' | 'completedAt'>) => void; remove: (session: PlannedSession) => void }) {
+function SessionScreen({ state, planned, sessionTab, focusBlock, setTab, openBlock, back, save, saveDraft, remove }: {
+  state: CoachState;
+  planned: PlannedSession;
+  sessionTab: 'prevu' | 'fait' | 'retour';
+  focusBlock?: number;
+  setTab: (tab: 'prevu' | 'fait' | 'retour') => void;
+  openBlock: (blockIndex: number) => void;
+  back: () => void;
+  save: (planned: PlannedSession, result: Omit<SessionResult, 'sessionId' | 'completedAt'>) => void;
+  saveDraft: (planned: PlannedSession, result: Omit<SessionResult, 'sessionId' | 'completedAt'>) => void;
+  remove: (planned: PlannedSession) => void;
+}) {
   const recipe = recipeById[planned.recipeId]!;
-  return <div className="sessionDetails">
-    <p className="purpose">{recipe.purpose}</p>
-    {planned.adaptationNote && <p className="adaptation"><b>Adaptation :</b> {planned.adaptationNote}</p>}
-    <div className="equipment"><b>À prévoir</b><p>{recipe.equipment.join(' · ')}</p></div>
-    {recipe.blocks.some((block) => block.approximation) && <p className="approx">Ces exercices développent les qualités du circuit. Ils restent des approximations sans équivalence avec un parcours officiel vérifié.</p>}
-    {recipe.warmup && <ContentBlock title="Échauffement" text={recipe.warmup} />}
-    {recipe.blocks.map((block, index) => <BlockCard key={block.title} index={index} block={block} />)}
-    {recipe.memory && <div className="memory"><p className="eyebrow">LE CIRCUIT EN TÊTE</p><h4>{recipe.memory.prompt}</h4><p>Réponds de mémoire, puis vérifie.</p><button type="button" onClick={() => reveal(recipe.memory!.id)}>{revealed ? 'Masquer la réponse' : 'Voir la réponse'}<span>↗</span></button>{revealed && <p className="answer">{recipe.memory.answer}</p>}</div>}
-    {recipe.cooldown && <ContentBlock title="Retour au calme" text={recipe.cooldown} />}
-    <FeedbackForm planned={planned} saved={result} save={save} remove={remove} />
-  </div>;
+  const result = state.results[planned.id];
+  return <>
+    <div className="snav"><button className="back" type="button" onClick={back} aria-label="Retour">‹</button><h3>{recipe.title}</h3></div>
+    <div className="seg" role="tablist">
+      <button className={sessionTab === 'prevu' ? 'on' : ''} onClick={() => setTab('prevu')} type="button">Prévu</button>
+      <button className={sessionTab === 'fait' ? 'on' : ''} onClick={() => setTab('fait')} type="button">Fait</button>
+      <button className={sessionTab === 'retour' ? 'on' : ''} onClick={() => setTab('retour')} type="button">Retour</button>
+    </div>
+
+    {sessionTab === 'prevu' && <PrevuTab planned={planned} recipe={recipe} openBlock={openBlock} openRetour={() => setTab('retour')} />}
+    {sessionTab === 'fait' && <FaitTab result={result} openRetour={() => setTab('retour')} openPrevu={() => setTab('prevu')} />}
+    {sessionTab === 'retour' && <RetourTab planned={planned} recipe={recipe} saved={result} focusBlock={focusBlock} save={save} saveDraft={saveDraft} remove={remove} backToPrevu={() => setTab('prevu')} onValidated={() => setTab('fait')} />}
+  </>;
 }
 
-// CHANGE_REQUEST_009 section A — one block grammar. FAIRE is mandatory; RÈGLE,
-// NOTER and DÉTAILS render only when present. DÉTAILS is a native <details>
-// element so it is collapsed by default with no extra state to manage.
-function BlockCard({ index, block }: { index: number; block: ExerciseBlock }) {
-  return <article className="block">
-    <header className="block__head">
-      <span className="block__index">{index + 1}</span>
-      <h4>{block.title}</h4>
-      {block.regle ? <span className="block__tag">S1</span> : null}
-    </header>
-    {block.stationMappings.length ? <p className="block__stations">Postes {block.stationMappings.join(', ')}</p> : null}
-    <p className="block__line block__line--faire"><b>FAIRE</b> {block.faire}</p>
-    {block.regle ? <p className="block__line block__line--regle"><b>RÈGLE</b> {block.regle}</p> : null}
-    {block.noter ? <p className="block__line block__line--noter"><b>NOTER</b> {block.noter}</p> : null}
-    {block.details ? <details className="block__details"><summary>détails</summary><p>{block.details}</p></details> : null}
-  </article>;
+interface StepItem { label: string; minutes: number | null; doText: string; rulePill?: string; blockIndex?: number; }
+
+function sessionSteps(recipe: SessionRecipe): StepItem[] {
+  const nodes = flowStrip(recipe);
+  let blockCursor = 0;
+  return nodes.map((node, index) => {
+    const isWarmup = index === 0 && Boolean(recipe.warmup);
+    const isCooldown = index === nodes.length - 1 && Boolean(recipe.cooldown);
+    if (isWarmup) return { label: 'Échauffement', minutes: node.minutes, doText: recipe.warmup ?? '' };
+    if (isCooldown) return { label: 'Retour au calme', minutes: node.minutes, doText: recipe.cooldown ?? '' };
+    const block = recipe.blocks[blockCursor]!;
+    const blockIndex = blockCursor;
+    blockCursor += 1;
+    return { label: block.title, minutes: node.minutes, doText: block.faire, rulePill: block.regle ? shortRule(block.regle) : undefined, blockIndex };
+  });
 }
 
-function FeedbackForm({ planned, saved, save, remove }: { planned: PlannedSession; saved?: SessionResult; save: (session: PlannedSession, result: Omit<SessionResult, 'sessionId' | 'completedAt'>) => void; remove: (session: PlannedSession) => void }) {
+function shortRule(regle: string): string {
+  const stripped = regle.replace(/^Règle officielle \(([^)]+)\)\s*:\s*/i, 'RÈGLE $1 · ');
+  return stripped.length > 72 ? `${stripped.slice(0, 69)}…` : stripped;
+}
+
+function PrevuTab({ planned, recipe, openBlock, openRetour }: { planned: PlannedSession; recipe: SessionRecipe; openBlock: (blockIndex: number) => void; openRetour: () => void }) {
+  const durationLabel = recipe.durationMin ? mmss(recipe.durationMin * planned.volumeFactor) : null;
+  const steps = sessionSteps(recipe);
+  return <>
+    <div className="panel">
+      <div className="ph"><h4>Ton programme</h4></div>
+      <div className="chips">
+        {durationLabel && <span className="chip">⏱ {durationLabel}</span>}
+        <span className="chip">⚡ {intensityWord(planned.load)}</span>
+        {recipe.blocks.length > 0 && <span className="chip">▤ {recipe.blocks.length} bloc{recipe.blocks.length > 1 ? 's' : ''}</span>}
+      </div>
+      {steps.length > 0 && <div className="hr" />}
+      <ol className="steps">
+        {steps.map((step, index) => {
+          const clickable = step.blockIndex !== undefined;
+          return <li key={`${step.label}-${index}`} className={clickable ? '' : 'static'} onClick={clickable ? () => openBlock(step.blockIndex!) : undefined}>
+            <span className="n">{index + 1}.</span>
+            <span>{step.label}</span>
+            <span className="m">{step.minutes !== null ? `${step.minutes} min` : ''}</span>
+            {clickable ? <span className="chev">›</span> : <span />}
+            <span className="do">{step.doText}</span>
+            {step.rulePill && <span className="r"><span className="pill rule">{step.rulePill}</span></span>}
+          </li>;
+        })}
+      </ol>
+    </div>
+    <div className="actionsBar">
+      <button className="act" type="button" onClick={openRetour}><i>✎</i><span>Retour de séance</span></button>
+      <button className="act primary" type="button" onClick={openRetour}><i>✓</i><span>Séance faite</span></button>
+    </div>
+  </>;
+}
+
+const KIND_LABELS: Record<string, string> = {
+  movementQuality: 'Qualité du mouvement',
+  boxHesitation: 'Hésitation à la box',
+  overlapTags: 'Chevauchements signalés'
+};
+
+const FIELD_LABELS: Record<string, string> = {
+  memoryErrors: 'Erreurs de mémoire',
+  ballFumbles: 'Balles échappées',
+  obstacleHesitations: "Hésitations à l'obstacle",
+  racketDropsR1: 'Chutes raquette — Tour 1',
+  racketDropsR2: 'Chutes raquette — Tour 2',
+  racketDropsR3: 'Chutes raquette — Tour 3',
+  amrapRounds: 'Tours AMRAP',
+  landingQuality: 'Réceptions',
+  distanceKm: 'Distance',
+  elevationGainM: 'Dénivelé D+',
+  durationMin: 'Durée',
+  intervalDistance1M: 'Distance intervalle 1',
+  intervalDistance2M: 'Distance intervalle 2'
+};
+
+const MOVEMENT_QUALITY_LABEL: Record<MovementQuality, string> = { crisp: 'Propre', mixed: 'Variable', degraded: 'Dégradée' };
+const LANDING_QUALITY_LABEL: Record<LandingQuality, string> = { clean: 'Propres', mixed: 'Mixtes', sloppy: 'Sales' };
+const STATUS_LABEL: Record<ResultStatus, string> = { done: 'Terminée', partial: 'Partielle', skipped: 'Passée', draft: 'Brouillon' };
+
+function formatFieldValue(key: string, value: unknown): string {
+  if (key === 'movementQuality') return MOVEMENT_QUALITY_LABEL[value as MovementQuality];
+  if (key === 'landingQuality') return LANDING_QUALITY_LABEL[value as LandingQuality];
+  if (key === 'boxHesitation') return value ? 'Oui' : 'Non';
+  if (key === 'overlapTags') return (value as string[]).join(', ') || '—';
+  if (key === 'distanceKm') return `${value} km`;
+  if (key === 'elevationGainM' || key.endsWith('M')) return `${value} m`;
+  if (key === 'durationMin') return `${value} min`;
+  return String(value);
+}
+
+function FaitTab({ result, openRetour, openPrevu }: { result?: SessionResult; openRetour: () => void; openPrevu: () => void }) {
+  if (!result) return <>
+    <p className="kvEmpty">Rien d'enregistré.</p>
+    <div className="actionsBar">
+      <button className="act" type="button" onClick={openRetour}><i>✎</i><span>Modifier</span></button>
+      <button className="act primary" type="button" onClick={openPrevu}><i>↴</i><span>Voir le plan</span></button>
+    </div>
+  </>;
+  const shownKeys = Object.keys(FIELD_LABELS).filter((key) => (result as unknown as Record<string, unknown>)[key] !== undefined);
+  const kindKeys = Object.keys(KIND_LABELS).filter((key) => (result as unknown as Record<string, unknown>)[key] !== undefined);
+  return <>
+    <div className="kv">
+      <div><span>Statut</span><b style={{ color: 'var(--accent)' }}>{STATUS_LABEL[result.status]}</b></div>
+      {result.effort !== undefined && <div><span>Effort ressenti</span><b>{result.effort} / 5</b></div>}
+      {kindKeys.map((key) => <div key={key}><span>{KIND_LABELS[key]}</span><b>{formatFieldValue(key, (result as unknown as Record<string, unknown>)[key])}</b></div>)}
+      {shownKeys.map((key) => <div key={key}><span>{FIELD_LABELS[key]}</span><b>{formatFieldValue(key, (result as unknown as Record<string, unknown>)[key])}</b></div>)}
+      <div><span>Enregistrée</span><b>{formatDateTime(result.completedAt)}</b></div>
+    </div>
+    <p className="syncNote">Synchronisé avec Drive · révision suit l'état de l'app.</p>
+    <div className="actionsBar">
+      <button className="act" type="button" onClick={openRetour}><i>✎</i><span>Modifier</span></button>
+      <button className="act primary" type="button" onClick={openPrevu}><i>↴</i><span>Voir le plan</span></button>
+    </div>
+  </>;
+}
+
+// ---------- D. Retour tab ----------
+
+function numberToText(value: number | undefined): string { return value === undefined ? '' : String(value); }
+function textToNumber<Key extends string>(key: Key, value: string): Partial<Record<Key, number>> { if (value.trim() === '') return {}; const parsed = Number(value); return Number.isFinite(parsed) ? { [key]: parsed } as Partial<Record<Key, number>> : {}; }
+
+function RetourTab({ planned, recipe, saved, focusBlock, save, saveDraft, remove, backToPrevu, onValidated }: {
+  planned: PlannedSession;
+  recipe: SessionRecipe;
+  saved?: SessionResult;
+  focusBlock?: number;
+  save: (planned: PlannedSession, result: Omit<SessionResult, 'sessionId' | 'completedAt'>) => void;
+  saveDraft: (planned: PlannedSession, result: Omit<SessionResult, 'sessionId' | 'completedAt'>) => void;
+  remove: (planned: PlannedSession) => void;
+  backToPrevu: () => void;
+  onValidated: () => void;
+}) {
   const [effort, setEffort] = useState(saved?.effort ?? 0);
-  const [status, setStatus] = useState<SessionResult['status']>(saved?.status ?? 'done');
+  const [status, setStatus] = useState<'done' | 'partial' | 'skipped'>(saved && saved.status !== 'draft' ? saved.status : 'done');
+  const [statusTouched, setStatusTouched] = useState(Boolean(saved && saved.status !== 'draft'));
   const [note, setNote] = useState(saved?.note ?? '');
   const [quality, setQuality] = useState<MovementQuality | ''>(saved?.movementQuality ?? '');
   const [hesitation, setHesitation] = useState(saved?.boxHesitation ?? false);
   const [tags, setTags] = useState<NonNullable<SessionResult['overlapTags']>>(saved?.overlapTags ?? []);
-  // CHANGE_REQUEST_003 record fields, Week 1 v3 only (Friday 11 Sep / Saturday 12 Sep).
   const [memoryErrors, setMemoryErrors] = useState(numberToText(saved?.memoryErrors));
   const [ballFumbles, setBallFumbles] = useState(numberToText(saved?.ballFumbles));
+  const [obstacleHesitations, setObstacleHesitations] = useState(numberToText(saved?.obstacleHesitations));
   const [racketDropsR1, setRacketDropsR1] = useState(numberToText(saved?.racketDropsR1));
   const [racketDropsR2, setRacketDropsR2] = useState(numberToText(saved?.racketDropsR2));
   const [racketDropsR3, setRacketDropsR3] = useState(numberToText(saved?.racketDropsR3));
@@ -299,24 +516,21 @@ function FeedbackForm({ planned, saved, save, remove }: { planned: PlannedSessio
   const [distanceKm, setDistanceKm] = useState(numberToText(saved?.distanceKm));
   const [elevationGainM, setElevationGainM] = useState(numberToText(saved?.elevationGainM));
   const [durationMin, setDurationMin] = useState(numberToText(saved?.durationMin));
-  // CHANGE_REQUEST_007 record fields, Week 1 v3 only (Tuesday 8 Sep running-intervals exception).
   const [intervalDistance1M, setIntervalDistance1M] = useState(numberToText(saved?.intervalDistance1M));
   const [intervalDistance2M, setIntervalDistance2M] = useState(numberToText(saved?.intervalDistance2M));
+  const [draftSavedAt, setDraftSavedAt] = useState<Date | null>(null);
+
   const isCrossfit = planned.kind === 'crossfit_class';
-  // CHANGE_REQUEST_001 — 'room' is re-tagged from `room_explosive_intervals`
-  // to `police_integration`; this still gates the same box-jump / movement-
-  // quality feedback fields, unchanged.
   const isRoom = planned.kind === 'police_integration';
+  const isStrength = planned.kind === 'police_strength_transitions';
   const isWeek1Friday = planned.recipeId === 'week1-fri-2026-09-11-v3';
   const isWeek1Saturday = planned.recipeId === 'week1-sat-2026-09-12-trail';
   const isWeek1Tuesday = planned.recipeId === 'week1-tue-2026-09-08-as-trained';
 
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!effort) return;
-    save(planned, {
-      status,
-      effort: effort as 1 | 2 | 3 | 4 | 5,
+  function buildFields(effectiveStatus: ResultStatus): Omit<SessionResult, 'sessionId' | 'completedAt'> {
+    return {
+      status: effectiveStatus,
+      ...(effort ? { effort: effort as 1 | 2 | 3 | 4 | 5 } : {}),
       note,
       ...(quality ? { movementQuality: quality } : {}),
       ...(isRoom ? { boxHesitation: hesitation } : {}),
@@ -324,6 +538,7 @@ function FeedbackForm({ planned, saved, save, remove }: { planned: PlannedSessio
       ...(isWeek1Friday ? {
         ...textToNumber('memoryErrors', memoryErrors),
         ...textToNumber('ballFumbles', ballFumbles),
+        ...textToNumber('obstacleHesitations', obstacleHesitations),
         ...textToNumber('racketDropsR1', racketDropsR1),
         ...textToNumber('racketDropsR2', racketDropsR2),
         ...textToNumber('racketDropsR3', racketDropsR3),
@@ -339,53 +554,112 @@ function FeedbackForm({ planned, saved, save, remove }: { planned: PlannedSessio
         ...textToNumber('intervalDistance1M', intervalDistance1M),
         ...textToNumber('intervalDistance2M', intervalDistance2M)
       } : {})
-    });
+    };
   }
 
-  return <form className="feedback" onSubmit={submit}>
-    <h4>{saved ? 'Ton retour' : 'Après la séance'}</h4>
-    <div className="segmented">{(['done', 'partial', 'skipped'] as const).map((value) => <button type="button" className={status === value ? 'selected' : ''} onClick={() => setStatus(value)} key={value}>{value === 'done' ? 'Terminée' : value === 'partial' ? 'Partielle' : 'Passée'}</button>)}</div>
-    <label>Effort ressenti <small>1 très facile · 5 très difficile</small></label>
-    <div className="ratings">{[1, 2, 3, 4, 5].map((value) => <button type="button" aria-pressed={effort === value} className={effort === value ? 'selected' : ''} onClick={() => setEffort(value)} key={value}>{value}</button>)}</div>
-    {/* CHANGE_REQUEST_001 — 'outdoor' is re-tagged from `outdoor_explosive_intervals` to `police_strength_transitions`. */}
-    {(isRoom || planned.kind === 'police_strength_transitions') && <>
-      <label>Qualité du mouvement</label>
-      <div className="segmented">{(['crisp', 'mixed', 'degraded'] as const).map((value) => <button type="button" className={quality === value ? 'selected' : ''} onClick={() => setQuality(value)} key={value}>{value === 'crisp' ? 'Propre' : value === 'mixed' ? 'Variable' : 'Dégradée'}</button>)}</div>
-    </>}
-    {isRoom && <label className="check"><input type="checkbox" checked={hesitation} onChange={(event) => setHesitation(event.target.checked)} /> Hésitation ou manque de confiance à la box</label>}
-    {isCrossfit && <div className="tags"><label>Chevauchements à signaler</label>{(['grip', 'jumping', 'heavy_legs', 'hard_conditioning'] as const).map((tag) => <button type="button" key={tag} className={tags.includes(tag) ? 'selected' : ''} onClick={() => setTags(tags.includes(tag) ? tags.filter((item) => item !== tag) : [...tags, tag])}>{tag === 'grip' ? 'Grip' : tag === 'jumping' ? 'Sauts' : tag === 'heavy_legs' ? 'Jambes lourdes' : 'Conditioning dur'}</button>)}</div>}
-    {isWeek1Friday && <div className="week1Fields">
-      <NumberField label="Erreurs de mémoire" value={memoryErrors} onChange={setMemoryErrors} step={1} />
-      <NumberField label="Balles échappées" value={ballFumbles} onChange={setBallFumbles} step={1} />
-      <NumberField label="Chutes raquette R1" value={racketDropsR1} onChange={setRacketDropsR1} step={1} />
-      <NumberField label="Chutes raquette R2" value={racketDropsR2} onChange={setRacketDropsR2} step={1} />
-      <NumberField label="Chutes raquette R3" value={racketDropsR3} onChange={setRacketDropsR3} step={1} />
-      <NumberField label="Tours AMRAP" value={amrapRounds} onChange={setAmrapRounds} step={0.5} placeholder="facultatif, ex. 4.5" />
-      <label>Qualité de réception <small>facultatif</small></label>
-      <div className="segmented">{(['clean', 'mixed', 'sloppy'] as const).map((value) => <button type="button" className={landingQuality === value ? 'selected' : ''} onClick={() => setLandingQuality(value)} key={value}>{value === 'clean' ? 'Propre' : value === 'mixed' ? 'Variable' : 'Bâclée'}</button>)}</div>
-    </div>}
-    {isWeek1Saturday && <div className="week1Fields">
-      <NumberField label="Distance" value={distanceKm} onChange={setDistanceKm} step={0.1} unit="km" />
-      <NumberField label="Dénivelé D+" value={elevationGainM} onChange={setElevationGainM} step={1} unit="m" />
-      <NumberField label="Durée" value={durationMin} onChange={setDurationMin} step={1} unit="min" />
-    </div>}
-    {isWeek1Tuesday && <div className="week1Fields">
-      <NumberField label="Distance intervalle 1" value={intervalDistance1M} onChange={setIntervalDistance1M} step={1} unit="m" />
-      <NumberField label="Distance intervalle 2" value={intervalDistance2M} onChange={setIntervalDistance2M} step={1} unit="m" />
-    </div>}
-    <label>Note <small>facultative</small></label>
-    <textarea rows={3} maxLength={1500} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Sensations, appuis, hésitation…" />
-    <button className="primary" disabled={!effort} type="submit">{saved ? 'Enregistrer les changements' : '✓ Enregistrer la séance'}</button>
-    {saved && <button className="textButton" type="button" onClick={() => remove(planned)}>Retirer cette validation</button>}
-  </form>;
+  // CHANGE_REQUEST_010 section D — autosave: every field writes to the state
+  // on change (debounced), so leaving the tab or closing the app never loses
+  // a value. Until the athlete picks a status (or presses "Valider la
+  // séance"), the record is written with status `draft`.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      saveDraft(planned, buildFields(statusTouched ? status : 'draft'));
+      setDraftSavedAt(new Date());
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, DRAFT_SAVE_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effort, status, statusTouched, note, quality, hesitation, tags, memoryErrors, ballFumbles, obstacleHesitations, racketDropsR1, racketDropsR2, racketDropsR3, amrapRounds, landingQuality, distanceKm, elevationGainM, durationMin, intervalDistance1M, intervalDistance2M]);
+
+  const groupRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  useEffect(() => {
+    if (focusBlock === undefined) return;
+    const target = groupRefs.current[focusBlock];
+    target?.scrollIntoView?.({ block: 'center' });
+  }, [focusBlock]);
+
+  function submit() {
+    setStatusTouched(true);
+    if (!effort) return;
+    save(planned, buildFields(status));
+    onValidated();
+  }
+
+  const blockGroups = recipe.blocks.map((block, index) => ({ block, index, fields: blockFields(index) })).filter((group) => group.fields.length > 0);
+
+  return <>
+    <div className="save"><span className="dot" /><span>{draftSavedAt ? `Brouillon enregistré · ${draftSavedAt.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })} · tu peux revenir à tout moment` : 'Brouillon enregistré automatiquement · tu peux revenir à tout moment'}</span></div>
+
+    {blockGroups.map(({ block, index, fields }) => <div className="grp" key={block.title} ref={(node) => { groupRefs.current[index] = node; }}>
+      <div className="gh"><span className="gn">{index + 1}</span>{block.title}</div>
+      {fields.includes('memoryErrors') && <NumberField label="Erreurs de mémoire / postes oubliés ou inversés" value={memoryErrors} onChange={setMemoryErrors} step={1} />}
+      {fields.includes('ballFumbles') && <NumberField label="Balles échappées" value={ballFumbles} onChange={setBallFumbles} step={1} />}
+      {fields.includes('obstacleHesitations') && <NumberField label="Hésitations à l'obstacle" value={obstacleHesitations} onChange={setObstacleHesitations} step={1} />}
+      {fields.includes('racketTrio') && <div className="trio">
+        <NumberField label="Tour 1" value={racketDropsR1} onChange={setRacketDropsR1} step={1} placeholder="chutes" />
+        <NumberField label="Tour 2" value={racketDropsR2} onChange={setRacketDropsR2} step={1} placeholder="chutes" />
+        <NumberField label="Tour 3" value={racketDropsR3} onChange={setRacketDropsR3} step={1} placeholder="chutes" />
+      </div>}
+      {fields.includes('amrapRounds') && <NumberField label="Tours complets (+ partiel, ex. 4,5)" value={amrapRounds} onChange={setAmrapRounds} step={0.5} placeholder="4,5" />}
+      {fields.includes('landingQuality') && <>
+        <div className="lab">Réceptions</div>
+        <div className="qrow small">{(['clean', 'mixed', 'sloppy'] as const).map((value) => <button type="button" key={value} className={landingQuality === value ? 'on' : ''} onClick={() => setLandingQuality(value)}>{LANDING_QUALITY_LABEL[value].toLowerCase()}</button>)}</div>
+      </>}
+      {fields.includes('distanceKm') && <NumberField label="Distance" value={distanceKm} onChange={setDistanceKm} step={0.1} unit="km" />}
+      {fields.includes('elevationGainM') && <NumberField label="Dénivelé D+" value={elevationGainM} onChange={setElevationGainM} step={1} unit="m" />}
+      {fields.includes('durationMin') && <NumberField label="Durée" value={durationMin} onChange={setDurationMin} step={1} unit="min" />}
+      {fields.includes('intervalDistance1M') && <NumberField label="Distance intervalle 1" value={intervalDistance1M} onChange={setIntervalDistance1M} step={1} unit="m" />}
+      {fields.includes('intervalDistance2M') && <NumberField label="Distance intervalle 2" value={intervalDistance2M} onChange={setIntervalDistance2M} step={1} unit="m" />}
+    </div>)}
+
+    <div className="grp">
+      <div className="gh">Toute la séance</div>
+      {(isRoom || isStrength) && <>
+        <div className="lab">Qualité du mouvement</div>
+        <div className="qrow small">{(['crisp', 'mixed', 'degraded'] as const).map((value) => <button type="button" key={value} className={quality === value ? 'on' : ''} onClick={() => setQuality(value)}>{MOVEMENT_QUALITY_LABEL[value].toLowerCase()}</button>)}</div>
+      </>}
+      {isRoom && <label className="field"><span>Hésitation ou manque de confiance à la box</span><div className="qrow small"><button type="button" className={hesitation ? 'on' : ''} onClick={() => setHesitation(true)}>oui</button><button type="button" className={!hesitation ? 'on' : ''} onClick={() => setHesitation(false)}>non</button></div></label>}
+      {isCrossfit && <>
+        <div className="lab">Chevauchements à signaler</div>
+        <div className="qrow small">{(['grip', 'jumping', 'heavy_legs', 'hard_conditioning'] as const).map((tag) => <button type="button" key={tag} className={tags.includes(tag) ? 'on' : ''} onClick={() => setTags(tags.includes(tag) ? tags.filter((item) => item !== tag) : [...tags, tag])}>{tag === 'grip' ? 'grip' : tag === 'jumping' ? 'sauts' : tag === 'heavy_legs' ? 'jambes lourdes' : 'conditioning dur'}</button>)}</div>
+      </>}
+      <div className="lab">Statut</div>
+      <div className="qrow small">{(['done', 'partial', 'skipped'] as const).map((value) => <button type="button" key={value} className={statusTouched && status === value ? 'on' : ''} onClick={() => { setStatus(value); setStatusTouched(true); }}>{STATUS_LABEL[value]}</button>)}</div>
+      <div className="lab">Effort ressenti</div>
+      <div className="eff">{[1, 2, 3, 4, 5].map((value) => <button type="button" key={value} aria-pressed={effort === value} className={effort === value ? 'on' : ''} onClick={() => setEffort(value)}>{value}</button>)}</div>
+      <label className="field"><span>Note</span><textarea rows={3} maxLength={1500} value={note} onChange={(event) => setNote(event.target.value)} placeholder="facultatif" /></label>
+    </div>
+
+    <div className="actionsBar">
+      <button className="act" type="button" onClick={backToPrevu}><i>‹</i><span>Plan</span></button>
+      <button className="act primary" type="button" onClick={submit} disabled={!effort}><i>✓</i><span>Valider la séance</span></button>
+    </div>
+    {saved && saved.status !== 'draft' && <button className="textButton" type="button" onClick={() => remove(planned)}>Retirer cette validation</button>}
+  </>;
 }
 
-// CHANGE_REQUEST_009 section D — one field per row: the label always sits on
-// its own line above a full-width box, and the unit (or "facultatif" when
-// there is none) lives inside the box as a placeholder instead of a second
-// text line, so nothing can wrap sideways into the previous field's box.
+// CHANGE_REQUEST_010 section D — which fields a block groups in Retour. Only
+// the sessions whose record fields are named against a specific block in the
+// change request (Week 1 Friday/Saturday/Tuesday) get a per-block mapping;
+// every other session's kind-based fields (movementQuality, boxHesitation,
+// overlapTags) are not named against a block anywhere in the CR or the
+// mockup, so they stay in the final "Toute la séance" group — see the
+// APP_REPORT question on this point.
+function blockFields(blockIndex: number): string[] {
+  // week1-fri-2026-09-11-v3 block order: 0 mémoire, 1 poste 2, 2 raquette
+  // référence, 3 AMRAP, 4 poste 8 (no group — explicitly named in the CR).
+  const friday: Record<number, string[]> = {
+    0: ['memoryErrors'],
+    1: ['ballFumbles', 'obstacleHesitations'],
+    2: ['racketTrio'],
+    3: ['amrapRounds', 'landingQuality']
+  };
+  if (friday[blockIndex]) return friday[blockIndex]!;
+  return [];
+}
+
 function NumberField({ label, value, onChange, step, unit, placeholder }: { label: string; value: string; onChange: (value: string) => void; step: number; unit?: string; placeholder?: string }) {
-  return <label className="numField">
+  return <label className="field">
     <span>{label}</span>
     <input
       type="number"
@@ -399,10 +673,70 @@ function NumberField({ label, value, onChange, step, unit, placeholder }: { labe
   </label>;
 }
 
-function numberToText(value: number | undefined): string { return value === undefined ? '' : String(value); }
-function textToNumber<Key extends string>(key: Key, value: string): Partial<Record<Key, number>> { if (value.trim() === '') return {}; const parsed = Number(value); return Number.isFinite(parsed) ? { [key]: parsed } as Partial<Record<Key, number>> : {}; }
+// ---------- E. Block screen ----------
 
-function JourneyView({ state }: { state: CoachState }) { const total = Object.values(state.results).filter((result) => result.status === 'done').length; return <section className="page"><p className="eyebrow">JUSQU’AU 20 NOVEMBRE</p><h1>Ton parcours</h1><p className="lead">{total} séances terminées. Les semaines futures se recalculent à partir de tes retours sans ajouter de sixième jour.</p><div className="timeline">{state.weeks.map((week,index) => { const done = week.sessions.filter((session) => state.results[session.id]?.status === 'done').length; return <div className="timelineRow" key={week.id}><span>{String(index + 1).padStart(2,'0')}</span><div><b>{phaseLabel(week.phase)}</b><p>{formatRange(week.startDate, week.endDate)}</p></div><strong>{done}/{week.sessions.length}</strong></div>; })}</div></section>; }
+function blockPictogram(block: ExerciseBlock): string {
+  if (/corde/i.test(block.title)) return '🪢';
+  if (/échelle/i.test(block.title)) return '🪜';
+  if (/raquette/i.test(block.title)) return '🎾';
+  if (/box|obstacle|poste 2/i.test(block.title)) return '📦';
+  if (/course|footing|intervalle/i.test(block.title)) return '🏃';
+  if (/couleur|poste 8/i.test(block.title)) return '🎨';
+  if (block.hiit) return '⚡';
+  return '🔷';
+}
+
+const HIIT_FORMAT_LABEL: Record<string, string> = { amrap: 'max de tours', emom: 'EMOM', intervals: 'intervalles', for_time: 'for time', chipper: 'chipper' };
+
+function BlockScreen({ planned, blockIndex, back, openRetour }: { planned: PlannedSession; blockIndex: number; back: () => void; openRetour: () => void }) {
+  const recipe = recipeById[planned.recipeId]!;
+  const block = recipe.blocks[blockIndex]!;
+  const minutes = block.title.match(/(\d+)\s*min/)?.[1];
+  const fields = blockFields(blockIndex);
+  const toRecord = useMemo(() => {
+    const items: string[] = [];
+    if (fields.includes('memoryErrors')) items.push('Erreurs de mémoire / postes oubliés ou inversés');
+    if (fields.includes('ballFumbles')) items.push('Balles échappées');
+    if (fields.includes('obstacleHesitations')) items.push("Hésitations à l'obstacle");
+    if (fields.includes('racketTrio')) items.push('Chutes raquette — Tour 1 · 2 · 3');
+    if (fields.includes('amrapRounds')) items.push('Tours complets + partiel');
+    if (fields.includes('landingQuality')) items.push('Réceptions — propres · mixtes · sales');
+    return items;
+  }, [fields]);
+
+  return <>
+    <div className="snav"><button className="back" type="button" onClick={back} aria-label="Retour">‹</button><h3>{block.title}</h3></div>
+    <div className="sum">
+      <h4>Résumé</h4>
+      <div className="chips" style={{ margin: 0 }}>
+        {minutes && <span className="chip">⏱ {minutes.padStart(2, '0')}:00</span>}
+        {block.hiit && <span className="chip">↻ {HIIT_FORMAT_LABEL[block.hiit.format]}</span>}
+        {block.hiit && <span className="chip">⚡ HIIT</span>}
+      </div>
+    </div>
+    <div className="circ">
+      <h5>{block.stationMappings.length ? 'Circuit' : 'Exercice'}</h5>
+      {block.details && <div className="meta">{block.details}</div>}
+      <div className="ex">
+        <span className="th">{blockPictogram(block)}</span>
+        <span className="t"><b>{block.title.replace(/\s*—\s*\d+\s*min$/, '')}</b><small>{block.faire}</small></span>
+      </div>
+      {block.regle && <div className="ex rule"><span className="pill rule">{shortRule(block.regle)}</span></div>}
+    </div>
+    {toRecord.length > 0 && <>
+      <h5 className="h5" style={{ marginTop: 22 }}>À enregistrer dans Retour de séance</h5>
+      <div className="kv">{toRecord.map((item) => <div key={item}><span>{item}</span></div>)}</div>
+    </>}
+    <div className="actionsBar">
+      <button className="act" type="button" onClick={back}><i>‹</i><span>Séance</span></button>
+      <button className="act primary" type="button" onClick={openRetour}><i>✎</i><span>Retour de séance</span></button>
+    </div>
+  </>;
+}
+
+// ---------- Journey / Drive (CHANGE_REQUEST_010 section G — theme only, content unchanged) ----------
+
+function JourneyView({ state }: { state: CoachState }) { const total = Object.values(state.results).filter((result) => result.status === 'done').length; return <section className="page"><p className="eyebrow">JUSQU’AU 20 NOVEMBRE</p><h1>Ton parcours</h1><p className="lead">{total} séances terminées. Les semaines futures se recalculent à partir de tes retours sans ajouter de sixième jour.</p><div className="timeline">{state.weeks.map((week, index) => { const done = week.sessions.filter((session) => state.results[session.id]?.status === 'done').length; return <div className="timelineRow" key={week.id}><span>{String(index + 1).padStart(2, '0')}</span><div><b>{phaseLabel(week.phase)}</b><p>{formatRange(week.startDate, week.endDate)}</p></div><strong>{done}/{week.sessions.length}</strong></div>; })}</div></section>; }
 
 function DriveView({ state, session, busy, sync, backup, disconnect, exportData, importData }: { state: CoachState; session: GoogleSession | null; busy: boolean; sync: () => void; backup: () => void; disconnect: () => void; exportData: () => void; importData: (file: File) => void }) {
   const clientConfigured = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
@@ -416,10 +750,7 @@ function maskEmail(email: string): string {
   return `${local.slice(0, 1)}•••@${domainParts[0]?.slice(0, 1) ?? ''}•••`;
 }
 
-function ContentBlock({ title, text, suffix }: { title: string; text: string; suffix?: string }) { return <div className="contentBlock"><h4>{title}</h4>{suffix && <span>{suffix}</span>}<p>{text}</p></div>; }
-function RestRow({ date }: { date: string }) { return <div className="restRow"><DateBadge date={date}/><div><b>Repos</b><p>Récupération et sommeil</p></div><span>☾</span></div>; }
-function DateBadge({ date }: { date: string }) { const parsed = new Date(`${date}T12:00:00Z`); return <div className="dateBadge"><span>{['DIM','LUN','MAR','MER','JEU','VEN','SAM'][parsed.getUTCDay()]}</span><b>{parsed.getUTCDate()}</b></div>; }
-function daysOfWeek(start: string, end: string) { const days: string[] = []; for (let time = Date.parse(`${start}T12:00:00Z`); time <= Date.parse(`${end}T12:00:00Z`); time += 86_400_000) days.push(new Date(time).toISOString().slice(0,10)); return days; }
-function formatRange(start: string, end: string) { const a = new Date(`${start}T12:00:00Z`); const b = new Date(`${end}T12:00:00Z`); return `${a.getUTCDate()} ${a.toLocaleDateString('fr-CH',{month:'short',timeZone:'UTC'})} – ${b.getUTCDate()} ${b.toLocaleDateString('fr-CH',{month:'short',year:'numeric',timeZone:'UTC'})}`.replace(/\./g,''); }
-function phaseLabel(phase: CoachState['weeks'][number]['phase']) { return ({learn:'Apprendre',combine:'Combiner',trail_event:'Semaine trail',reset:'Récupérer',integrate:'Intégrer',peak:'Pic spécifique',taper:'Alléger'} as const)[phase]; }
-function formatDateTime(value: string) { return new Date(value).toLocaleString('fr-CH',{dateStyle:'medium',timeStyle:'short'}); }
+function daysOfWeek(start: string, end: string) { const days: string[] = []; for (let time = Date.parse(`${start}T12:00:00Z`); time <= Date.parse(`${end}T12:00:00Z`); time += 86_400_000) days.push(new Date(time).toISOString().slice(0, 10)); return days; }
+function formatRange(start: string, end: string) { const a = new Date(`${start}T12:00:00Z`); const b = new Date(`${end}T12:00:00Z`); return `${a.getUTCDate()} ${a.toLocaleDateString('fr-CH', { month: 'short', timeZone: 'UTC' })} – ${b.getUTCDate()} ${b.toLocaleDateString('fr-CH', { month: 'short', year: 'numeric', timeZone: 'UTC' })}`.replace(/\./g, ''); }
+function phaseLabel(phase: CoachState['weeks'][number]['phase']) { return ({ learn: 'Apprendre', combine: 'Combiner', trail_event: 'Semaine trail', reset: 'Récupérer', integrate: 'Intégrer', peak: 'Pic spécifique', taper: 'Alléger' } as const)[phase]; }
+function formatDateTime(value: string) { return new Date(value).toLocaleString('fr-CH', { dateStyle: 'medium', timeStyle: 'short' }); }
