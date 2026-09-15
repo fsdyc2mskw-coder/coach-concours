@@ -4,6 +4,10 @@
 // recipes that used to carry them are re-tagged (see recipes.ts), not
 // deleted. `running_intervals_exception` stays only for Week 1's documented
 // Tuesday exception (R-WS-08); it is never produced by the generator itself.
+// CHANGE_REQUEST_011 — `run_intervals` added: the fixed Tuesday
+// running-interval session from rules v3 (R-WS-19/20). Distinct from
+// `running_intervals_exception` (Week 1's one documented Tuesday-as-trained
+// exception, still frozen and never produced by the generator itself).
 export type SessionKind =
   | 'crossfit_class'
   | 'police_technique'
@@ -12,6 +16,7 @@ export type SessionKind =
   | 'police_mock_test'
   | 'trail_maintenance'
   | 'trail_event'
+  | 'run_intervals'
   | 'running_intervals_exception'
   | 'police_event';
 
@@ -137,6 +142,12 @@ export interface SessionResult {
   // CHANGE_REQUEST_002 — record field for `coordination`'s new hiit block
   // ("Corde EMOM — 6 min"): minutes out of 6 completed as prescribed.
   emomMinutesCompleted?: number;
+  // CHANGE_REQUEST_011 section D — Tuesday run_intervals Retour group: one
+  // pace per rep actually run (seconds per kilometre, read off the watch's
+  // auto-lap) and the number of reps completed. `repPacesSec` may be shorter
+  // than the row's `reps` when the session was stopped early.
+  repPacesSec?: number[];
+  repsDone?: number;
   completedAt: string;
 }
 

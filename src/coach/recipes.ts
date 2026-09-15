@@ -1,4 +1,5 @@
 import type { SessionRecipe } from './types';
+import type { RunIntervalsRow } from '../data/runIntervalsProgression';
 
 export const recipes: Record<string, SessionRecipe> = {
   crossfit: {
@@ -201,6 +202,69 @@ export const recipeById = Object.values(recipes).reduce<Record<string, SessionRe
   result[recipe.id] = recipe;
   return result;
 }, {});
+
+// CHANGE_REQUEST_011 section A/B — Tuesday `run_intervals`: unlike every other
+// session, its main set changes every week (the progression table), so its
+// recipe is built on the fly instead of living as a fixed entry in `recipes`
+// above. Registered into `recipeById` so every other function in this file
+// and in planner.ts (which only ever reads a session's content through
+// `recipeById[session.recipeId]`) sees it exactly like a static recipe.
+function paceText(paceSec: number): string {
+  const minutes = Math.floor(paceSec / 60);
+  const seconds = paceSec % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function jogText(jogSec: number): string {
+  return jogSec % 60 === 0 ? `${jogSec / 60} min` : paceText(jogSec);
+}
+
+function runIntervalsFaire(row: RunIntervalsRow): string {
+  const main = `${row.reps} × ${row.minutes} min à ${paceText(row.paceSec)} /km, récupération ${jogText(row.jogSec)} en trottinant`;
+  if (!row.second) return main;
+  const second = `${row.second.reps} × ${row.second.minutes} min à ${paceText(row.second.paceSec)} /km, récupération ${jogText(row.second.jogSec)} en trottinant`;
+  return `${main}, puis ${second}`;
+}
+
+function runIntervalsDurationMin(row: RunIntervalsRow): number {
+  const groupMinutes = (reps: number, minutes: number, jogSec: number) => reps * minutes + (reps - 1) * (jogSec / 60);
+  let mainMin = groupMinutes(row.reps, row.minutes, row.jogSec);
+  if (row.second) mainMin += groupMinutes(row.second.reps, row.second.minutes, row.second.jogSec);
+  return Math.ceil(15 + mainMin + 10);
+}
+
+// CHANGE_REQUEST_011 section D — total physical reps in a week's main set
+// (both groups counted for week 9), keyed by recipe id, for the Retour tab's
+// "Rép 1 … Rép n" fields.
+export const runIntervalsRepsById: Record<string, number> = {};
+
+export function buildRunIntervalsRecipe(row: RunIntervalsRow): SessionRecipe {
+  const recipe: SessionRecipe = {
+    id: `run-intervals-v1-week-${row.week}`, version: 1, kind: 'run_intervals',
+    title: 'Intervalles course',
+    purpose: `Plat · vitesse. Semaine ${row.week} : ${row.purpose}.${row.retest ? ' Re-test 1 km le samedi de cette semaine.' : ''}`,
+    durationMin: runIntervalsDurationMin(row),
+    equipment: ['Chaussures de course', 'chronomètre ou montre avec tour auto 1 km'],
+    warmup: '15 min facile, puis 3 × 20 s d’accélérations progressives.',
+    blocks: [
+      {
+        title: `${row.reps} × ${row.minutes} min à ${paceText(row.paceSec)} — main set`,
+        short: 'intervalles',
+        faire: runIntervalsFaire(row),
+        details: `${row.purpose}, allure lue au tour auto 1 km.`,
+        stationMappings: [],
+        // R-WS-22's second group (week 9) has no jog value in the source
+        // table for its own recovery; a value is assumed here (documented in
+        // APP_REPORT_011.md as an open question, not a silent decision).
+        approximation: Boolean(row.second)
+      }
+    ],
+    cooldown: '10 min facile.'
+  };
+  recipeById[recipe.id] = recipe;
+  runIntervalsRepsById[recipe.id] = row.reps + (row.second?.reps ?? 0);
+  return recipe;
+}
 
 // CHANGE_REQUEST_002 — a memory block never carries an "explain" prompt: only
 // visualise, recite order, or state action/completion/next station. Returns
