@@ -1,0 +1,302 @@
+<title>Coach Concours, direction visuelle</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --bg:#0A0B0E; --card:#15171C; --card2:#1D2027; --line:#262A33;
+    --text:#F2F3F5; --sub:#9AA0AC; --mute:#5E646F;
+    --accent:#3CE0A1; --accent-ink:#0A0B0E; --accent-dim:rgba(60,224,161,.14);
+    --low:#3CE0A1; --mid:#F5B54A; --high:#F0655A;
+    --page:#0E0F13;
+    --display:"Plus Jakarta Sans",system-ui,-apple-system,sans-serif; --body:"Manrope",system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--text);font-family:var(--body);font-size:15px;line-height:1.45;padding-block:32px 56px;padding-inline:16px}
+  header.intro{max-width:760px;margin:0 auto 30px}
+  h1{font-family:var(--display);font-weight:800;font-size:28px;letter-spacing:-.02em;margin:0 0 8px;text-wrap:balance}
+  .lead{color:var(--sub);margin:0;max-width:64ch}
+  .stage{display:flex;flex-wrap:wrap;gap:36px;justify-content:center;align-items:flex-start}
+  .col{padding-top:30px;position:relative}
+  .cap{position:absolute;top:0;left:10px;font-family:var(--display);font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+  .phone{width:390px;max-width:100%;height:844px;background:var(--bg);border-radius:46px;border:1px solid #23262E;box-shadow:0 30px 80px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.03);overflow:hidden;position:relative;display:flex;flex-direction:column}
+  .status{display:flex;justify-content:space-between;align-items:center;padding:16px 30px 0;font-family:var(--display);font-weight:700;font-size:15px}
+  .status .r{display:flex;gap:6px;align-items:center;font-size:12px}
+  .status .bat{border:1.5px solid var(--text);border-radius:5px;padding:0 5px;font-size:11px}
+  .notch{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:118px;height:34px;border-radius:20px;background:#000}
+  .scroll{flex:1;overflow:auto;padding:0 18px 120px;scrollbar-width:none}
+  .scroll::-webkit-scrollbar{display:none}
+
+  /* ---------- week ---------- */
+  .hero{margin:14px -18px 0;padding:34px 24px 20px;background:
+      radial-gradient(120% 80% at 80% 0%, rgba(60,224,161,.22), transparent 55%),
+      linear-gradient(180deg,#141a22 0%, var(--bg) 100%)}
+  .hero .kicker{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+  .hero h2{font-family:var(--display);font-size:34px;font-weight:800;letter-spacing:-.03em;margin:8px 0 4px}
+  .hero p{margin:0;color:var(--sub);font-size:14px}
+  .wtabs{display:flex;gap:22px;padding:14px 4px 0;border-bottom:1px solid var(--line);margin:0 -18px 0;padding-left:22px;font-family:var(--display);font-weight:600;font-size:15px;color:var(--mute)}
+  .wtabs span{padding-bottom:10px;border-bottom:2px solid transparent}
+  .wtabs span.on{color:var(--text);border-color:var(--accent)}
+  .prog{margin:22px 0 6px;display:flex;justify-content:space-between;align-items:baseline}
+  .prog b{font-family:var(--display);font-size:26px;font-weight:800;letter-spacing:-.02em}
+  .prog span{color:var(--sub);font-size:13px}
+  .track{height:4px;border-radius:2px;background:var(--line);position:relative;margin:6px 0 10px}
+  .track i{position:absolute;left:0;top:0;height:100%;width:20%;border-radius:2px;background:var(--accent)}
+  .track i::after{content:"";position:absolute;right:-6px;top:-5px;width:14px;height:14px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px rgba(60,224,161,.18)}
+  .day{font-family:var(--display);font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--sub);margin:22px 2px 10px}
+  .day.today{color:var(--text)}
+  .card{display:flex;align-items:center;gap:14px;background:var(--card);border-radius:22px;padding:14px 16px;border:1px solid transparent;cursor:pointer}
+  .card.today{background:linear-gradient(90deg,rgba(60,224,161,.10),var(--card) 60%);border-color:rgba(60,224,161,.45)}
+  .card .tile{width:54px;height:54px;border-radius:16px;background:var(--card2);display:grid;place-items:center;font-size:22px;flex:none;color:var(--accent)}
+  .card.today .tile{background:var(--accent);color:var(--accent-ink)}
+  .card .vbars{display:flex;flex-direction:column;gap:3px;flex:none}
+  .card .vbars i{width:3px;height:10px;border-radius:2px;background:var(--line)}
+  .card .txt{flex:1;min-width:0}
+  .card .txt b{display:block;font-family:var(--display);font-size:18px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card .txt small{display:block;color:var(--sub);font-size:14px;margin-top:2px;font-variant-numeric:tabular-nums}
+  .card .more{color:var(--sub);font-size:20px;letter-spacing:1px;flex:none}
+  .card.done .txt b::after{content:" ✓";color:var(--accent)}
+  .rest{color:var(--mute);font-size:14px;padding:4px 6px}
+  .tabbar{position:absolute;left:16px;right:16px;bottom:18px;height:64px;border-radius:32px;background:rgba(21,23,28,.92);backdrop-filter:blur(12px);border:1px solid var(--line);display:flex;justify-content:space-around;align-items:center;font-size:20px;color:var(--sub)}
+  .tabbar span.on{background:var(--card2);color:var(--accent);width:56px;height:44px;border-radius:22px;display:grid;place-items:center}
+
+  /* ---------- session ---------- */
+  .snav{display:flex;align-items:center;gap:12px;padding:18px 0 6px}
+  .snav .back{width:44px;height:44px;border-radius:50%;background:var(--card);display:grid;place-items:center;font-size:20px;flex:none}
+  .snav h3{flex:1;text-align:center;font-family:var(--display);font-size:19px;font-weight:700;margin:0;letter-spacing:-.01em;padding-right:44px;text-wrap:balance}
+  .seg{display:flex;background:var(--card);border-radius:999px;padding:4px;margin:12px 0 18px;border:1px solid var(--line)}
+  .seg button{flex:1;border:0;background:transparent;color:var(--sub);font-family:var(--display);font-weight:700;font-size:15px;padding:10px 0;border-radius:999px;cursor:pointer}
+  .seg button.on{color:var(--text);position:relative}
+  .seg button.on::after{content:"";position:absolute;left:24%;right:24%;bottom:3px;height:3px;border-radius:2px;background:var(--accent)}
+  .seg button:focus-visible{outline:2px solid var(--accent)}
+  .panel{background:var(--card);border-radius:26px;padding:20px 20px 8px;margin-bottom:22px}
+  .panel .ph{display:flex;align-items:center;justify-content:space-between}
+  .panel h4{font-family:var(--display);font-size:24px;font-weight:800;letter-spacing:-.02em;margin:0}
+  .panel .edit{color:var(--accent);font-size:18px}
+  .chips{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 18px}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--accent-dim);color:var(--accent);border-radius:999px;padding:9px 14px;font-family:var(--display);font-weight:700;font-size:14px;font-variant-numeric:tabular-nums}
+  .hr{height:1px;background:var(--line);margin:0 -2px 14px}
+  .steps{list-style:none;margin:0;padding:0}
+  .steps li{display:grid;grid-template-columns:26px 1fr auto 14px;gap:4px 8px;align-items:baseline;padding:10px 0 12px;font-size:17px;line-height:1.35;cursor:pointer}
+  .steps li .chev{color:var(--mute);font-size:16px}
+  .steps li .do{grid-column:2/5;color:var(--text);font-size:14.5px;line-height:1.4;opacity:.85}
+  .steps li .n{color:var(--accent);font-family:var(--display);font-weight:700;font-size:16px}
+  .steps li .m{color:var(--sub);font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .steps li .r{grid-column:2/5;display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+  .pill{font-size:12px;font-weight:700;letter-spacing:.06em;padding:3px 9px;border-radius:999px;background:var(--card2);color:var(--sub)}
+  .pill.rule{color:var(--accent);background:var(--accent-dim)}
+  .steps li .sub{grid-column:2/5;color:var(--sub);font-size:14px;margin-top:2px}
+  .h5{font-family:var(--display);font-size:24px;font-weight:800;letter-spacing:-.02em;margin:0 0 12px}
+  .actions{position:absolute;left:0;right:0;bottom:0;padding:16px 26px 26px;background:linear-gradient(to top,var(--bg) 60%,transparent);display:flex;justify-content:space-around;align-items:flex-start}
+  .act{display:flex;flex-direction:column;align-items:center;gap:10px;font-family:var(--display);font-weight:600;font-size:15px;color:var(--text);background:none;border:0;cursor:pointer;width:120px;text-align:center;line-height:1.2}
+  .act i{width:64px;height:64px;border-radius:20px;background:var(--accent-dim);color:var(--accent);display:grid;place-items:center;font-style:normal;font-size:26px}
+  .act.primary i{background:var(--accent);color:var(--accent-ink)}
+  .act:focus-visible i{outline:2px solid var(--accent);outline-offset:3px}
+
+  /* ---------- retour / fait ---------- */
+  .qrow{display:flex;gap:10px;margin:0 0 20px}
+  .qrow button{flex:1;border:1px solid var(--line);background:var(--card);color:var(--sub);border-radius:16px;padding:14px 0;font-family:var(--display);font-weight:700;font-size:15px;cursor:pointer}
+  .qrow button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .lab{font-family:var(--display);font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--sub);margin:0 2px 10px}
+  .eff{display:flex;gap:8px;margin-bottom:22px}
+  .eff button{flex:1;aspect-ratio:1;border:1px solid var(--line);background:var(--card);color:var(--sub);border-radius:16px;font-family:var(--display);font-weight:800;font-size:20px;cursor:pointer}
+  .eff button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .field{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+  .field span{font-size:15px;color:var(--text);font-weight:600}
+  .field input,.field textarea{width:100%;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:15px 16px;font:inherit;font-size:17px;color:var(--text);font-variant-numeric:tabular-nums}
+  .field input::placeholder,.field textarea::placeholder{color:var(--mute)}
+  .field input:focus,.field textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  .kv{background:var(--card);border-radius:22px;padding:6px 18px;margin-bottom:16px}
+  .kv div{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line);font-size:16px}
+  .kv div:last-child{border-bottom:0}
+  .kv span{color:var(--sub)}
+  .kv b{font-variant-numeric:tabular-nums;font-weight:700}
+  /* ---------- bloc ---------- */
+  .sum{background:var(--card);border-radius:26px;padding:20px;margin-bottom:16px}
+  .sum h4{font-family:var(--display);font-size:24px;font-weight:800;letter-spacing:-.02em;margin:0 0 14px}
+  .circ{background:var(--card);border-radius:26px;padding:20px 20px 8px}
+  .circ h5{font-family:var(--display);font-size:22px;font-weight:800;margin:0 0 6px;letter-spacing:-.02em}
+  .circ .meta{color:var(--sub);font-size:15px;line-height:1.5;margin-bottom:14px}
+  .circ .meta b{color:#B9A6FF;font-weight:600}
+  .ex{display:flex;align-items:center;gap:16px;padding:12px 0}
+  .ex .th{width:64px;height:64px;border-radius:14px;background:var(--card2);display:grid;place-items:center;font-size:28px;flex:none}
+  .ex .t{flex:1}
+  .ex .t b{display:block;font-family:var(--display);font-size:18px;font-weight:700;letter-spacing:-.01em}
+  .ex .t small{color:var(--sub);font-size:14px;font-variant-numeric:tabular-nums}
+  .ex .rule{margin-top:6px}
+  .save{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--sub);margin:4px 2px 16px}
+  .save .dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+  .grp{background:var(--card);border-radius:22px;padding:16px 16px 6px;margin-bottom:14px}
+  .gh{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;font-size:17px;letter-spacing:-.01em;margin-bottom:12px}
+  .gn{width:26px;height:26px;border-radius:8px;background:var(--accent-dim);color:var(--accent);display:grid;place-items:center;font-size:13px}
+  .trio{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .qrow.small{margin-bottom:14px}.qrow.small button{padding:11px 0;font-size:14px;border-radius:13px}
+  .grp .field input,.grp .field textarea{background:var(--card2)}
+  .grp .qrow button,.grp .eff button{background:var(--card2)}
+  .hidden{display:none}
+  @media (prefers-reduced-motion:no-preference){.card,.seg button,.qrow button,.eff button{transition:background .15s,border-color .15s,color .15s}}
+</style>
+
+<header class="intro">
+  <h1>Coach Concours, direction visuelle</h1>
+  <p class="lead">Trois écrans cliquables, données réelles de la semaine 1 et 2. Sombre, un seul accent, des cartes larges, un geste par écran. Version approuvée le 14 septembre. Touchez une séance, puis Prévu · Fait · Retour, puis les boutons du bas.</p>
+</header>
+
+<div class="stage">
+
+  <!-- 1 · SEMAINE -->
+  <div class="col"><div class="cap">1 · Semaine</div>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="status"><span>8:34</span><span class="r">●●● ⌔ <span class="bat">88</span></span></div>
+    <div class="scroll">
+      <div class="hero">
+        <div class="kicker">Apprendre · semaine 2 / 11</div>
+        <h2>Technique d'abord</h2>
+        <p>4 semaines avant le trail · 10 avant le test police</p>
+      </div>
+      <div class="wtabs"><span>7 – 13 sept</span><span class="on">Cette semaine</span><span>21 – 27 sept</span></div>
+      <div class="prog"><b>Séances 1/5</b><span>14 – 20 sept</span></div>
+      <div class="track"><i></i></div>
+
+      <div class="day today">Aujourd'hui</div>
+      <div class="card today done" data-t="CrossFit coaché" data-d="lundi 14 sept."><span class="tile">🏋</span><span class="vbars"><i style="background:var(--high)"></i><i style="background:var(--high)"></i><i style="background:var(--high)"></i></span><span class="txt"><b>CrossFit coaché</b><small>selon le cours</small></span><span class="more">···</span></div>
+
+      <div class="day">Mardi 15</div>
+      <div class="card" data-t="Coordination &amp; équilibre" data-d="mardi 15 sept."><span class="tile">🎯</span><span class="vbars"><i style="background:var(--low)"></i><i></i><i></i></span><span class="txt"><b>Coordination &amp; équilibre</b><small>40:00 · postes 8 à 11</small></span><span class="more">···</span></div>
+
+      <div class="day">Mercredi 16</div>
+      <div class="rest">Repos</div>
+
+      <div class="day">Jeudi 17</div>
+      <div class="card" data-t="Force et transitions" data-d="jeudi 17 sept."><span class="tile">⚡</span><span class="vbars"><i style="background:var(--high)"></i><i style="background:var(--high)"></i><i style="background:var(--high)"></i></span><span class="txt"><b>Force et transitions</b><small>45:00 · HIIT 10 – 20 min</small></span><span class="more">···</span></div>
+
+      <div class="day">Vendredi 18</div>
+      <div class="card" data-t="Intégration du circuit" data-d="vendredi 18 sept."><span class="tile">🧩</span><span class="vbars"><i style="background:var(--mid)"></i><i style="background:var(--mid)"></i><i></i></span><span class="txt"><b>Intégration du circuit</b><small>45:00 · postes enchaînés</small></span><span class="more">···</span></div>
+
+      <div class="day">Samedi 19</div>
+      <div class="card" data-t="Sortie trail" data-d="samedi 19 sept."><span class="tile">🏃</span><span class="vbars"><i style="background:var(--mid)"></i><i style="background:var(--mid)"></i><i></i></span><span class="txt"><b>Sortie trail</b><small>≈ 55:00 · 9 km · facile</small></span><span class="more">···</span></div>
+
+      <div class="day">Dimanche 20</div>
+      <div class="rest">Repos</div>
+    </div>
+    <div class="tabbar"><span class="on">▦</span><span>◎</span><span>◯</span></div>
+  </div></div>
+
+  <!-- 2 · SÉANCE -->
+  <div class="col"><div class="cap">2 · Séance</div>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="status"><span>8:35</span><span class="r">●●● ⌔ <span class="bat">88</span></span></div>
+    <div class="snav"><span class="back">‹</span><h3 id="stitle">Technique police + AMRAP</h3></div>
+    <div class="seg" role="tablist">
+      <button class="on" data-tab="prevu" id="t-prevu">Prévu</button>
+      <button data-tab="fait" id="t-fait">Fait</button>
+      <button data-tab="retour" id="t-retour">Retour</button>
+    </div>
+
+    <div class="scroll" id="p-prevu">
+      <div class="panel">
+        <div class="ph"><h4>Ton programme</h4><span class="edit">✎</span></div>
+        <div class="chips"><span class="chip">⏱ 40:00</span><span class="chip">⚡ Intensité modérée</span><span class="chip">▤ 7 blocs</span></div>
+        <div class="hr"></div>
+        <ol class="steps">
+          <li><span class="n">1.</span><span>Échauffement</span><span class="m">5 min</span><span class="chev">›</span><span class="do">Marche, chevilles, hanches, épaules, puis 2 × 20 s de petits sauts sur une ligne.</span></li>
+          <li><span class="n">2.</span><span>Mémoire du circuit</span><span class="m">4 min</span><span class="chev">›</span><span class="do">Yeux fermés, parcourir la salle du poste 1 au 11, puis réciter les 11 postes à voix haute.</span></li>
+          <li><span class="n">3.</span><span>Poste 2 · balle de tennis</span><span class="m">8 min</span><span class="chev">›</span><span class="do">Traverser avec une balle, la poser dans la boîte, revenir sans. 2 tours marchés, 1 trottiné, repos 60 – 90 s.</span>
+              <span class="r"><span class="pill rule">RÈGLE S1 · 5 aller avec balle, 4 retour sans</span></span></li>
+          <li><span class="n">4.</span><span>Raquette-balle, référence fraîche</span><span class="m">5 min</span><span class="chev">›</span><span class="do">Marcher 1 min avec la balle en équilibre sur la raquette, main fermée sur le manche. 3 fois, 30 s de pause. Si la balle tombe, reprendre sur place.</span></li>
+          <li><span class="n">5.</span><span>AMRAP</span><span class="m">10 min</span><span class="chev">›</span><span class="do">Le plus de tours possible : 40 sauts à la corde, échelle aller-retour ×2, 10 jump squats.</span></li>
+          <li><span class="n">6.</span><span>Poste 8 · couleurs sous fatigue</span><span class="m">5 min</span><span class="chev">›</span><span class="do">Sauter d'un repère à l'autre selon la couleur : jaune pieds joints, bleu pied droit et dire « main droite », rouge pied gauche et « main gauche ». 3 × 45 s, 30 s de pause.</span></li>
+          <li><span class="n">7.</span><span>Retour au calme</span><span class="m">2 min</span><span class="chev">›</span><span class="do">Marche facile en rejouant le circuit dans la tête.</span></li>
+        </ol>
+      </div>
+      <div style="height:40px"></div>
+    </div>
+
+    <div class="scroll hidden" id="p-fait">
+      <div class="kv">
+        <div><span>Statut</span><b style="color:var(--accent)">Terminée</b></div>
+        <div><span>Effort ressenti</span><b>3 / 5</b></div>
+        <div><span>Erreurs de mémoire</span><b>0</b></div>
+        <div><span>Balles lâchées · hésitations</span><b>0 · 1</b></div>
+        <div><span>Chutes raquette</span><b>0 · 0 · 5</b></div>
+        <div><span>Réceptions</span><b>mixtes</b></div>
+        <div><span>Enregistrée</span><b>13 sept. 22:20</b></div>
+      </div>
+      <p style="color:var(--sub);font-size:14px;margin:0 6px">Synchronisé avec Drive · révision 7</p>
+    </div>
+
+    <div class="scroll hidden" id="p-retour">
+      <div class="save"><span class="dot"></span>Brouillon enregistré · 8:41 · tu peux revenir à tout moment</div>
+      <div class="grp"><div class="gh"><span class="gn">2</span>Mémoire du circuit</div>
+        <label class="field"><span>Postes oubliés ou inversés</span><input id="f1" type="number" inputmode="numeric" placeholder="0" value="0"></label></div>
+      <div class="grp"><div class="gh"><span class="gn">3</span>Poste 2 · balle de tennis</div>
+        <label class="field"><span>Balles lâchées</span><input id="f2" type="number" inputmode="numeric" placeholder="0" value="0"></label>
+        <label class="field"><span>Hésitations à l'obstacle</span><input id="f2b" type="number" inputmode="numeric" placeholder="0"></label></div>
+      <div class="grp"><div class="gh"><span class="gn">4</span>Raquette-balle, référence</div>
+        <div class="trio"><label class="field"><span>Tour 1</span><input id="f3a" type="number" inputmode="numeric" placeholder="chutes" value="0"></label><label class="field"><span>Tour 2</span><input id="f3b" type="number" inputmode="numeric" placeholder="chutes" value="0"></label><label class="field"><span>Tour 3</span><input id="f3c" type="number" inputmode="numeric" placeholder="chutes" value="5"></label></div></div>
+      <div class="grp"><div class="gh"><span class="gn">5</span>AMRAP</div>
+        <label class="field"><span>Tours complets (+ partiel, ex. 4,5)</span><input id="f4" type="text" inputmode="decimal" placeholder="4,5"></label>
+        <div class="lab">Réceptions</div>
+        <div class="qrow small"><button>propres</button><button class="on">mixtes</button><button>sales</button></div></div>
+      <div class="grp"><div class="gh">Toute la séance</div>
+        <div class="lab">Statut</div>
+        <div class="qrow small"><button class="on">Terminée</button><button>Partielle</button><button>Passée</button></div>
+        <div class="lab">Effort ressenti</div>
+        <div class="eff"><button>1</button><button>2</button><button class="on">3</button><button>4</button><button>5</button></div>
+        <label class="field"><span>Note</span><textarea id="f5" rows="3" placeholder="facultatif"></textarea></label></div>
+      <div style="height:30px"></div>
+    </div>
+
+    <div class="actions" id="actions">
+      <button class="act" id="a-left" type="button"><i>✎</i><span>Retour de séance</span></button>
+      <button class="act primary" id="a-right" type="button"><i>✓</i><span>Séance faite</span></button>
+    </div>
+  </div></div>
+
+  <!-- 3 · BLOC -->
+  <div class="col"><div class="cap">3 · Un bloc (touché depuis la séance)</div>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="status"><span>8:36</span><span class="r">●●● ⌔ <span class="bat">88</span></span></div>
+    <div class="snav"><span class="back">‹</span><h3>AMRAP 10 min</h3></div>
+    <div class="scroll" style="padding-top:8px">
+      <div class="sum">
+        <h4>Résumé</h4>
+        <div class="chips" style="margin:0"><span class="chip">⏱ 10:00</span><span class="chip">↻ max de tours</span><span class="chip">⚡ HIIT</span></div>
+      </div>
+      <div class="circ">
+        <h5>Circuit</h5>
+        <div class="meta">Enchaîner <b>sans pause</b> entre les exercices<br>Vitesse d'exécution : <b>rapide</b><br>Arrêter le tour si une <b>réception</b> devient imprécise</div>
+        <div class="ex"><span class="th">🪢</span><span class="t"><b>Corde à sauter</b><small>40 sauts · single-unders</small></span></div>
+        <div class="ex"><span class="th">🪜</span><span class="t"><b>Échelle aller-retour</b><small>×2 · descente contrôlée</small><span class="r rule"><span class="pill rule">S1 · pas de bascule</span></span></span></div>
+        <div class="ex"><span class="th">🐸</span><span class="t"><b>Jump squats</b><small>10 · réception amortie</small></span></div>
+      </div>
+      <h5 class="h5" style="margin-top:22px">À enregistrer dans Retour de séance</h5>
+      <div class="kv">
+        <div><span>Tours complets + partiel</span><b>ex. 4,5</b></div>
+        <div><span>Réceptions</span><b>propres · mixtes · sales</b></div>
+      </div>
+    </div>
+    <div class="actions"><button class="act" type="button"><i>‹</i><span>Séance</span></button><button class="act primary" type="button"><i>✎</i><span>Retour de séance</span></button></div>
+  </div></div>
+
+</div>
+
+<script>
+  const panes={prevu:'p-prevu',fait:'p-fait',retour:'p-retour'};
+  const tabs=[...document.querySelectorAll('.seg button')];
+  const left=document.getElementById('a-left'), right=document.getElementById('a-right');
+  function show(t){
+    tabs.forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
+    Object.entries(panes).forEach(([k,id])=>document.getElementById(id).classList.toggle('hidden',k!==t));
+    if(t==='prevu'){left.innerHTML='<i>✎</i><span>Retour de séance</span>';right.innerHTML='<i>✓</i><span>Séance faite</span>';left.dataset.go='retour';right.dataset.go='retour';}
+    if(t==='retour'){left.innerHTML='<i>‹</i><span>Plan</span>';right.innerHTML='<i>✓</i><span>Valider la séance</span>';left.dataset.go='prevu';right.dataset.go='fait';}
+    if(t==='fait'){left.innerHTML='<i>✎</i><span>Modifier</span>';right.innerHTML='<i>▤</i><span>Voir le plan</span>';left.dataset.go='retour';right.dataset.go='prevu';}
+  }
+  tabs.forEach(b=>b.addEventListener('click',()=>show(b.dataset.tab)));
+  [left,right].forEach(b=>b.addEventListener('click',()=>show(b.dataset.go)));
+  document.querySelectorAll('.card').forEach(c=>c.addEventListener('click',()=>{
+    document.getElementById('stitle').innerHTML=c.dataset.t; show('prevu');
+  }));
+  show('prevu');
+</script>

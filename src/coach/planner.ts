@@ -131,7 +131,7 @@ function adaptCurrentWeek(current: PlannedSession[], results: Record<string, Ses
   const room = current.find((session) => session.recipeId === recipes.room!.id);
   if (!crossfit || !room) return;
   const result = results[crossfit.id];
-  if (result && (result.effort >= 4 || result.overlapTags?.includes('heavy_legs'))) {
+  if (result && ((result.effort ?? 0) >= 4 || result.overlapTags?.includes('heavy_legs'))) {
     room.volumeFactor = Math.min(room.volumeFactor, 0.75);
     room.adaptationNote = 'Volume réduit après un cours du lundi exigeant ou des jambes lourdes.';
   }
@@ -269,7 +269,7 @@ export function hiitShortFormNotes(week: TrainingWeek, results: Record<string, S
   const crossfit = week.sessions.find((session) => session.kind === 'crossfit_class');
   if (!crossfit) return notes;
   const result = results[crossfit.id];
-  if (!result || result.effort < 4) return notes;
+  if (!result || (result.effort ?? 0) < 4) return notes;
   const next = week.sessions.find((session) => (POLICE_KINDS as readonly string[]).includes(session.kind) && daysBetween(crossfit.date, session.date) === 1);
   if (!next) return notes;
   const hiit = hiitBlock(next.recipeId);

@@ -25,6 +25,10 @@ export type PlanPhase =
   | 'taper';
 
 export type CompletionStatus = 'done' | 'partial' | 'skipped';
+// CHANGE_REQUEST_010 section D — a session with values typed into "Retour"
+// but no status chosen yet is `draft` in the data ("en cours" on the week
+// card), distinct from the three completion outcomes above.
+export type ResultStatus = CompletionStatus | 'draft';
 export type MovementQuality = 'crisp' | 'mixed' | 'degraded';
 
 // CHANGE_REQUEST_009 block grammar: every block carries the same four slots
@@ -101,8 +105,13 @@ export type LandingQuality = 'clean' | 'mixed' | 'sloppy';
 
 export interface SessionResult {
   sessionId: string;
-  status: CompletionStatus;
-  effort: 1 | 2 | 3 | 4 | 5;
+  // CHANGE_REQUEST_010 — `status` can now be `draft` (autosaved from the
+  // Retour tab before the athlete has chosen Terminée/Partielle/Passée); the
+  // effort rating is optional for the same reason. A record read from Drive
+  // or exported before CR-010 always carries a real CompletionStatus and a
+  // real effort, so both stay assignable to their pre-CR-010 types.
+  status: ResultStatus;
+  effort?: 1 | 2 | 3 | 4 | 5;
   note: string;
   movementQuality?: MovementQuality;
   boxHesitation?: boolean;
@@ -122,6 +131,9 @@ export interface SessionResult {
   // CHANGE_REQUEST_007 record fields (Week 1 v3, Tuesday 8 Sep running-intervals exception).
   intervalDistance1M?: number;
   intervalDistance2M?: number;
+  // CHANGE_REQUEST_010 section D — new optional field named by the mockup's
+  // Retour group for the Friday station-2 block ("Hésitations à l'obstacle").
+  obstacleHesitations?: number;
   // CHANGE_REQUEST_002 — record field for `coordination`'s new hiit block
   // ("Corde EMOM — 6 min"): minutes out of 6 completed as prescribed.
   emomMinutesCompleted?: number;

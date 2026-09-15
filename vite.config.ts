@@ -20,8 +20,9 @@ export default defineConfig({
         scope: './',
         display: 'standalone',
         orientation: 'portrait-primary',
-        background_color: '#F3EDE3',
-        theme_color: '#14213D',
+        // CHANGE_REQUEST_010 section A — dark theme only, tokens from the mockup.
+        background_color: '#0A0B0E',
+        theme_color: '#0A0B0E',
         lang: 'fr-CH',
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
