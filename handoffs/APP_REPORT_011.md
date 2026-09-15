@@ -136,4 +136,4 @@ describes). The branch `cr-011-tuesday-run-intervals` is committed locally, base
 `CR-011 Tuesday run intervals and two police sessions` from a session that has either real git
 credentials or browser access to `github.dev`/the GitHub web UI.
 
-Commit hash: `<recorded after commit, see `git log cr-011-tuesday-run-intervals``>.
+Commit hash: `34355c0` (`cr-011-tuesday-run-intervals`, based on `origin/main`).
