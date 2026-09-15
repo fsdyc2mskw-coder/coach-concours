@@ -18,13 +18,29 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-async function openFridayRetour() {
+// A session's own title can also be the week screen's headline (the title
+// of the week's first `police_*` session, CR-010's WeekScreen substitution
+// #2), so a plain `findByText(title)` can match two elements. Scope to the
+// week-card button specifically.
+async function clickSessionCard(title: string) {
+  const matches = await screen.findAllByText(title);
+  const cardButton = matches.map((node) => node.closest('button.card')).find((node): node is HTMLButtonElement => node !== null);
+  if (!cardButton) throw new Error(`No week-card button found for "${title}"`);
+  fireEvent.click(cardButton);
+}
+
+async function openRetourFor(title: string) {
   const { container } = render(createElement(CoachConcoursApp));
   await screen.findByText(/Séances/);
-  const title = await screen.findByText(recipes.week1Fri11Sep!.title);
-  fireEvent.click(title.closest('button')!);
+  await clickSessionCard(title);
   await screen.findByText('Ton programme');
   fireEvent.click(screen.getByText('Retour'));
+  await screen.findByText('Toute la séance');
+  return container;
+}
+
+async function openFridayRetour() {
+  const container = await openRetourFor(recipes.week1Fri11Sep!.title);
   await screen.findByLabelText('Balles échappées');
   return container;
 }
@@ -36,13 +52,7 @@ describe('CR-010 Retour tab', () => {
   // (Thursday's "Box jump, frais" showed "Erreurs de mémoire", etc.). Fixed
   // by gating on the recipe id too — this pins the fix.
   it('does not attach Friday-only field groups to a different session\'s blocks (Thursday, week1Thu10Sep)', async () => {
-    const { container } = render(createElement(CoachConcoursApp));
-    await screen.findByText(/Séances/);
-    const title = await screen.findByText(recipes.week1Thu10Sep!.title);
-    fireEvent.click(title.closest('button')!);
-    await screen.findByText('Ton programme');
-    fireEvent.click(screen.getByText('Retour'));
-    await screen.findByText('Toute la séance');
+    const container = await openRetourFor(recipes.week1Thu10Sep!.title);
     // Only the final "Toute la séance" group: none of Thursday's blocks
     // (rope warm-up, box jump, EMOM, easy racket, rope EMOM) declare a
     // Friday-only record field.
