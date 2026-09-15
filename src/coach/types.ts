@@ -41,12 +41,25 @@ export interface ExerciseBlock {
   details?: string;
   stationMappings: number[];
   approximation?: boolean;
+  hiit?: HiitSpec;
 }
 
 export interface MemoryPrompt {
   id: string;
   prompt: string;
   answer: string;
+}
+
+// CHANGE_REQUEST_002 — R-WS-16: a block is tagged `hiit` when it is the
+// session's one stamina/explosiveness block (AMRAP, EMOM, running intervals,
+// for-time or chipper). `durationMin` is read off the block's own text, never
+// invented (see recipes.ts comments at each tag for where the number comes
+// from).
+export type HiitFormat = 'amrap' | 'emom' | 'intervals' | 'for_time' | 'chipper';
+
+export interface HiitSpec {
+  format: HiitFormat;
+  durationMin: number;
 }
 
 export interface SessionRecipe {
@@ -109,6 +122,9 @@ export interface SessionResult {
   // CHANGE_REQUEST_007 record fields (Week 1 v3, Tuesday 8 Sep running-intervals exception).
   intervalDistance1M?: number;
   intervalDistance2M?: number;
+  // CHANGE_REQUEST_002 — record field for `coordination`'s new hiit block
+  // ("Corde EMOM — 6 min"): minutes out of 6 completed as prescribed.
+  emomMinutesCompleted?: number;
   completedAt: string;
 }
 

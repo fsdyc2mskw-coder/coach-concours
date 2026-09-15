@@ -137,11 +137,22 @@ function adaptCurrentWeek(current: PlannedSession[], results: Record<string, Ses
   }
 }
 
-// CHANGE_REQUEST_001 — validates the hard rules of weekly_shape.md v2
-// (R-WS-01 … R-WS-15; R-WS-16/17/18 are CR-002's HIIT-block rules, out of
-// scope here). `running_intervals_exception` is deliberately excluded from
-// the run count (R-WS-08): it is a floating block inside a police session,
-// never a run, and Week 1's Tuesday is its only documented occurrence.
+const POLICE_KINDS = ['police_technique', 'police_strength_transitions', 'police_integration', 'police_mock_test'] as const;
+
+// CHANGE_REQUEST_002 — R-WS-16: the recipe's one hiit block (AMRAP, EMOM,
+// running intervals, for-time or chipper). Returns null when there is none
+// or more than one — both are R-WS-16 violations, reported by the caller.
+function hiitBlock(recipeId: string) {
+  const blocks = (recipeById[recipeId]?.blocks ?? []).filter((block) => block.hiit);
+  return blocks.length === 1 ? blocks[0]! : null;
+}
+
+// CHANGE_REQUEST_001/002 — validates the hard rules of weekly_shape.md v2
+// (R-WS-01 … R-WS-18). `running_intervals_exception` is deliberately excluded
+// from the run count (R-WS-08): it is a floating block inside a police
+// session, never a run, and Week 1's Tuesday is its only documented
+// occurrence. R-WS-16/17/18 (CR-002) are skipped for Week 1 (frozen, R-WS-15)
+// exactly like R-WS-07 above.
 export function validateWeek(week: TrainingWeek): string[] {
   const errors: string[] = [];
   const isTaperEventWeek = week.startDate === '2026-11-16';
@@ -203,7 +214,69 @@ export function validateWeek(week: TrainingWeek): string[] {
   // R-WS-13: no session after 20 November 2026.
   if (week.sessions.some((session) => session.date > '2026-11-20')) errors.push('Aucune séance ne peut être générée après le 20 novembre 2026.');
 
+  // R-WS-16/17/18 (CR-002): every police session has exactly one hiit block;
+  // in police_technique it is ≤ 10 min and the last block before the
+  // cool-down; in police_strength_transitions/police_integration it is
+  // 10-20 min. Skipped for Week 1 (R-WS-15, same exemption as R-WS-07 above).
+  if (!isWeek1) {
+    for (const session of week.sessions) {
+      if (!(POLICE_KINDS as readonly string[]).includes(session.kind)) continue;
+      const recipe = recipeById[session.recipeId];
+      if (!recipe) continue;
+      const hiit = hiitBlock(session.recipeId);
+      if (!hiit) {
+        errors.push(`« ${recipe.title} » (${session.date}) n’a pas exactement un bloc hiit (R-WS-16).`);
+        continue;
+      }
+      if (session.kind === 'police_technique') {
+        if (hiit.hiit!.durationMin > 10) {
+          errors.push(`« ${recipe.title} » (${session.date}) : le bloc hiit d’une séance police_technique doit durer 10 min maximum (R-WS-17).`);
+        }
+        if (recipe.blocks.at(-1) !== hiit) {
+          errors.push(`« ${recipe.title} » (${session.date}) : le bloc hiit doit être le dernier bloc avant le retour au calme (R-WS-17).`);
+        }
+      } else if (session.kind === 'police_strength_transitions' || session.kind === 'police_integration') {
+        if (hiit.hiit!.durationMin < 10 || hiit.hiit!.durationMin > 20) {
+          errors.push(`« ${recipe.title} » (${session.date}) : le bloc hiit doit durer entre 10 et 20 min (R-WS-18).`);
+        }
+      }
+    }
+  }
+
+  // R-WS-09/18 short form: the police session the day before the week's run
+  // (trail_maintenance or trail_event) keeps its hiit block ≤ 10 min.
+  const runDate = week.sessions.find((session) => session.kind === 'trail_maintenance' || session.kind === 'trail_event')?.date;
+  if (runDate) {
+    const dayBefore = week.sessions.find((session) => (POLICE_KINDS as readonly string[]).includes(session.kind) && daysBetween(session.date, runDate) === 1);
+    const hiit = dayBefore ? hiitBlock(dayBefore.recipeId) : null;
+    if (dayBefore && hiit && hiit.hiit!.durationMin > 10) {
+      errors.push(`« ${recipeById[dayBefore.recipeId]?.title} » (${dayBefore.date}) : la veille de la course, le bloc hiit doit rester court, 10 min maximum (R-WS-09).`);
+    }
+  }
+
   return errors;
+}
+
+// CHANGE_REQUEST_002 — R-WS-09 short-form check that depends on feedback, not
+// on the fixed weekly template: the police session immediately after a
+// CrossFit class recorded with effort 4-5 should use the short (≤ 10 min)
+// hiit form. The recipe library is static text, so the engine cannot shorten
+// it by itself; this returns an adaptation note for the athlete/coach rather
+// than silently rewriting the session, the same pattern as
+// `adaptCurrentWeek`'s existing volumeFactor notes.
+export function hiitShortFormNotes(week: TrainingWeek, results: Record<string, SessionResult>): string[] {
+  const notes: string[] = [];
+  const crossfit = week.sessions.find((session) => session.kind === 'crossfit_class');
+  if (!crossfit) return notes;
+  const result = results[crossfit.id];
+  if (!result || result.effort < 4) return notes;
+  const next = week.sessions.find((session) => (POLICE_KINDS as readonly string[]).includes(session.kind) && daysBetween(crossfit.date, session.date) === 1);
+  if (!next) return notes;
+  const hiit = hiitBlock(next.recipeId);
+  if (hiit && hiit.hiit!.durationMin > 10) {
+    notes.push(`R-WS-09 : cours de CrossFit noté effort ${result.effort} → le bloc hiit de « ${recipeById[next.recipeId]?.title} » (${next.date}) devrait passer en forme courte, 10 min maximum.`);
+  }
+  return notes;
 }
 
 // CHANGE_REQUEST_001 — R-WS-12: four memory exposures per complete week,

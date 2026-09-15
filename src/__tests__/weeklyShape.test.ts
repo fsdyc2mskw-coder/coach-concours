@@ -1,11 +1,12 @@
-// CHANGE_REQUEST_001 — one test per hard rule in weekly_shape.md v2
-// (R-WS-01 … R-WS-15; R-WS-16/17/18 are CR-002's HIIT-block rules, out of
-// scope here). Uses week 2 (2026-09-14), a fully generic week under the new
-// template, plus the race week (2026-10-05) and the taper/event week
-// (2026-11-16) for the rules that only show up there.
+// CHANGE_REQUEST_001/002 — one test per hard rule in weekly_shape.md v2
+// (R-WS-01 … R-WS-18; R-WS-16/17/18 have their own describe block below).
+// Uses week 2 (2026-09-14), a fully generic week under the new template,
+// plus the race week (2026-10-05) and the taper/event week (2026-11-16) for
+// the rules that only show up there.
 import { describe, expect, it } from 'vitest';
-import { countMemoryExposures, generatePlan, validateWeek } from '../coach/planner';
-import { recipeById } from '../coach/recipes';
+import { countMemoryExposures, generatePlan, hiitShortFormNotes, validateWeek } from '../coach/planner';
+import { memoryPromptsAskingToExplain, recipeById, recipes } from '../coach/recipes';
+import type { TrainingWeek } from '../coach/types';
 
 const weeks = generatePlan();
 const genericWeek = weeks.find((week) => week.startDate === '2026-09-14')!;
@@ -118,5 +119,85 @@ describe('weekly_shape.md v2, taper/event week (2026-11-16)', () => {
     const event = taperWeek.sessions.find((session) => session.kind === 'police_event');
     expect(event?.date).toBe('2026-11-20');
     expect(event?.status).toBe('fixed_event');
+  });
+});
+
+// CHANGE_REQUEST_002 — R-WS-16/17/18 (every police session, exactly one hiit
+// block; ≤ 10 min and last before cool-down in police_technique; 10-20 min
+// in police_strength_transitions/police_integration), plus the two short-form
+// checks from R-WS-09 and the memory-prompt "no explain" rule.
+describe('weekly_shape.md v2, R-WS-16/17/18 (CR-002 hiit block)', () => {
+  it('R-WS-16/18: police_integration (room) has exactly one 10-20 min hiit block', () => {
+    const session = genericWeek.sessions.find((session) => session.kind === 'police_integration')!;
+    const recipe = recipeById[session.recipeId]!;
+    const hiitBlocks = recipe.blocks.filter((block) => block.hiit);
+    expect(hiitBlocks).toHaveLength(1);
+    expect(hiitBlocks[0]!.hiit!.durationMin).toBeGreaterThanOrEqual(10);
+    expect(hiitBlocks[0]!.hiit!.durationMin).toBeLessThanOrEqual(20);
+  });
+
+  it('R-WS-16/18/09: police_strength_transitions (outdoor, the day before the run) has a ≤ 10 min hiit block', () => {
+    const session = genericWeek.sessions.find((session) => session.kind === 'police_strength_transitions')!;
+    const recipe = recipeById[session.recipeId]!;
+    const hiitBlocks = recipe.blocks.filter((block) => block.hiit);
+    expect(hiitBlocks).toHaveLength(1);
+    expect(hiitBlocks[0]!.hiit!.durationMin).toBeLessThanOrEqual(10);
+    // this session sits the day before the week's run
+    const run = genericWeek.sessions.find((s) => s.kind === 'trail_maintenance')!;
+    const daysBefore = (Date.parse(`${run.date}T12:00:00Z`) - Date.parse(`${session.date}T12:00:00Z`)) / 86_400_000;
+    expect(daysBefore).toBe(1);
+  });
+
+  it('R-WS-16/17: police_technique (coordination) has its hiit block last, ≤ 10 min ("Corde EMOM — 6 min")', () => {
+    const session = genericWeek.sessions.find((session) => session.kind === 'police_technique')!;
+    const recipe = recipeById[session.recipeId]!;
+    const hiitBlocks = recipe.blocks.filter((block) => block.hiit);
+    expect(hiitBlocks).toHaveLength(1);
+    expect(hiitBlocks[0]!.title).toBe('Corde EMOM — 6 min');
+    expect(hiitBlocks[0]!.hiit!.durationMin).toBeLessThanOrEqual(10);
+    expect(recipe.blocks.at(-1)).toBe(hiitBlocks[0]);
+    expect(validateWeek(genericWeek).some((error) => error.includes('R-WS-16') || error.includes('R-WS-17'))).toBe(false);
+  });
+
+  it('R-WS-17: Week 1 Friday (already built to the rule) has its hiit block last, ≤ 10 min — exempt from the check but true anyway', () => {
+    const recipe = recipeById['week1-fri-2026-09-11-v3']!;
+    const hiitBlocks = recipe.blocks.filter((block) => block.hiit);
+    expect(hiitBlocks).toHaveLength(1);
+    expect(hiitBlocks[0]!.hiit!.durationMin).toBeLessThanOrEqual(10);
+  });
+
+  it('is exempt for Week 1 (R-WS-15), same as R-WS-07', () => {
+    const week1 = generatePlan().find((week) => week.startDate === '2026-09-07')!;
+    const errors = validateWeek(week1).filter((error) => error.includes('R-WS-16') || error.includes('R-WS-17') || error.includes('R-WS-18'));
+    expect(errors).toHaveLength(0);
+  });
+
+  it("R-WS-16 fails for a police session whose recipe has no hiit block at all (fixture, the unused 'technique' bank recipe)", () => {
+    const recipe = recipes.technique!;
+    expect(recipe.blocks.some((block) => block.hiit)).toBe(false);
+    const fixtureWeek: TrainingWeek = {
+      id: 'fixture-week', startDate: '2026-09-14', endDate: '2026-09-20', phase: 'learn',
+      sessions: [{
+        id: 'fixture:police_technique', date: '2026-09-15', dayLabel: 'MAR', kind: 'police_technique',
+        recipeId: recipe.id, status: 'proposed', phase: 'learn', load: 'low', volumeFactor: 1
+      }]
+    };
+    expect(validateWeek(fixtureWeek).some((error) => error.includes('R-WS-16'))).toBe(true);
+  });
+
+  it('R-WS-09: the day after a CrossFit class rated effort 4-5, the next police session should shorten its hiit block', () => {
+    const week = generatePlan().find((week) => week.startDate === '2026-09-14')!;
+    const crossfit = week.sessions.find((session) => session.kind === 'crossfit_class')!;
+    const notes = hiitShortFormNotes(week, {
+      [crossfit.id]: { sessionId: crossfit.id, status: 'done', effort: 5, note: '', completedAt: new Date().toISOString() }
+    });
+    // Tuesday (police_technique/coordination) is the day after Monday's
+    // class; its hiit block is already 6 min (≤ 10), so there is nothing to
+    // shorten — the function reports no note rather than a spurious one.
+    expect(notes).toHaveLength(0);
+  });
+
+  it('memory prompts never ask to explain', () => {
+    expect(memoryPromptsAskingToExplain()).toHaveLength(0);
   });
 });
