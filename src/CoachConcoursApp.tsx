@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { flowStrip, recipeById } from './coach/recipes';
+import { flowStrip, recipeById, runIntervalsRepsById } from './coach/recipes';
 import { generatePlan } from './coach/planner';
 import type {
   CoachState,
@@ -487,6 +487,22 @@ function FaitTab({ result, openRetour, openPrevu }: { result?: SessionResult; op
 function numberToText(value: number | undefined): string { return value === undefined ? '' : String(value); }
 function textToNumber<Key extends string>(key: Key, value: string): Partial<Record<Key, number>> { if (value.trim() === '') return {}; const parsed = Number(value); return Number.isFinite(parsed) ? { [key]: parsed } as Partial<Record<Key, number>> : {}; }
 
+// CHANGE_REQUEST_011 section D — a rep pace accepts `m:ss` (read off the
+// watch's auto-lap) or a decimal number of minutes ("6,20" / "6.2"), always
+// stored as whole seconds per kilometre.
+function parsePaceToSec(text: string): number | undefined {
+  const trimmed = text.trim();
+  if (trimmed === '') return undefined;
+  const colon = trimmed.match(/^(\d+):(\d{1,2})$/);
+  if (colon) return Number(colon[1]) * 60 + Number(colon[2]);
+  const decimal = Number(trimmed.replace(',', '.'));
+  return Number.isFinite(decimal) ? Math.round(decimal * 60) : undefined;
+}
+function paceSecToText(sec: number | undefined): string {
+  if (sec === undefined) return '';
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+}
+
 function RetourTab({ planned, recipe, saved, focusBlock, save, saveDraft, remove, backToPrevu, onValidated }: {
   planned: PlannedSession;
   recipe: SessionRecipe;
@@ -518,6 +534,10 @@ function RetourTab({ planned, recipe, saved, focusBlock, save, saveDraft, remove
   const [durationMin, setDurationMin] = useState(numberToText(saved?.durationMin));
   const [intervalDistance1M, setIntervalDistance1M] = useState(numberToText(saved?.intervalDistance1M));
   const [intervalDistance2M, setIntervalDistance2M] = useState(numberToText(saved?.intervalDistance2M));
+  const isRunIntervals = planned.kind === 'run_intervals';
+  const runIntervalsTotalReps = isRunIntervals ? (runIntervalsRepsById[recipe.id] ?? 0) : 0;
+  const [repPaces, setRepPaces] = useState<string[]>(() => Array.from({ length: runIntervalsTotalReps }, (_, index) => paceSecToText(saved?.repPacesSec?.[index])));
+  const [repsDone, setRepsDone] = useState(numberToText(saved?.repsDone));
   const [draftSavedAt, setDraftSavedAt] = useState<Date | null>(null);
 
   const isCrossfit = planned.kind === 'crossfit_class';
@@ -553,6 +573,10 @@ function RetourTab({ planned, recipe, saved, focusBlock, save, saveDraft, remove
       ...(isWeek1Tuesday ? {
         ...textToNumber('intervalDistance1M', intervalDistance1M),
         ...textToNumber('intervalDistance2M', intervalDistance2M)
+      } : {}),
+      ...(isRunIntervals ? {
+        ...(repPaces.some((value) => value.trim() !== '') ? { repPacesSec: repPaces.map(parsePaceToSec).filter((value): value is number => value !== undefined) } : {}),
+        ...textToNumber('repsDone', repsDone)
       } : {})
     };
   }
@@ -569,7 +593,7 @@ function RetourTab({ planned, recipe, saved, focusBlock, save, saveDraft, remove
     }, DRAFT_SAVE_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effort, status, statusTouched, note, quality, hesitation, tags, memoryErrors, ballFumbles, obstacleHesitations, racketDropsR1, racketDropsR2, racketDropsR3, amrapRounds, landingQuality, distanceKm, elevationGainM, durationMin, intervalDistance1M, intervalDistance2M]);
+  }, [effort, status, statusTouched, note, quality, hesitation, tags, memoryErrors, ballFumbles, obstacleHesitations, racketDropsR1, racketDropsR2, racketDropsR3, amrapRounds, landingQuality, distanceKm, elevationGainM, durationMin, intervalDistance1M, intervalDistance2M, repPaces, repsDone]);
 
   const groupRefs = useRef<Record<number, HTMLDivElement | null>>({});
   useEffect(() => {
@@ -611,6 +635,12 @@ function RetourTab({ planned, recipe, saved, focusBlock, save, saveDraft, remove
       {fields.includes('intervalDistance1M') && <NumberField label="Distance intervalle 1" value={intervalDistance1M} onChange={setIntervalDistance1M} step={1} unit="m" />}
       {fields.includes('intervalDistance2M') && <NumberField label="Distance intervalle 2" value={intervalDistance2M} onChange={setIntervalDistance2M} step={1} unit="m" />}
     </div>)}
+
+    {isRunIntervals && <div className="grp">
+      <div className="gh">Intervalles</div>
+      {repPaces.map((value, index) => <PaceField key={index} label={`Rép ${index + 1}`} value={value} onChange={(next) => setRepPaces((paces) => paces.map((pace, paceIndex) => paceIndex === index ? next : pace))} />)}
+      <NumberField label="Répétitions faites" value={repsDone} onChange={setRepsDone} step={1} />
+    </div>}
 
     <div className="grp">
       <div className="gh">Toute la séance</div>
@@ -663,6 +693,17 @@ const WEEK1_FRIDAY_BLOCK_FIELDS: Record<number, string[]> = {
 function blockFields(recipeId: string, blockIndex: number): string[] {
   if (recipeId !== WEEK1_FRIDAY_RECIPE_ID) return [];
   return WEEK1_FRIDAY_BLOCK_FIELDS[blockIndex] ?? [];
+}
+
+// CHANGE_REQUEST_011 section D — a rep pace, unlike every other Retour
+// number, is typed as `m:ss` (or a decimal number of minutes), so it needs a
+// plain text input rather than `NumberField`'s `type="number"` (which
+// rejects the colon).
+function PaceField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return <label className="field">
+    <span>{label}</span>
+    <input type="text" inputMode="decimal" value={value} onChange={(event) => onChange(event.target.value)} placeholder="min/km, ex. 6:00" />
+  </label>;
 }
 
 function NumberField({ label, value, onChange, step, unit, placeholder }: { label: string; value: string; onChange: (value: string) => void; step: number; unit?: string; placeholder?: string }) {

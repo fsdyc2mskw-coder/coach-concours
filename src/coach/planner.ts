@@ -1,5 +1,6 @@
-import { recipeById, recipes } from './recipes';
+import { buildRunIntervalsRecipe, recipeById, recipes } from './recipes';
 import type { PlanPhase, PlannedSession, SessionResult, TrainingWeek } from './types';
+import { nextRow, runIntervalsProgression, type RunIntervalsRow } from '../data/runIntervalsProgression';
 
 const DAY_MS = 86_400_000;
 const start = new Date('2026-09-07T12:00:00Z');
@@ -17,12 +18,14 @@ export function phaseFor(date: string): PlanPhase {
 
 export function generatePlan(results: Record<string, SessionResult> = {}): TrainingWeek[] {
   const weeks: TrainingWeek[] = [];
+  const runIntervalsRows = computeRunIntervalsRows(results);
   for (let offset = 0; offset <= 70; offset += 7) {
     const weekStart = addDays(start, offset);
     if (weekStart > finalDate) break;
     const weekEnd = minDate(addDays(start, offset + 6), finalDate);
     const phase = phaseFor(weekStart);
-    const sessions = sessionsForWeek(weekStart, weekEnd, phase);
+    const weekNumber = offset / 7 + 1;
+    const sessions = sessionsForWeek(weekStart, weekEnd, phase, runIntervalsRows.get(weekNumber));
     adaptCurrentWeek(sessions, results);
     adaptFromPreviousWeek(sessions, weeks.at(-1), results);
     weeks.push({ id: `week-${weekStart}`, startDate: weekStart, endDate: weekEnd, phase, sessions });
@@ -30,15 +33,55 @@ export function generatePlan(results: Record<string, SessionResult> = {}): Train
   return weeks;
 }
 
-// CHANGE_REQUEST_001 — weekly template aligned with weekly_shape.md v2 and
-// TRAINING_ENGINE.md: 1 CrossFit + 3 police sessions (police_technique,
-// police_strength_transitions, police_integration — R-WS-07) + 1 weekend
-// trail_maintenance run (R-WS-03/04/05) + 2 empty days (R-WS-01). Race week
-// (5-11 Oct) swaps the weekend run for the fixed trail_event without adding a
-// sixth day (R-WS-06). The taper week (16-20 Nov) drops the two hard police
-// sessions before the fixed police_event (unchanged from the previous
-// template, kind names only updated).
-function sessionsForWeek(weekStart: string, weekEnd: string, phase: PlanPhase): PlannedSession[] {
+// CHANGE_REQUEST_011 section C — picks the progression-table row for each
+// week 2-11 before any week is generated, applying R-WS-22 sequentially: a
+// week with no saved Tuesday result advances the table normally; `repeat`
+// keeps the following week on the same row (the table shifts by one, as
+// `run_intervals_progression.md` describes); `advanceFaster` moves on but
+// with the pace 10 s/km faster than the table's own value. Week 11 (taper)
+// is never moved, per the CR.
+function computeRunIntervalsRows(results: Record<string, SessionResult>): Map<number, RunIntervalsRow> {
+  const rows = new Map<number, RunIntervalsRow>();
+  let cursor = 0;
+  let pendingPaceAdjustSec = 0;
+  for (let weekNumber = 2; weekNumber <= 11; weekNumber += 1) {
+    const tableRow = runIntervalsProgression[Math.min(cursor, runIntervalsProgression.length - 1)]!;
+    const row: RunIntervalsRow = {
+      ...tableRow,
+      week: weekNumber,
+      paceSec: tableRow.paceSec + pendingPaceAdjustSec
+    };
+    rows.set(weekNumber, row);
+    pendingPaceAdjustSec = 0;
+    if (weekNumber === 11) break;
+
+    const tuesdayDate = addDays(new Date(`${addDays(start, (weekNumber - 1) * 7)}T12:00:00Z`), 1);
+    const result = results[`${tuesdayDate}:run_intervals`];
+    if (result?.repPacesSec?.length) {
+      const outcome = nextRow(row, result.repPacesSec);
+      if (outcome === 'repeat') {
+        // cursor stays put: next week repeats this same row.
+      } else {
+        cursor += 1;
+        if (outcome === 'advanceFaster') pendingPaceAdjustSec = -10;
+      }
+    } else {
+      cursor += 1;
+    }
+  }
+  return rows;
+}
+
+// CHANGE_REQUEST_011 — weekly template aligned with weekly_shape.md v3:
+// 1 CrossFit + run_intervals (Tue, R-WS-19/20) + 2 police sessions
+// (police_technique on Thu, police_integration/police_strength_transitions
+// alternating on Fri — R-WS-07) + 1 weekend trail_maintenance run
+// (R-WS-03/04/05) + 2 empty days (Wed, Sun — R-WS-01). Race week (5-11 Oct)
+// swaps the weekend run for the fixed trail_event without adding a sixth day
+// (R-WS-06). The taper week (16-20 Nov) drops the Friday police session
+// before the fixed police_event (Tuesday's run_intervals stays: R-WS-22,
+// Week 11 is never moved).
+function sessionsForWeek(weekStart: string, weekEnd: string, phase: PlanPhase, weekNumber: number, runIntervalsRow: RunIntervalsRow | undefined): PlannedSession[] {
   const planned: PlannedSession[] = [];
   const add = (dayOffset: number, recipeKey: keyof typeof recipes, load: PlannedSession['load'], status: PlannedSession['status'] = 'proposed') => {
     const date = addDays(new Date(`${weekStart}T12:00:00Z`), dayOffset);
@@ -48,9 +91,23 @@ function sessionsForWeek(weekStart: string, weekEnd: string, phase: PlanPhase): 
   };
 
   add(0, 'crossfit', 'hard', 'coached');
-  add(1, 'coordination', 'low'); // police_technique
-  add(2, 'room', 'hard'); // police_integration
-  add(4, 'outdoor', 'hard'); // police_strength_transitions
+  if (runIntervalsRow) {
+    const recipe = buildRunIntervalsRecipe(runIntervalsRow);
+    const date = addDays(new Date(`${weekStart}T12:00:00Z`), 1);
+    if (date <= weekEnd && date <= finalDate) {
+      planned.push({
+        id: `${date}:run_intervals`, date, dayLabel: dayName(date), kind: 'run_intervals', recipeId: recipe.id,
+        status: 'proposed', phase: phaseFor(date), load: 'hard',
+        volumeFactor: phase === 'reset' ? 0.75 : phase === 'taper' ? 0.6 : 1
+      });
+    }
+  }
+  add(3, 'coordination', 'low'); // police_technique, Thursday
+  // R-WS-07: integration and strength_transitions alternate by week parity,
+  // integration on even weeks (a mock test would stand in once the
+  // exact-room gate passes — that gate is not modelled by the generator yet,
+  // see APP_REPORT_011.md).
+  add(4, weekNumber % 2 === 0 ? 'room' : 'outdoor', 'hard'); // police_integration or police_strength_transitions, Friday
 
   // CHANGE_REQUEST_003 — Week 1 (7-13 Sep 2026) as trained/finalised, per WEEK_1_FINAL v3.
   // Data-only override for Thursday/Friday/Saturday; the generic weekly template above
@@ -160,14 +217,31 @@ export function validateWeek(week: TrainingWeek): string[] {
   // session — it does not follow the ordinary 3-police-kind template.
   const isWeek1 = week.startDate === '2026-09-07';
 
-  // R-WS-03 / R-WS-06: exactly one run per week (trail_maintenance or, in
-  // race week, trail_event), never more.
+  // R-WS-03 v3 / R-WS-06: exactly two runs per week — run_intervals on
+  // Tuesday and trail_maintenance (or, in race week, trail_event) on
+  // Saturday or Sunday, never more of either.
+  const runIntervalsSessions = week.sessions.filter((session) => session.kind === 'run_intervals');
+  if (!isTaperEventWeek && !isWeek1 && runIntervalsSessions.length !== 1) errors.push('Une semaine complète doit compter une séance run_intervals le mardi (R-WS-03).');
+  for (const session of runIntervalsSessions) {
+    if (dayName(session.date) !== 'MAR') errors.push('La séance run_intervals doit être le mardi (R-WS-03).');
+  }
+
   const runs = week.sessions.filter((session) => session.kind === 'trail_maintenance' || session.kind === 'trail_event');
   if (!isTaperEventWeek && runs.length !== 1) errors.push('Une semaine complète doit compter exactement une course (trail_maintenance ou trail_event).');
   if (runs.length > 1) errors.push('Une seule course est autorisée par semaine.');
   for (const run of runs) {
     if (run.kind === 'trail_maintenance' && !['SAM', 'DIM'].includes(dayName(run.date))) {
       errors.push('La course de maintien doit être le samedi ou le dimanche.');
+    }
+  }
+
+  // R-WS-04: run_intervals is run-only, the fixed frame of R-WS-19 — one
+  // main-set block, an actual warm-up and an actual cool-down, nothing else
+  // attached.
+  for (const session of runIntervalsSessions) {
+    const recipe = recipeById[session.recipeId];
+    if (recipe && (recipe.blocks.length !== 1 || !recipe.warmup || !recipe.cooldown)) {
+      errors.push(`« ${recipe.title} » (${session.date}) : run_intervals doit garder le cadre fixe échauffement + bloc principal + retour au calme (R-WS-04/19).`);
     }
   }
 
@@ -178,31 +252,54 @@ export function validateWeek(week: TrainingWeek): string[] {
   // R-WS-02: Monday is the coached CrossFit class.
   if (!isTaperEventWeek && !week.sessions.some((session) => session.kind === 'crossfit_class')) errors.push('Le CrossFit coaché du lundi manque.');
 
-  // R-WS-07: three distinct police session kinds per week (mock test may
-  // stand in for integration once the exact-room gate passes, R-SEL-11 —
-  // not modelled by the generator yet, so only the three base kinds are
-  // checked here).
+  // R-WS-07 v3: two police sessions per week — police_technique on Thursday,
+  // and exactly one of integration / strength_transitions / mock_test on
+  // Friday (they alternate; the mock-test gate is not modelled by the
+  // generator yet, see APP_REPORT_011.md).
   if (!isTaperEventWeek && !isWeek1) {
-    for (const required of ['police_technique', 'police_strength_transitions', 'police_integration'] as const) {
-      if (!week.sessions.some((session) => session.kind === required)) {
-        errors.push(`La séance police « ${required} » manque.`);
-      }
+    const technique = week.sessions.find((session) => session.kind === 'police_technique');
+    if (!technique) errors.push('La séance « police_technique » du jeudi manque (R-WS-07).');
+    else if (dayName(technique.date) !== 'JEU') errors.push('« police_technique » doit être le jeudi (R-WS-07).');
+
+    const fridayKinds = ['police_integration', 'police_strength_transitions', 'police_mock_test'] as const;
+    const fridayPolice = week.sessions.filter((session) => (fridayKinds as readonly string[]).includes(session.kind));
+    if (fridayPolice.length !== 1) {
+      errors.push('Exactement une séance police (integration, strength_transitions ou mock_test) doit avoir lieu le vendredi (R-WS-07).');
+    } else if (dayName(fridayPolice[0]!.date) !== 'VEN') {
+      errors.push('La séance police du vendredi doit être le vendredi (R-WS-07).');
     }
   }
 
   // R-WS-08: a floating interval block never becomes its own run/session
-  // outside Week 1's documented exception.
+  // outside Week 1's documented exception, and Thursday's hiit block (the
+  // day after run_intervals's rest day) is never itself a running-intervals
+  // form.
   if (week.startDate !== '2026-09-07' && week.sessions.some((session) => session.kind === 'running_intervals_exception')) {
     errors.push('Un bloc d’intervalles ne peut pas devenir une séance en dehors de l’exception documentée de la semaine 1.');
+  }
+  const thursday = week.sessions.find((session) => session.kind === 'police_technique' && dayName(session.date) === 'JEU');
+  if (thursday) {
+    const thursdayHiit = hiitBlock(thursday.recipeId);
+    if (thursdayHiit?.hiit?.format === 'intervals') {
+      errors.push('Le bloc hiit du jeudi ne peut pas prendre la forme d’intervalles de course (R-WS-08).');
+    }
   }
 
   // R-WS-10 / R-WS-11: no three consecutive hard days (hard), avoid two
   // adjacent hard days (soft, kept as a warning-style error for now — the
-  // generator has no separate warnings channel yet).
+  // generator has no separate warnings channel yet). Monday → Tuesday
+  // (crossfit → run_intervals) is an accepted exception: it is the athlete's
+  // explicit 15 Sep decision (CR-011's "Why"), even though weekly_shape.md
+  // v3's own R-WS-11 text still lists only Thursday/Friday — flagged as an
+  // apparent gap in the rule text, not silently resolved, in
+  // handoffs/APP_REPORT_011.md.
   for (let index = 1; index < week.sessions.length; index += 1) {
     const previous = week.sessions[index - 1];
     const current = week.sessions[index];
-    if (previous?.load === 'hard' && current?.load === 'hard' && daysBetween(previous.date, current.date) === 1) errors.push('Deux journées explosives sont adjacentes.');
+    const isMondayTuesday = previous?.kind === 'crossfit_class' && current?.kind === 'run_intervals';
+    if (!isMondayTuesday && previous?.load === 'hard' && current?.load === 'hard' && daysBetween(previous.date, current.date) === 1) {
+      errors.push('Deux journées explosives sont adjacentes.');
+    }
   }
   for (let index = 2; index < week.sessions.length; index += 1) {
     const [a, b, c] = [week.sessions[index - 2], week.sessions[index - 1], week.sessions[index]];
@@ -279,10 +376,14 @@ export function hiitShortFormNotes(week: TrainingWeek, results: Record<string, S
   return notes;
 }
 
-// CHANGE_REQUEST_001 — R-WS-12: four memory exposures per complete week,
-// attached to sessions A-D (crossfit, police_technique,
-// police_strength_transitions, police_integration). The taper/event week is
-// exempt, matching its existing exemption from the 5-session rule above.
+// CHANGE_REQUEST_001 — R-WS-12: counts sessions that carry a memory prompt.
+// weekly_shape.md v3 amends R-WS-12 to "four exposures, two per police
+// session" now that only two police sessions remain per week; today's
+// `SessionRecipe.memory` still holds a single prompt per session (recipe
+// content, out of CR-011's scope — see APP_REPORT_011.md), so a generated
+// week currently counts one exposure per memory-bearing session, not two per
+// police session. The taper/event week is exempt, matching its existing
+// exemption from the 5-session rule above.
 export function countMemoryExposures(week: TrainingWeek): number {
   return week.sessions.filter((session) => recipeById[session.recipeId]?.memory).length;
 }
