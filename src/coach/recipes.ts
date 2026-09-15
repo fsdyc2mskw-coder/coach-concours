@@ -204,10 +204,17 @@ export const recipeById = Object.values(recipes).reduce<Record<string, SessionRe
 
 // CHANGE_REQUEST_002 — a memory block never carries an "explain" prompt: only
 // visualise, recite order, or state action/completion/next station. Returns
-// the ids of any memory prompt that violates this.
+// the ids of any memory prompt that violates this. `sans (l(es)) expliquer`
+// ("without explaining") is the opposite instruction — explicitly telling the
+// athlete not to explain — and must not be flagged; only an actual request to
+// explain does (CI caught this on week1Fri's prompt, which is compliant text
+// naively matched by an earlier version of this check).
 export function memoryPromptsAskingToExplain(): string[] {
+  const asksToExplain = (prompt: string) =>
+    /\b(explique[rz]?|explain(?:s|ing)?)\b/i.test(prompt) &&
+    !/\bsans\b[^.]{0,20}\b(explique[rz]?|explain)/i.test(prompt);
   return Object.values(recipes)
-    .filter((recipe) => recipe.memory && /\b(explique|expliquer|explain)/i.test(recipe.memory.prompt))
+    .filter((recipe) => recipe.memory && asksToExplain(recipe.memory.prompt))
     .map((recipe) => recipe.memory!.id);
 }
 
