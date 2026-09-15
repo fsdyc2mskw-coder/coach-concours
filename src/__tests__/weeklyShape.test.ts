@@ -5,7 +5,8 @@
 // the rules that only show up there.
 import { describe, expect, it } from 'vitest';
 import { countMemoryExposures, generatePlan, hiitShortFormNotes, validateWeek } from '../coach/planner';
-import { memoryPromptsAskingToExplain, recipeById } from '../coach/recipes';
+import { memoryPromptsAskingToExplain, recipeById, recipes } from '../coach/recipes';
+import type { TrainingWeek } from '../coach/types';
 
 const weeks = generatePlan();
 const genericWeek = weeks.find((week) => week.startDate === '2026-09-14')!;
@@ -46,13 +47,7 @@ describe('weekly_shape.md v2 hard rules, on a generic week (2026-09-14)', () => 
     for (const kind of ['police_technique', 'police_strength_transitions', 'police_integration'] as const) {
       expect(genericWeek.sessions.filter((session) => session.kind === kind)).toHaveLength(1);
     }
-    // R-WS-16 (CR-002): 'coordination' (Tuesday, police_technique) has no
-    // hiit block yet — a known card-library gap (out of scope for CR-002,
-    // see APP_REPORT_002.md). Locking it here so any OTHER R-WS violation on
-    // this week still fails the test.
-    const errors = validateWeek(genericWeek);
-    expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain('R-WS-16');
+    expect(validateWeek(genericWeek)).toHaveLength(0);
   });
 
   it('R-WS-08: no interval block becomes its own run or session', () => {
@@ -113,10 +108,7 @@ describe('weekly_shape.md v2, R-WS-06 (race week, 2026-10-05)', () => {
     expect(events).toHaveLength(1);
     expect(events[0]?.date).toBe('2026-10-11');
     expect(raceWeek.sessions).toHaveLength(5);
-    // Same known R-WS-16 gap as the generic week above ('coordination').
-    const errors = validateWeek(raceWeek);
-    expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain('R-WS-16');
+    expect(validateWeek(raceWeek)).toHaveLength(0);
   });
 });
 
@@ -156,10 +148,15 @@ describe('weekly_shape.md v2, R-WS-16/17/18 (CR-002 hiit block)', () => {
     expect(daysBefore).toBe(1);
   });
 
-  it('R-WS-16/17: police_technique (coordination) has a known gap, not fixed here (card-library content, out of scope)', () => {
+  it('R-WS-16/17: police_technique (coordination) has its hiit block last, ≤ 10 min ("Corde EMOM — 6 min")', () => {
     const session = genericWeek.sessions.find((session) => session.kind === 'police_technique')!;
     const recipe = recipeById[session.recipeId]!;
-    expect(recipe.blocks.some((block) => block.hiit)).toBe(false);
+    const hiitBlocks = recipe.blocks.filter((block) => block.hiit);
+    expect(hiitBlocks).toHaveLength(1);
+    expect(hiitBlocks[0]!.title).toBe('Corde EMOM — 6 min');
+    expect(hiitBlocks[0]!.hiit!.durationMin).toBeLessThanOrEqual(10);
+    expect(recipe.blocks.at(-1)).toBe(hiitBlocks[0]);
+    expect(validateWeek(genericWeek).some((error) => error.includes('R-WS-16') || error.includes('R-WS-17'))).toBe(false);
   });
 
   it('R-WS-17: Week 1 Friday (already built to the rule) has its hiit block last, ≤ 10 min — exempt from the check but true anyway', () => {
@@ -175,9 +172,17 @@ describe('weekly_shape.md v2, R-WS-16/17/18 (CR-002 hiit block)', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('R-WS-16 catches the missing hiit block on any other generic week too (not just 2026-09-14)', () => {
-    const week = generatePlan().find((week) => week.startDate === '2026-09-21')!;
-    expect(validateWeek(week).some((error) => error.includes('R-WS-16'))).toBe(true);
+  it("R-WS-16 fails for a police session whose recipe has no hiit block at all (fixture, the unused 'technique' bank recipe)", () => {
+    const recipe = recipes.technique!;
+    expect(recipe.blocks.some((block) => block.hiit)).toBe(false);
+    const fixtureWeek: TrainingWeek = {
+      id: 'fixture-week', startDate: '2026-09-14', endDate: '2026-09-20', phase: 'learn',
+      sessions: [{
+        id: 'fixture:police_technique', date: '2026-09-15', dayLabel: 'MAR', kind: 'police_technique',
+        recipeId: recipe.id, status: 'proposed', phase: 'learn', load: 'low', volumeFactor: 1
+      }]
+    };
+    expect(validateWeek(fixtureWeek).some((error) => error.includes('R-WS-16'))).toBe(true);
   });
 
   it('R-WS-09: the day after a CrossFit class rated effort 4-5, the next police session should shorten its hiit block', () => {
@@ -187,8 +192,8 @@ describe('weekly_shape.md v2, R-WS-16/17/18 (CR-002 hiit block)', () => {
       [crossfit.id]: { sessionId: crossfit.id, status: 'done', effort: 5, note: '', completedAt: new Date().toISOString() }
     });
     // Tuesday (police_technique/coordination) is the day after Monday's
-    // class, but it has no hiit block yet (the known gap above), so there is
-    // nothing to flag as too long — the function must not throw or invent one.
+    // class; its hiit block is already 6 min (≤ 10), so there is nothing to
+    // shorten — the function reports no note rather than a spurious one.
     expect(notes).toHaveLength(0);
   });
 

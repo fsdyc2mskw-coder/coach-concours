@@ -122,6 +122,9 @@ export interface SessionResult {
   // CHANGE_REQUEST_007 record fields (Week 1 v3, Tuesday 8 Sep running-intervals exception).
   intervalDistance1M?: number;
   intervalDistance2M?: number;
+  // CHANGE_REQUEST_002 — record field for `coordination`'s new hiit block
+  // ("Corde EMOM — 6 min"): minutes out of 6 completed as prescribed.
+  emomMinutesCompleted?: number;
   completedAt: string;
 }
 

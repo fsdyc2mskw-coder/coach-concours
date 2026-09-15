@@ -13,19 +13,20 @@ export const recipes: Record<string, SessionRecipe> = {
     // CHANGE_REQUEST_001 — re-tagged from `police_balance_coordination` (removed
     // kind) to `police_technique`; reused as Tuesday's fresh-skill session
     // (cockpit decision, 13 Sep). Content and id unchanged.
-    // CHANGE_REQUEST_002 — none of this recipe's three blocks is a hiit block
-    // (AMRAP/EMOM/intervals/for-time/chipper), so it does not satisfy R-WS-16
-    // yet. Not fixed here: choosing what stamina/explosiveness work to add is
-    // card-library content, out of scope for this change request (see
-    // APP_REPORT_002.md).
+    // CHANGE_REQUEST_002 — R-WS-16/17 hiit block added: "Corde EMOM — 6 min",
+    // last before the cool-down, ≤ 10 min. Session total 40 → 46 min.
     id: 'coordination-balance-v2', version: 2, kind: 'police_technique', title: 'Coordination & équilibre',
-    purpose: 'Installer les automatismes des postes 8 à 11 avec précision et sans finisher intense.', durationMin: 40,
+    purpose: 'Installer les automatismes des postes 8 à 11 avec précision et sans finisher intense.', durationMin: 46,
     equipment: ['Ballon de basket', 'repères colorés', 'corde à sauter', 'raquette et balle', 'appui stable'],
     warmup: '6 min : marche douce 2 min, mobilité des chevilles et épaules 2 min, puis pas lents avec arrêt stable 2 min.',
     blocks: [
       { title: 'Couleurs et ballon — 10 min', faire: 'Jaune : pieds joints sans dribble. Bleu : pied droit et main droite. Rouge : pied gauche et main gauche. Faire 4 × 45 s lentement, récupération 45 s. Commencer sans ballon et ajouter le dribble seulement après une séquence propre.', stationMappings: [8], approximation: true },
       { title: 'Équilibre et transfert — 8 min', faire: 'Près d’un appui stable, faire 3 × 20 s par jambe avec une portée avant puis latérale. Récupération 30 s. Ajouter 4 transferts d’un objet léger avec les deux pieds stables. Garder les yeux ouverts.', stationMappings: [9], approximation: true },
-      { title: 'Corde : bon pied — 8 min', faire: 'Annoncer le motif et le pied de départ. Faire 4 × 20 s à rythme facile, récupération 40 s. Réinitialiser avant chaque bloc et reprendre seulement le bloc erroné.', stationMappings: [10], approximation: true }
+      { title: 'Corde : bon pied — 8 min', faire: 'Annoncer le motif et le pied de départ. Faire 4 × 20 s à rythme facile, récupération 40 s. Réinitialiser avant chaque bloc et reprendre seulement le bloc erroné.', stationMappings: [10], approximation: true },
+      // CHANGE_REQUEST_002 — the session's one hiit block (R-WS-16/17): 6 min,
+      // last before the cool-down. Record field: `emomMinutesCompleted`
+      // (integer 0-6, SessionResult).
+      { title: 'Corde EMOM — 6 min', faire: 'Chaque minute : 40 sauts freestyle, puis pas alternés jusqu’à la fin de la minute.', stationMappings: [], hiit: { format: 'emom', durationMin: 6 } }
     ],
     cooldown: '5 min : marche lente, mobilité douce des chevilles et relâchement des épaules.',
     memory: { id: 'memory-s8-blue', prompt: 'Au poste 8, quelle action correspond au bleu ?', answer: 'Pied droit et dribble de la main droite. Jaune : pieds joints sans dribble ; rouge : pied gauche et main gauche.' }
