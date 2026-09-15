@@ -2,6 +2,24 @@
 
 Tier stated: **MID** (matches the CR-010 header; this session ran on Claude Sonnet 5, the MID model per `00_AGENT_ROUTING.md` v2 section 4).
 
+## Fix after merge: `blockFields` was keyed only by block index
+
+After PR #4 merged and deployed, checking the live app at 375 px (the CR's own
+"deployed page checked after a hard reload" step) surfaced a real bug:
+`blockFields(blockIndex)` returned Friday's field names for **any** session's
+blocks 0-3, not just Week 1 Friday's. Concretely, opening the Thursday
+session ("Box jump, frais") or the coordination session ("Couleurs et
+ballon") and going to Retour showed "Erreurs de mémoire", "Balles
+échappées", etc. attached to blocks that have nothing to do with those
+fields — because the mapping only ever looked at the block's position, never
+which recipe it belonged to. Fixed on `cr-010-fix-block-fields-by-recipe` by
+gating on `recipe.id === 'week1-fri-2026-09-11-v3'` before applying the
+Friday mapping; every other session's blocks now correctly get no group
+(only the final "Toute la séance" group). Added a regression test
+(`retour.test.ts`, the Thursday session) so this can't silently come back.
+No screens.test.ts/original retour.test.ts assertions needed to change: they
+only ever exercised the one session (Friday) the bug didn't affect.
+
 ## Environment note (read this first)
 
 This coder session had **no Node.js / pnpm in its sandbox** — the same gap

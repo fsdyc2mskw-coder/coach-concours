@@ -585,7 +585,7 @@ function RetourTab({ planned, recipe, saved, focusBlock, save, saveDraft, remove
     onValidated();
   }
 
-  const blockGroups = recipe.blocks.map((block, index) => ({ block, index, fields: blockFields(index) })).filter((group) => group.fields.length > 0);
+  const blockGroups = recipe.blocks.map((block, index) => ({ block, index, fields: blockFields(recipe.id, index) })).filter((group) => group.fields.length > 0);
 
   return <>
     <div className="save"><span className="dot" /><span>{draftSavedAt ? `Brouillon enregistré · ${draftSavedAt.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })} · tu peux revenir à tout moment` : 'Brouillon enregistré automatiquement · tu peux revenir à tout moment'}</span></div>
@@ -639,23 +639,30 @@ function RetourTab({ planned, recipe, saved, focusBlock, save, saveDraft, remove
 }
 
 // CHANGE_REQUEST_010 section D — which fields a block groups in Retour. Only
-// the sessions whose record fields are named against a specific block in the
-// change request (Week 1 Friday/Saturday/Tuesday) get a per-block mapping;
-// every other session's kind-based fields (movementQuality, boxHesitation,
-// overlapTags) are not named against a block anywhere in the CR or the
-// mockup, so they stay in the final "Toute la séance" group — see the
-// APP_REPORT question on this point.
-function blockFields(blockIndex: number): string[] {
-  // week1-fri-2026-09-11-v3 block order: 0 mémoire, 1 poste 2, 2 raquette
-  // référence, 3 AMRAP, 4 poste 8 (no group — explicitly named in the CR).
-  const friday: Record<number, string[]> = {
-    0: ['memoryErrors'],
-    1: ['ballFumbles', 'obstacleHesitations'],
-    2: ['racketTrio'],
-    3: ['amrapRounds', 'landingQuality']
-  };
-  if (friday[blockIndex]) return friday[blockIndex]!;
-  return [];
+// the one session whose record fields are named against a specific block in
+// the change request (Week 1 Friday — recipe id below) gets a per-block
+// mapping; every other session's kind-based fields (movementQuality,
+// boxHesitation, overlapTags) are not named against a block anywhere in the
+// CR or the mockup, so they stay in the final "Toute la séance" group — see
+// the APP_REPORT question on this point.
+//
+// Gating on `recipeId` (not just `blockIndex`) matters: without it, every
+// other session's blocks 0-3 would wrongly inherit Friday's field names by
+// index alone (caught live on fsdyc2mskw-coder.github.io/coach-concours/
+// after the CR-010 merge — see APP_REPORT_010.md's fix note).
+const WEEK1_FRIDAY_RECIPE_ID = 'week1-fri-2026-09-11-v3';
+const WEEK1_FRIDAY_BLOCK_FIELDS: Record<number, string[]> = {
+  // block order: 0 mémoire, 1 poste 2, 2 raquette référence, 3 AMRAP,
+  // 4 poste 8 (no group — explicitly named in the CR).
+  0: ['memoryErrors'],
+  1: ['ballFumbles', 'obstacleHesitations'],
+  2: ['racketTrio'],
+  3: ['amrapRounds', 'landingQuality']
+};
+
+function blockFields(recipeId: string, blockIndex: number): string[] {
+  if (recipeId !== WEEK1_FRIDAY_RECIPE_ID) return [];
+  return WEEK1_FRIDAY_BLOCK_FIELDS[blockIndex] ?? [];
 }
 
 function NumberField({ label, value, onChange, step, unit, placeholder }: { label: string; value: string; onChange: (value: string) => void; step: number; unit?: string; placeholder?: string }) {
@@ -692,7 +699,7 @@ function BlockScreen({ planned, blockIndex, back, openRetour }: { planned: Plann
   const recipe = recipeById[planned.recipeId]!;
   const block = recipe.blocks[blockIndex]!;
   const minutes = block.title.match(/(\d+)\s*min/)?.[1];
-  const fields = blockFields(blockIndex);
+  const fields = blockFields(recipe.id, blockIndex);
   const toRecord = useMemo(() => {
     const items: string[] = [];
     if (fields.includes('memoryErrors')) items.push('Erreurs de mémoire / postes oubliés ou inversés');

@@ -30,6 +30,26 @@ async function openFridayRetour() {
 }
 
 describe('CR-010 Retour tab', () => {
+  // Regression test for a real bug caught live on the deployed app right
+  // after the CR-010 merge: `blockFields` was keyed only by block index, so
+  // every session's blocks 0-3 wrongly inherited Friday's field names
+  // (Thursday's "Box jump, frais" showed "Erreurs de mémoire", etc.). Fixed
+  // by gating on the recipe id too — this pins the fix.
+  it('does not attach Friday-only field groups to a different session\'s blocks (Thursday, week1Thu10Sep)', async () => {
+    const { container } = render(createElement(CoachConcoursApp));
+    await screen.findByText(/Séances/);
+    const title = await screen.findByText(recipes.week1Thu10Sep!.title);
+    fireEvent.click(title.closest('button')!);
+    await screen.findByText('Ton programme');
+    fireEvent.click(screen.getByText('Retour'));
+    await screen.findByText('Toute la séance');
+    // Only the final "Toute la séance" group: none of Thursday's blocks
+    // (rope warm-up, box jump, EMOM, easy racket, rope EMOM) declare a
+    // Friday-only record field.
+    const groupHeads = Array.from(container.querySelectorAll('.grp .gh')).map((node) => node.textContent);
+    expect(groupHeads).toEqual(['Toute la séance']);
+  });
+
   it('the group list equals the blocks that declare record fields, plus the final "Toute la séance" group', async () => {
     const container = await openFridayRetour();
     // Friday's 5 blocks: mémoire, poste 2, raquette référence and AMRAP each
