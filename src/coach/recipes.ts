@@ -13,6 +13,11 @@ export const recipes: Record<string, SessionRecipe> = {
     // CHANGE_REQUEST_001 — re-tagged from `police_balance_coordination` (removed
     // kind) to `police_technique`; reused as Tuesday's fresh-skill session
     // (cockpit decision, 13 Sep). Content and id unchanged.
+    // CHANGE_REQUEST_002 — none of this recipe's three blocks is a hiit block
+    // (AMRAP/EMOM/intervals/for-time/chipper), so it does not satisfy R-WS-16
+    // yet. Not fixed here: choosing what stamina/explosiveness work to add is
+    // card-library content, out of scope for this change request (see
+    // APP_REPORT_002.md).
     id: 'coordination-balance-v2', version: 2, kind: 'police_technique', title: 'Coordination & équilibre',
     purpose: 'Installer les automatismes des postes 8 à 11 avec précision et sans finisher intense.', durationMin: 40,
     equipment: ['Ballon de basket', 'repères colorés', 'corde à sauter', 'raquette et balle', 'appui stable'],
@@ -36,7 +41,11 @@ export const recipes: Record<string, SessionRecipe> = {
     warmup: '10 min : 4 min de marche active ou trot facile, 3 min de mobilité chevilles/hanches, puis 3 min de passages lents dans l’échelle et d’approches contrôlées.',
     blocks: [
       { title: 'Progression obstacle — 8 min', faire: 'Faire 3 approches avec arrêt contrôlé, puis 3 franchissements d’une limite au sol. Passer à un obstacle bas stable seulement si le geste reste confiant. Revenir au sol dès que l’hésitation perturbe le mouvement.', stationMappings: [2], approximation: true },
-      { title: 'Micro-circuit police — 4 tours', faire: '10 s d’échelle, 10 s de franchissement contrôlé, puis 10–20 s de navette, poussée, tirage, traînage ou porté relié à un poste. Récupérer 120 s en marchant. Arrêter après deux répétitions consécutives plus lentes, instables ou techniquement incorrectes.', stationMappings: [1, 2, 4, 5, 6, 7], approximation: true }
+      // CHANGE_REQUEST_002 — R-WS-16/18 hiit tag. Duration read off the block's
+      // own text, not invented: 4 tours × (10 + 10 + 10-20 s work + 120 s
+      // recovery) = 600-640 s ≈ 10 min, within the 10-20 min band for
+      // police_integration (R-WS-18).
+      { title: 'Micro-circuit police — 4 tours', faire: '10 s d’échelle, 10 s de franchissement contrôlé, puis 10–20 s de navette, poussée, tirage, traînage ou porté relié à un poste. Récupérer 120 s en marchant. Arrêter après deux répétitions consécutives plus lentes, instables ou techniquement incorrectes.', stationMappings: [1, 2, 4, 5, 6, 7], approximation: true, hiit: { format: 'intervals', durationMin: 10 } }
     ],
     cooldown: '8 min : marche lente 5 min puis mobilité douce 3 min. Noter l’hésitation à la box et la qualité des appuis.',
     memory: { id: 'memory-s2-count', prompt: 'Au poste 2, combien de passages aller et retour faut-il mémoriser ?', answer: '5 allers avec le ballon et 4 retours à vide. Le travail proposé reste une approximation tant que l’obstacle officiel n’est pas vérifié.' }
@@ -52,7 +61,12 @@ export const recipes: Record<string, SessionRecipe> = {
     purpose: 'Développer les accélérations répétées tout en préservant la posture, les appuis et le freinage.', durationMin: 35,
     equipment: ['Chaussures de course', 'chronomètre', 'terrain plat dégagé avec zone de ralentissement'],
     warmup: '12 min : 8 min de marche ou trot facile, 2 min de mobilité dynamique, puis 2 accélérations progressives de 10 s.',
-    blocks: [{ title: '6 × 20 s vite / 80 s facile', faire: 'Courir vite mais sous la vitesse de sprint maximal pendant 20 s, puis marcher ou trottiner 80 s. Rester grand et ralentir progressivement. Écourter si la posture ou les appuis se dégradent.', stationMappings: [] }],
+    blocks: [
+      // CHANGE_REQUEST_002 — R-WS-16/18 hiit tag. Duration read off the
+      // block's own reps: 6 × (20 + 80) s = 600 s = 10 min, the short form
+      // (R-WS-09) already fits this slot's day-before-the-weekend-run rule.
+      { title: '6 × 20 s vite / 80 s facile', faire: 'Courir vite mais sous la vitesse de sprint maximal pendant 20 s, puis marcher ou trottiner 80 s. Rester grand et ralentir progressivement. Écourter si la posture ou les appuis se dégradent.', stationMappings: [], hiit: { format: 'intervals', durationMin: 10 } }
+    ],
     cooldown: '10 min de marche ou trot très facile, sans cible de fréquence cardiaque.',
     // CHANGE_REQUEST_001 — R-WS-12, module C (fatigued recall). Reuses the
     // 5→6 alternation fact already established in the `technique` recipe below.
@@ -118,7 +132,12 @@ export const recipes: Record<string, SessionRecipe> = {
     blocks: [
       { title: 'Échauffement corde à sauter — 10 min', faire: '40 sauts pieds joints, puis 20 sauts sur chaque jambe = 1 tour (≈ 50 s). 4 tours.', stationMappings: [] },
       { title: 'Box jump, frais — 10 min', faire: 'Box en bois 20 pouces (≈ 0,51 m). Sauts vers une hauteur proche de la hanche, sans élan. Puis sauts en regardant au loin, pas la box.', stationMappings: [2], approximation: true },
-      { title: 'Conditioning EMOM — 10 min', faire: 'Chaque minute : 10 burpees. Reste de la minute : équilibre sur un pied, en alternant le pied chaque minute.', details: 'Remplace l’EMOM prévu (burpees / rameur / kettlebell).', stationMappings: [9, 10, 11], approximation: true },
+      // CHANGE_REQUEST_002 — hiit tag for data fidelity only; Week 1 stays
+      // frozen (R-WS-15) and is exempt from the R-WS-16/17/18 checks in
+      // validateWeek (see planner.ts). Duration is the one already in the
+      // title. The later "Corde EMOM — 4 min" block is left untagged: this
+      // is the session's one counted hiit block.
+      { title: 'Conditioning EMOM — 10 min', faire: 'Chaque minute : 10 burpees. Reste de la minute : équilibre sur un pied, en alternant le pied chaque minute.', details: 'Remplace l’EMOM prévu (burpees / rameur / kettlebell).', stationMappings: [9, 10, 11], approximation: true, hiit: { format: 'emom', durationMin: 10 } },
       { title: 'Raquette et balle, facile — 3 min', faire: 'Jeu d’équilibre facile avec la raquette et la balle, sol plat, pendant la récupération après l’EMOM.', noter: 'Aucun comptage de chutes n’a été enregistré : pas de référence fatiguée pour la semaine 1.', stationMappings: [11], approximation: true },
       { title: 'Corde EMOM — 4 min', faire: 'Chaque minute : 40 sauts libres, puis jeu de jambes en alternance pour le reste de la minute.', stationMappings: [] }
     ],
@@ -135,7 +154,11 @@ export const recipes: Record<string, SessionRecipe> = {
       { title: 'Mémoire du circuit — 4 min', short: 'mémoire', faire: 'Yeux fermés, visualiser la salle et parcourir le circuit mentalement, poste 1 à 11. Réciter les 11 postes dans l’ordre, à voix haute. Choisir 3 postes : dire l’action, la condition de fin, et le poste suivant.', details: 'Ne jamais demander d’explication.', stationMappings: [] },
       { title: 'Poste 2, franchissement à la balle de tennis — 8 min', short: 'poste 2', regle: 'Règle officielle (S1) : franchir l’obstacle avec une balle de tennis en main, la déposer dans la boîte rouge de l’autre côté, revenir sans balle ; 5 passages aller, 4 retour.', faire: '2 tours complets à allure marchée, puis 1 tour à allure trottinée, toujours propre. 60–90 s de récupération entre les tours.', stationMappings: [2], approximation: true },
       { title: 'Référence précision raquette-balle, fraîche — 5 min', short: 'raquette', faire: '3 × 1 min de marche avec la balle en équilibre au centre de la raquette, raquette tenue par le manche, main fermée. 30 s de récupération entre les tours.', details: 'Si la balle tombe, la ramasser et reprendre où elle est tombée.', noter: 'Référence autonome de la semaine 1 (pas de valeur fatiguée jeudi).', stationMappings: [11] },
-      { title: 'AMRAP 10 min', short: 'AMRAP', faire: 'Autant de tours que possible en 10 minutes : 60 sauts à la corde, échelle aller-retour ×2, 10 jump squats (départ accroupi, saut le plus haut possible, réception accroupie, amortie avec tout le corps).', details: 'Arrêter le tour en cours si la descente d’échelle ou une réception devient imprécise. Pas de bascule sur l’échelle.', stationMappings: [2, 3], approximation: true },
+      // CHANGE_REQUEST_002 — hiit tag, data fidelity only (Week 1 exempt from
+      // R-WS-16/17/18, see planner.ts). This is the session named in the CR's
+      // "Why" section as the first one built to the HIIT-block rule, ahead of
+      // the rule itself landing in the engine.
+      { title: 'AMRAP 10 min', short: 'AMRAP', faire: 'Autant de tours que possible en 10 minutes : 60 sauts à la corde, échelle aller-retour ×2, 10 jump squats (départ accroupi, saut le plus haut possible, réception accroupie, amortie avec tout le corps).', details: 'Arrêter le tour en cours si la descente d’échelle ou une réception devient imprécise. Pas de bascule sur l’échelle.', stationMappings: [2, 3], approximation: true, hiit: { format: 'amrap', durationMin: 10 } },
       { title: 'Poste 8, couleurs sous fatigue — 5 min', short: 'poste 8', faire: 'Jaune : pieds joints. Bleu : pied droit et dire « main droite ». Rouge : pied gauche et dire « main gauche ». 3 × 45 s, 30 s de récupération.', stationMappings: [8], approximation: true }
     ],
     cooldown: '2 min de marche facile en repassant le circuit poste 1 à 11 dans la tête.',
@@ -177,6 +200,15 @@ export const recipeById = Object.values(recipes).reduce<Record<string, SessionRe
   result[recipe.id] = recipe;
   return result;
 }, {});
+
+// CHANGE_REQUEST_002 — a memory block never carries an "explain" prompt: only
+// visualise, recite order, or state action/completion/next station. Returns
+// the ids of any memory prompt that violates this.
+export function memoryPromptsAskingToExplain(): string[] {
+  return Object.values(recipes)
+    .filter((recipe) => recipe.memory && /\b(explique|expliquer|explain)/i.test(recipe.memory.prompt))
+    .map((recipe) => recipe.memory!.id);
+}
 
 // CHANGE_REQUEST_009 section B — day header flow strip. One node for the
 // warmup, one per exercise block, one for the cooldown; each carries a
