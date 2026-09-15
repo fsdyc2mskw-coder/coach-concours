@@ -25,7 +25,7 @@ export function generatePlan(results: Record<string, SessionResult> = {}): Train
     const weekEnd = minDate(addDays(start, offset + 6), finalDate);
     const phase = phaseFor(weekStart);
     const weekNumber = offset / 7 + 1;
-    const sessions = sessionsForWeek(weekStart, weekEnd, phase, runIntervalsRows.get(weekNumber));
+        const sessions = sessionsForWeek(weekStart, weekEnd, phase, weekNumber, runIntervalsRows.get(weekNumber));
     adaptCurrentWeek(sessions, results);
     adaptFromPreviousWeek(sessions, weeks.at(-1), results);
     weeks.push({ id: `week-${weekStart}`, startDate: weekStart, endDate: weekEnd, phase, sessions });
