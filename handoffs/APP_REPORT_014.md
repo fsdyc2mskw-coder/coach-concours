@@ -117,16 +117,17 @@ Sunday review still sees the week as she actually shaped it.
 
 ## Substitutions and judgement calls
 
-1. **`run_intervals` does not exist in this repository.** The change request
-   declares `depends on: CR-011 (run_intervals)`, and C1's accepted pair, C4 and
-   C5 all name that kind. **CR-011 is not on `main`** — commits `34355c0` and
-   `9ce1dd8` were reverted by `485eef3` and `94ff5b4`, and no week the generator
-   produces contains a `run_intervals` session. The kind that carries the
-   running intervals today is `running_intervals_exception` (Week 1's documented
-   Tuesday, R-WS-08). The checker therefore matches **both names** as plain
-   strings rather than through the `SessionKind` union, so the checks are live
-   for Week 1 now and become live for the ordinary weeks the day CR-011 lands,
-   with no further code change. See the first question below.
+1. **`run_intervals` and CR-011 — resolved during the branch.** When this branch
+   was cut, CR-011 was *not* on `main`: `34355c0`/`9ce1dd8` had been reverted by
+   `485eef3`/`94ff5b4`, so no week the generator produced contained a
+   `run_intervals` session, and the checker was written to match both
+   `run_intervals` and Week 1's `running_intervals_exception` as plain strings
+   rather than through the `SessionKind` union. **CR-011 was then re-landed on
+   `main` (PR #5, merge `fdbe451`) while this work was in progress.** `main` has
+   been merged into `cr-014` — see *The merge with CR-011* below. The two-name
+   match was kept as written: it is now correct rather than forward-looking,
+   since Week 1 still carries `running_intervals_exception` and every other week
+   carries `run_intervals`.
 2. **The week-range label.** The mockup's edit row carries only
    `Séances 3/5` and the button; the app's row also carries the week range
    (`14 sept – 20 sept 2026`, from CR-010). The range was kept and the row set
@@ -139,15 +140,45 @@ Sunday review still sees the week as she actually shaped it.
    confined to edit mode. On a standard week there are no flags, so nothing
    shows until she moves something.
 
+## The merge with CR-011
+
+`origin/main` moved while this branch was open: PR #5 re-landed CR-011 (the
+Tuesday `run_intervals` session and the v3 weekly template), which is why
+pull request #6 showed a conflict. `main` was merged into `cr-014` rather than
+resolved in GitHub's web editor, because the conflict touches the generator and
+the whole suite had to be re-run against the new template.
+
+- The only textual conflict was the **import block** of
+  `src/CoachConcoursApp.tsx`: CR-011 added `runIntervalsRepsById` there, CR-014
+  removed the now-unused `generatePlan`. Both sides kept, `generatePlan` still
+  dropped (every plan this file builds goes through `planWithMoves`, which calls
+  it). `src/coach/types.ts` auto-merged: CR-011 added `run_intervals` to
+  `SessionKind` and `repPacesSec`/`repsDone` to `SessionResult`, CR-014 added
+  `DayMove` and `CoachState.dayMoves`. No CR-011 code was changed or reverted.
+- **The v3 template changes what the checker sees.** An ordinary week is now
+  Mon CrossFit (hard), Tue `run_intervals` (hard), Wed free, Thu
+  `police_technique` (low), Fri integration/strength (hard), Sat trail
+  (moderate), Sun free. Monday and Tuesday are therefore two hard days side by
+  side on **every** week — and the standard week still returns no flag, because
+  that is exactly the accepted pair of C1. This is now asserted explicitly in
+  `cr014.test.ts`, not just implied by the all-weeks sweep.
+- The checker fixtures were moved to the real `run_intervals` kind, and C1's
+  accepted pair is now tested in **both orders** and under **both** kind names.
+- Everything re-ran green on the merged tree: **89 tests across 11 files**
+  (CR-011's own `runIntervals.test.ts` and the rewritten `weeklyShape.test.ts`
+  included), typecheck and build clean.
+
 ## Questions for the chat (not decided here)
 
-1. **CR-011 and `run_intervals`.** CR-014 v2 is written against a Tuesday
-   `run_intervals` session that the app does not currently generate, because
-   CR-011 was reverted on `main`. Nothing in CR-014 is blocked by that — but
-   C1's accepted pair (CrossFit next to the intervals) and C4 (a police
-   intervals HIIT the day after the intervals) will stay silent on ordinary
-   weeks until CR-011 is back. Does CR-011 get re-landed, or is it now a
-   different number?
+1. **The accepted pair now carries real weight.** With CR-011's v3 template,
+   every ordinary week has Monday's CrossFit and Tuesday's `run_intervals` as
+   **two hard days side by side**. The only reason the checker stays silent on
+   a freshly generated week is C1's accepted pair — her decision of 15
+   September, the change of stimulus. So that exemption is no longer a corner
+   case: it is what makes the standard week quiet. Worth confirming it is still
+   what she wants now that it applies every single week, and worth knowing what
+   should happen if she moves the CrossFit away from Monday and the pair breaks
+   (today: C1 fires, amber).
 2. **`weekly_shape.md` v4.** Section D of the change request asks for a note to
    be written when this is merged: while a day is stacked the week has 5
    sessions over fewer than 5 days, so the "2 days without a session" half of
@@ -196,13 +227,14 @@ step are untouched.
 
 ```
 pnpm typecheck        pass (tsc -b, no errors)
-pnpm test             pass — 10 files, 77 tests (57 existing + 20 new), 0 failures
+pnpm test             pass — 11 files, 89 tests (69 existing + 20 new), 0 failures
 pnpm build            pass — tsc -b && vite build, 37 modules, dist/ written, PWA generated
 pnpm validate:schemas pass — app-export, feedback, plan-update
 ```
 
 The 20 new tests in `src/__tests__/cr014.test.ts` cover every line of the change
-request's section F list:
+request's section F list (counts and numbers below are from the merged tree,
+after `main` was merged in):
 
 ```
 applyDayMoves: a move survives a reload (generatePlan then apply)
@@ -224,8 +256,8 @@ week screen: a week with no flag shows the silent line, not the banner
 ```
 
 "The generated standard week returns no flag at all" is asserted over **all
-eleven** generated weeks, not only week 2 — the checker must be silent until she
-moves something.
+eleven** generated weeks of the v3 template, not only week 2 — the checker must
+be silent until she moves something.
 
 ### Checked in a real browser
 

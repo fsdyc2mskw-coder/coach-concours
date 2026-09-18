@@ -164,11 +164,31 @@ describe('CR-014 checkWeek', () => {
   });
 
   it('C1 is not raised for crossfit next to run_intervals', () => {
-    const accepted = fixtureWeek([
-      session('2026-09-14', 'crossfit_class', 'hard', recipes.crossfit!.id),
-      session('2026-09-15', 'running_intervals_exception', 'hard', recipes.week1Tue8Sep!.id)
-    ]);
-    expect(codes(accepted)).not.toContain('C1');
+    // The real kind since CR-011 landed, and Week 1's documented exception
+    // kind, in both orders: none of the four raises C1.
+    for (const intervals of ['run_intervals', 'running_intervals_exception'] as const) {
+      const after = fixtureWeek([
+        session('2026-09-14', 'crossfit_class', 'hard', recipes.crossfit!.id),
+        session('2026-09-15', intervals, 'hard', recipes.week1Tue8Sep!.id)
+      ]);
+      expect(codes(after), `${intervals} after crossfit`).not.toContain('C1');
+
+      const before = fixtureWeek([
+        session('2026-09-14', intervals, 'hard', recipes.week1Tue8Sep!.id),
+        session('2026-09-15', 'crossfit_class', 'hard', recipes.crossfit!.id)
+      ]);
+      expect(codes(before), `${intervals} before crossfit`).not.toContain('C1');
+    }
+
+    // And it is the accepted pair that keeps the generated week silent: since
+    // CR-011's v3 template, Monday's CrossFit and Tuesday's run_intervals are
+    // two hard days side by side on every ordinary week.
+    const generic = generatePlan().find((week) => week.startDate === WEEK2)!;
+    const monday = sessionOn(generic, '2026-09-14');
+    const tuesday = sessionOn(generic, '2026-09-15');
+    expect([monday.kind, tuesday.kind]).toEqual(['crossfit_class', 'run_intervals']);
+    expect([monday.load, tuesday.load]).toEqual(['hard', 'hard']);
+    expect(checkWeek(generic)).toEqual([]);
 
     // Any other pair of hard days side by side does raise it.
     const other = fixtureWeek([
@@ -227,7 +247,7 @@ describe('CR-014 checkWeek', () => {
 
   it('C4 fires on a police session with an intervals HIIT the day after the run intervals, and not otherwise', () => {
     const dayAfter = fixtureWeek([
-      session('2026-09-14', 'running_intervals_exception', 'moderate', recipes.week1Tue8Sep!.id),
+      session('2026-09-14', 'run_intervals', 'moderate', recipes.week1Tue8Sep!.id),
       session('2026-09-15', 'police_integration', 'hard', recipes.room!.id)
     ]);
     expect(recipes.room!.blocks.filter((block) => block.hiit).map((block) => block.hiit!.format)).toEqual(['intervals']);
@@ -235,7 +255,7 @@ describe('CR-014 checkWeek', () => {
 
     // The same police session two days later says nothing.
     const twoDaysAfter = fixtureWeek([
-      session('2026-09-14', 'running_intervals_exception', 'moderate', recipes.week1Tue8Sep!.id),
+      session('2026-09-14', 'run_intervals', 'moderate', recipes.week1Tue8Sep!.id),
       session('2026-09-16', 'police_integration', 'hard', recipes.room!.id)
     ]);
     expect(codes(twoDaysAfter)).not.toContain('C4');
@@ -251,7 +271,7 @@ describe('CR-014 checkWeek', () => {
 
   it('C5 fires on the two runs side by side and not otherwise', () => {
     const adjacent = fixtureWeek([
-      session('2026-09-18', 'running_intervals_exception', 'moderate', recipes.week1Tue8Sep!.id),
+      session('2026-09-18', 'run_intervals', 'moderate', recipes.week1Tue8Sep!.id),
       session('2026-09-19', 'trail_maintenance', 'moderate', recipes.trailMaintenance!.id)
     ]);
     const flag = checkWeek(adjacent).find((item) => item.code === 'C5')!;
