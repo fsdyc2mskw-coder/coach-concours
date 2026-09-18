@@ -248,4 +248,4 @@ by hand against `pnpm dev` at phone width, on week 2 (14–20 September):
 
 The local data written during that check was cleared afterwards.
 
-Implementation commit: `PENDING`
+Implementation commit: `4d0767897ff5440a527b828d72ba3e81c76d9bfa`
