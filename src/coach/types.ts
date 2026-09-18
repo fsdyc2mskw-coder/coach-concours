@@ -93,6 +93,20 @@ export interface PlannedSession {
   adaptationNote?: string;
 }
 
+// CHANGE_REQUEST_014 section C — a session moved to another day of its own
+// week. The move is its own small layer, never a rewritten week: the stored
+// `weeks` are thrown away and rebuilt by `generatePlan` at every start
+// (coachStorage.loadCoachState), so anything written into a week would
+// disappear at the next reload. `sessionId` is the generator's own id
+// (`${date}:${kind}`), which the move never rewrites — `state.results` is
+// keyed by it, and renaming a session would cut the numbers already recorded
+// loose from it.
+export interface DayMove {
+  sessionId: string;
+  toDate: string;
+  movedAt: string;
+}
+
 export interface TrainingWeek {
   id: string;
   startDate: string;
@@ -160,6 +174,9 @@ export interface CoachState {
   planStartDate: '2026-09-07';
   planEndDate: '2026-11-20';
   weeks: TrainingWeek[];
+  // CHANGE_REQUEST_014 — optional, so a state written before CR-014 loads
+  // unchanged and `schemaVersion` stays 2.
+  dayMoves?: DayMove[];
   results: Record<string, SessionResult>;
   memoryReveals: Record<string, boolean>;
   drive: DriveState;
