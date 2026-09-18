@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flowStrip, recipeById, runIntervalsRepsById } from './coach/recipes';
-import { generatePlan } from './coach/planner';
+// CHANGE_REQUEST_014 — the move layer and the checker. `generatePlan` is no
+// longer imported here: every plan this file builds now goes through
+// `planWithMoves`, which calls it.
+import { canReceive, isMovable, isPastDay, planWithMoves, today as todayISO, withMove } from './coach/dayMoves';
+import { checkWeek } from './coach/weekChecker';
 import type {
   CoachState,
+  DayMove,
   ExerciseBlock,
   LandingQuality,
   MovementQuality,
@@ -118,7 +123,7 @@ export default function CoachConcoursApp() {
   const persistResult = (planned: PlannedSession, result: Omit<SessionResult, 'sessionId' | 'completedAt'>, message?: string) => {
     mutate((current) => {
       const results = { ...current.results, [planned.id]: { ...result, sessionId: planned.id, completedAt: new Date().toISOString() } };
-      return { ...current, results, weeks: generatePlan(results) };
+      return { ...current, results, weeks: planWithMoves(results, current.dayMoves) };
     }, message);
   };
 
@@ -133,8 +138,15 @@ export default function CoachConcoursApp() {
   const removeResult = (planned: PlannedSession) => mutate((current) => {
     const results = { ...current.results };
     delete results[planned.id];
-    return { ...current, results, weeks: generatePlan(results) };
+    return { ...current, results, weeks: planWithMoves(results, current.dayMoves) };
   }, 'Validation retirée.');
+
+  // CHANGE_REQUEST_014 section C — a move is written as its own small layer,
+  // never into `weeks`: `dayMoves` is what survives a reload, and the plan is
+  // rebuilt from the rules plus those moves. `setDayMoves` also serves the
+  // banner's "Annuler le déplacement", which hands back the array as it was
+  // before the drop.
+  const setDayMoves = (dayMoves: DayMove[]) => mutate((current) => ({ ...current, dayMoves, weeks: planWithMoves(current.results, dayMoves) }));
 
   const connectAndSync = async () => {
     if (!state) return;
@@ -204,7 +216,7 @@ export default function CoachConcoursApp() {
   return <main className="shell">
     {drill.screen === 'list' && <header className="topbar"><div className="brand"><span className="brandMark">C↗</span><span>COACH<br /><b>CONCOURS</b></span></div><span className={`syncDot syncDot--${state.drive.status}`}>{state.drive.status === 'synced' ? 'Drive à jour' : state.drive.status === 'pending' ? 'À synchroniser' : 'Copie locale'}</span></header>}
 
-    {tab === 'week' && drill.screen === 'list' && <WeekScreen state={state} weekIndex={weekIndex} setWeekIndex={setWeekIndex} openSession={openSession} />}
+    {tab === 'week' && drill.screen === 'list' && <WeekScreen state={state} weekIndex={weekIndex} setWeekIndex={setWeekIndex} openSession={openSession} setDayMoves={setDayMoves} />}
     {tab === 'week' && drill.screen === 'session' && found && <SessionScreen state={state} planned={found} sessionTab={drill.sessionTab} focusBlock={drill.focusBlock}
       setTab={(sessionTab) => setDrill({ screen: 'session', sessionId: found.id, sessionTab })}
       openBlock={(blockIndex) => setDrill({ screen: 'block', sessionId: found.id, blockIndex })}
@@ -287,15 +299,119 @@ function weeksUntil(fromISO: string, targetISO: string): number {
 
 // ---------- B. Week screen ----------
 
-function WeekScreen({ state, weekIndex, setWeekIndex, openSession }: { state: CoachState; weekIndex: number; setWeekIndex: (index: number) => void; openSession: (planned: PlannedSession) => void }) {
+// CHANGE_REQUEST_014 section E — pointer-event drag (finger and mouse), not
+// HTML5 drag, which no mobile browser fires. The listeners live on the
+// document so a finger that leaves the card still drives the move; the
+// floating copy of the card is a clone appended to `document.body`, outside
+// React's tree, and removed again on release.
+function usePointerDrag(
+  containerRef: { current: HTMLDivElement | null },
+  enabled: boolean,
+  onDrop: (sessionId: string, toDate: string) => void
+) {
+  const dropRef = useRef(onDrop);
+  dropRef.current = onDrop;
+
+  useEffect(() => {
+    if (!enabled) return;
+    const container = containerRef.current;
+    if (!container) return;
+
+    let drag: { sessionId: string; ghost: HTMLElement; card: HTMLElement; dx: number; dy: number } | null = null;
+    const clearOver = () => container.querySelectorAll('.slot').forEach((slot) => slot.classList.remove('over'));
+    const slotAt = (x: number, y: number): HTMLElement | null => {
+      const under = document.elementFromPoint(x, y) as HTMLElement | null;
+      return under?.closest?.('.slot') ?? null;
+    };
+    const paint = (event: PointerEvent) => {
+      if (!drag) return;
+      drag.ghost.style.left = `${event.clientX - drag.dx}px`;
+      drag.ghost.style.top = `${event.clientY - drag.dy}px`;
+      clearOver();
+      slotAt(event.clientX, event.clientY)?.classList.add('over');
+    };
+    const release = () => {
+      if (!drag) return;
+      drag.ghost.remove();
+      drag.card.classList.remove('lifted');
+      clearOver();
+      drag = null;
+    };
+
+    const down = (event: PointerEvent) => {
+      const handle = (event.target as HTMLElement | null)?.closest?.('[data-drag]') as HTMLElement | null;
+      if (!handle || !container.contains(handle)) return;
+      const sessionId = handle.dataset.drag;
+      const card = sessionId ? container.querySelector<HTMLElement>(`[data-card="${sessionId}"]`) : null;
+      if (!sessionId || !card) return;
+      event.preventDefault();
+      const rect = card.getBoundingClientRect();
+      const ghost = card.cloneNode(true) as HTMLElement;
+      ghost.classList.add('floating');
+      ghost.style.width = `${rect.width}px`;
+      document.body.appendChild(ghost);
+      card.classList.add('lifted');
+      drag = { sessionId, ghost, card, dx: event.clientX - rect.left, dy: event.clientY - rect.top };
+      paint(event);
+    };
+    const move = (event: PointerEvent) => { if (drag) { event.preventDefault(); paint(event); } };
+    const up = (event: PointerEvent) => {
+      if (!drag) return;
+      const from = drag.card.closest('.slot') as HTMLElement | null;
+      const slot = slotAt(event.clientX, event.clientY);
+      const target = slot && !slot.classList.contains('blocked') ? slot.dataset.slot : undefined;
+      const sessionId = drag.sessionId;
+      release();
+      if (target && target !== from?.dataset.slot) dropRef.current(sessionId, target);
+    };
+
+    document.addEventListener('pointerdown', down);
+    document.addEventListener('pointermove', move, { passive: false });
+    document.addEventListener('pointerup', up);
+    document.addEventListener('pointercancel', release);
+    return () => {
+      release();
+      document.removeEventListener('pointerdown', down);
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', up);
+      document.removeEventListener('pointercancel', release);
+    };
+  }, [enabled, containerRef]);
+}
+
+function WeekScreen({ state, weekIndex, setWeekIndex, openSession, setDayMoves }: {
+  state: CoachState;
+  weekIndex: number;
+  setWeekIndex: (index: number) => void;
+  openSession: (planned: PlannedSession) => void;
+  setDayMoves: (moves: DayMove[]) => void;
+}) {
   const week = state.weeks[weekIndex]!;
   const completed = week.sessions.filter((planned) => state.results[planned.id]?.status === 'done').length;
   const days = daysOfWeek(week.startDate, week.endDate);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
   const principal = week.sessions.find((planned) => planned.kind.startsWith('police_')) ?? week.sessions[0];
   const headline = principal ? recipeById[principal.recipeId]!.title : phaseLabel(week.phase);
   const weeksToTrail = weeksUntil(week.startDate, TRAIL_EVENT_DATE);
   const weeksToPolice = weeksUntil(week.startDate, state.planEndDate);
+
+  // CHANGE_REQUEST_014 — edit mode, the last move (for "Annuler le
+  // déplacement") and "Je garde" are all screen state: nothing about a flag
+  // is ever stored, only the new order is.
+  const [editMode, setEditMode] = useState(false);
+  const [undoTo, setUndoTo] = useState<DayMove[] | null>(null);
+  const [kept, setKept] = useState(false);
+  const daysRef = useRef<HTMLDivElement | null>(null);
+
+  const flags = checkWeek(week);
+  const anyHard = flags.some((flag) => flag.hard);
+
+  const drop = useCallback((sessionId: string, toDate: string) => {
+    setUndoTo([...(state.dayMoves ?? [])]);
+    setKept(false);
+    setDayMoves(withMove(state.dayMoves, sessionId, toDate));
+  }, [state.dayMoves, setDayMoves]);
+  usePointerDrag(daysRef, editMode, drop);
 
   return <>
     <section className="heroHead">
@@ -308,32 +424,65 @@ function WeekScreen({ state, weekIndex, setWeekIndex, openSession }: { state: Co
       <button className="on" disabled>Cette semaine</button>
       <button disabled={weekIndex === state.weeks.length - 1} onClick={() => setWeekIndex(weekIndex + 1)}>{weekIndex < state.weeks.length - 1 ? formatRange(state.weeks[weekIndex + 1]!.startDate, state.weeks[weekIndex + 1]!.endDate) : '—'}</button>
     </div>
-    <div className="prog"><b>Séances {completed}/{week.sessions.length}</b><span>{formatRange(week.startDate, week.endDate)}</span></div>
+    <div className="editRow">
+      <div className="prog"><b>Séances {completed}/{week.sessions.length}</b><span>{formatRange(week.startDate, week.endDate)}</span></div>
+      <button className={`ghost${editMode ? ' on' : ''}`} type="button" onClick={() => setEditMode(!editMode)}>{editMode ? 'Terminer' : "Modifier l'ordre"}</button>
+    </div>
     <div className="track"><i style={{ width: `${week.sessions.length ? (completed / week.sessions.length) * 100 : 0}%` }} /></div>
 
-    {days.map((date) => {
-      const planned = week.sessions.find((item) => item.date === date);
-      const dayLabel = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM'][new Date(`${date}T12:00:00Z`).getUTCDay()];
-      const isToday = date === today;
-      if (!planned) return <div key={date}><div className={`day${isToday ? ' today' : ''}`}>{isToday ? "Aujourd'hui" : `${dayLabel} ${new Date(`${date}T12:00:00Z`).getUTCDate()}`}</div><div className="rest">Repos</div></div>;
-      const recipe = recipeById[planned.recipeId]!;
-      const result = state.results[planned.id];
-      const bars = loadBars(planned.load);
-      const durationLabel = recipe.durationMin ? mmss(recipe.durationMin * planned.volumeFactor) : recipe.kind === 'crossfit_class' ? '' : '—';
-      const hint = sessionHint(recipe);
-      const cardClass = ['card', isToday ? 'today' : '', result?.status === 'done' ? 'done' : '', result?.status === 'draft' ? 'draft' : ''].filter(Boolean).join(' ');
-      return <div key={date}>
-        <div className={`day${isToday ? ' today' : ''}`}>{isToday ? "Aujourd'hui" : `${dayLabel} ${new Date(`${date}T12:00:00Z`).getUTCDate()}`}</div>
-        <button className={cardClass} type="button" onClick={() => openSession(planned)}>
-          <span className="tile">{kindIcon(planned.kind)}</span>
-          <span className="vbars">{[0, 1, 2].map((index) => <i key={index} style={index < bars.count ? { background: bars.color } : undefined} />)}</span>
-          <span className="txt"><b>{recipe.title}</b><small>{[durationLabel, hint].filter(Boolean).join(' · ')}</small></span>
-          <span className="more">···</span>
-        </button>
-      </div>;
-    })}
+    <div ref={daysRef}>
+      {days.map((date) => {
+        const onThisDay = week.sessions.filter((item) => item.date === date);
+        const dayLabel = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM'][new Date(`${date}T12:00:00Z`).getUTCDay()];
+        const isToday = date === today;
+        const past = isPastDay(date, today);
+        const blocked = !canReceive(week, date, today);
+        const dayFlags = flags.filter((flag) => flag.date === date);
+        return <div key={date}>
+          <div className={`day${isToday ? ' today' : ''}`}>
+            {isToday ? "Aujourd'hui" : `${dayLabel} ${new Date(`${date}T12:00:00Z`).getUTCDate()}`}
+            {dayFlags.length > 0 && <span className={`warnDot${dayFlags.some((flag) => flag.hard) ? ' hardRule' : ''}`} role="img" aria-label="Signalement">⚠</span>}
+            {editMode && past && <span className="lock">🔒 passé</span>}
+          </div>
+          <div className={`slot${blocked ? ' blocked' : ''}`} data-slot={date}>
+            {onThisDay.length === 0
+              ? (editMode ? <div className="free">Libre · dépose ici</div> : <div className="rest">Repos</div>)
+              : onThisDay.map((planned) => {
+                const recipe = recipeById[planned.recipeId]!;
+                const result = state.results[planned.id];
+                const bars = loadBars(planned.load);
+                const durationLabel = recipe.durationMin ? mmss(recipe.durationMin * planned.volumeFactor) : recipe.kind === 'crossfit_class' ? '' : '—';
+                const hint = sessionHint(recipe);
+                const movable = editMode && isMovable(planned, today);
+                const cardClass = ['card', isToday ? 'today' : '', past ? 'past' : '', onThisDay.length > 1 ? 'stacked' : '', result?.status === 'done' ? 'done' : '', result?.status === 'draft' ? 'draft' : ''].filter(Boolean).join(' ');
+                return <button key={planned.id} className={cardClass} data-card={planned.id} type="button"
+                  onClick={(event) => { if ((event.target as HTMLElement).closest('[data-drag]')) return; openSession(planned); }}>
+                  <span className="tile">{kindIcon(planned.kind)}</span>
+                  <span className="vbars">{[0, 1, 2].map((index) => <i key={index} style={index < bars.count ? { background: bars.color } : undefined} />)}</span>
+                  <span className="txt"><b>{recipe.title}</b><small>{[durationLabel, hint].filter(Boolean).join(' · ')}</small></span>
+                  {movable
+                    ? <span className="handle" data-drag={planned.id} role="img" aria-label={`Déplacer « ${recipe.title} »`}>⠿</span>
+                    : <span className="more">···</span>}
+                </button>;
+              })}
+          </div>
+        </div>;
+      })}
+    </div>
+
+    {editMode && flags.length > 0 && !kept && <div className={`banner${anyHard ? ' hardRule' : ''}`}>
+      <h5>{flags.length} signalement{flags.length > 1 ? 's' : ''} sur cette semaine</h5>
+      <ul>{flags.map((flag, index) => <li key={`${flag.code}-${flag.date}-${index}`}><b className={flag.hard ? 'hardRule' : ''}>{flag.lead}</b> {flag.text}</li>)}</ul>
+      <div className="acts">
+        {undoTo && <button type="button" onClick={() => { setDayMoves(undoTo); setUndoTo(null); }}>Annuler le déplacement</button>}
+        <button className="primary" type="button" onClick={() => setKept(true)}>Je garde</button>
+      </div>
+    </div>}
+    {editMode && flags.length === 0 && <div className="okline">✓ Semaine cohérente, aucun signalement.</div>}
+    {editMode && flags.length > 0 && kept && <div className="okline">✓ Gardé. Rien n’est enregistré du signalement, seul le nouvel ordre l’est.</div>}
   </>;
 }
+
 
 // ---------- C/D/F. Session screen ----------
 

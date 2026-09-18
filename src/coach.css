@@ -67,6 +67,13 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 .wtabs button.on { color: var(--text); border-color: var(--accent); }
 .wtabs button:disabled { opacity: .35; cursor: default; }
 
+/* CHANGE_REQUEST_014 — "Modifier l'ordre" sits on the session-count row, as
+   in the mockup; the week range wraps under the count on a narrow phone. */
+.editRow { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.editRow .prog { flex: 1; min-width: 0; flex-wrap: wrap; column-gap: 10px; }
+.ghost { background: none; border: 1px solid var(--line); color: var(--sub); border-radius: 999px; padding: 9px 16px; font-family: var(--display); font-weight: 700; font-size: 13.5px; cursor: pointer; flex: none; }
+.ghost.on { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
 .prog { margin: 22px 0 6px; display: flex; justify-content: space-between; align-items: baseline; }
 .prog b { font-family: var(--display); font-size: 24px; font-weight: 800; letter-spacing: -.02em; }
 .prog span { color: var(--sub); font-size: 13px; }
@@ -74,8 +81,12 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 .track i { position: absolute; left: 0; top: 0; height: 100%; border-radius: 2px; background: var(--accent); }
 .track i::after { content: ""; position: absolute; right: -6px; top: -5px; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-dim); }
 
-.day { font-family: var(--display); font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--sub); margin: 22px 2px 10px; }
+.day { font-family: var(--display); font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--sub); margin: 22px 2px 10px; display: flex; align-items: center; gap: 8px; }
 .day.today { color: var(--text); }
+/* CHANGE_REQUEST_014 — the day header's two markers. */
+.day .lock { color: var(--mute); font-size: 11px; letter-spacing: 0; text-transform: none; }
+.day .warnDot { color: var(--mid); font-size: 13px; letter-spacing: 0; }
+.day .warnDot.hardRule { color: var(--high); }
 
 .card { display: flex; align-items: center; gap: 14px; background: var(--card); border-radius: 22px; padding: 14px 16px; border: 1px solid transparent; cursor: pointer; width: 100%; text-align: left; }
 .card.today { background: linear-gradient(90deg, var(--accent-dim), var(--card) 60%); border-color: rgba(60, 224, 161, .45); }
@@ -91,6 +102,33 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 .card.draft .txt small::before { content: "en cours · "; color: var(--mid); }
 
 .rest { color: var(--mute); font-size: 14px; padding: 4px 6px; }
+
+/* CHANGE_REQUEST_014 — a day is a drop slot: it may hold several cards, it
+   highlights while a card hovers it, and it refuses the drop when the date has
+   passed or a fixed event already holds it. */
+.slot { display: flex; flex-direction: column; gap: 8px; border-radius: 24px; border: 1px dashed transparent; padding: 2px; }
+.slot.over { border-color: var(--accent); background: var(--accent-dim); }
+.slot.blocked.over { border-color: var(--high); background: rgba(240, 101, 90, .12); }
+.free { color: var(--accent); font-size: 13.5px; padding: 6px 8px; font-weight: 700; font-family: var(--display); }
+.card.past { opacity: .55; }
+.card.stacked { border-color: rgba(245, 181, 74, .5); }
+.card.lifted { opacity: .28; }
+.card .handle { flex: none; color: var(--sub); font-size: 20px; width: 30px; text-align: center; touch-action: none; cursor: grab; }
+.floating { position: fixed; z-index: 60; pointer-events: none; width: 400px; max-width: 88vw; box-shadow: 0 18px 40px rgba(0, 0, 0, .6); transform: scale(1.03); border-radius: 22px; }
+
+/* CHANGE_REQUEST_014 — the flags banner. Shown once after a drop, closed by
+   "Je garde", and never stored. */
+.banner { position: sticky; bottom: 0; margin-top: 22px; background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--mid); border-radius: 18px; padding: 14px 16px; }
+.banner.hardRule { border-left-color: var(--high); }
+.banner h5 { font-family: var(--display); font-size: 14px; font-weight: 800; margin: 0 0 8px; color: var(--text); }
+.banner ul { margin: 0; padding-left: 16px; color: var(--sub); font-size: 13.5px; }
+.banner li { margin-bottom: 6px; }
+.banner li b { color: var(--mid); font-weight: 700; }
+.banner li b.hardRule { color: var(--high); }
+.banner .acts { display: flex; gap: 10px; margin-top: 12px; }
+.banner .acts button { flex: 1; border-radius: 999px; padding: 10px 0; font-family: var(--display); font-weight: 700; font-size: 13.5px; border: 1px solid var(--line); background: none; color: var(--sub); cursor: pointer; }
+.banner .acts button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.okline { margin-top: 22px; color: var(--accent); font-size: 13.5px; font-family: var(--display); font-weight: 700; background: var(--accent-dim); border-radius: 14px; padding: 12px 14px; }
 
 .tabbar { position: fixed; z-index: 3; left: 50%; bottom: 18px; transform: translateX(-50%); width: calc(100% - 32px); max-width: 428px; height: 64px; border-radius: 32px; background: rgba(21, 23, 28, .92); backdrop-filter: blur(12px); border: 1px solid var(--line); display: flex; justify-content: space-around; align-items: center; font-size: 20px; color: var(--sub); padding-bottom: env(safe-area-inset-bottom); }
 .tabbar button { border: 0; background: none; color: inherit; font: inherit; display: grid; place-items: center; }

@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Mockup CR-014 · déplacer les jours</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0A0B0E; --card:#15171C; --card2:#1D2027; --line:#262A33;
+  --text:#F2F3F5; --sub:#9AA0AC; --mute:#5E646F;
+  --accent:#3CE0A1; --accent-ink:#0A0B0E; --accent-dim:rgba(60,224,161,.14);
+  --low:#3CE0A1; --mid:#F5B54A; --high:#F0655A; --violet:#B9A6FF;
+  --display:"Plus Jakarta Sans",system-ui,-apple-system,sans-serif;
+  --body:"Manrope",system-ui,-apple-system,sans-serif;
+  font-family:var(--body); color:var(--text); background:var(--bg);
+  font-size:15px; line-height:1.45; color-scheme:dark;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:#07080A;padding:24px 12px 60px}
+button{font:inherit;color:inherit;cursor:pointer}
+
+.wrap{max-width:980px;margin:auto;display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap;justify-content:center}
+.phone{width:460px;max-width:100%;background:var(--bg);border:1px solid var(--line);border-radius:34px;padding:20px 16px 96px;position:relative;overflow:hidden}
+.notes{width:420px;max-width:100%;color:var(--sub);font-size:14px}
+.notes h3{font-family:var(--display);font-size:17px;color:var(--text);margin:0 0 10px}
+.notes h4{font-family:var(--display);font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin:22px 0 8px}
+.notes p{margin:0 0 10px}
+.notes ul{margin:0;padding-left:18px}
+.notes li{margin-bottom:7px}
+.notes code{background:var(--card);border-radius:5px;padding:1px 5px;font-size:12.5px;color:var(--text)}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2px 2px 4px}
+.brand{display:flex;align-items:center;gap:8px;font-family:var(--display);font-size:11px;font-weight:800;letter-spacing:.1em;line-height:1.25}
+.brandMark{background:var(--accent);color:var(--accent-ink);border-radius:11px;width:36px;height:36px;display:grid;place-items:center;font-size:18px;letter-spacing:-2px}
+.syncDot{font-size:11px;font-weight:700;color:var(--sub);display:flex;gap:6px;align-items:center}
+.syncDot:before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent)}
+
+.heroHead{margin:6px 0 4px}
+.heroHead .kicker{font-family:var(--display);font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.heroHead h2{font-family:var(--display);font-size:30px;font-weight:800;letter-spacing:-.02em;margin:8px 0 4px}
+.heroHead p{margin:0;color:var(--sub);font-size:14px}
+
+.editRow{display:flex;justify-content:space-between;align-items:center;margin:16px 0 2px;gap:10px}
+.ghost{background:none;border:1px solid var(--line);color:var(--sub);border-radius:999px;padding:9px 16px;font-family:var(--display);font-weight:700;font-size:13.5px}
+.ghost.on{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+.prog{margin:14px 0 6px;display:flex;justify-content:space-between;align-items:baseline}
+.prog b{font-family:var(--display);font-size:22px;font-weight:800;letter-spacing:-.02em}
+.prog span{color:var(--sub);font-size:13px}
+.track{height:4px;border-radius:2px;background:var(--line);position:relative;margin:6px 0 4px}
+.track i{position:absolute;left:0;top:0;height:100%;border-radius:2px;background:var(--accent)}
+
+.day{font-family:var(--display);font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--sub);margin:20px 2px 10px;display:flex;align-items:center;gap:8px}
+.day.today{color:var(--text)}
+.day .lock{color:var(--mute);font-size:11px;letter-spacing:0;text-transform:none}
+.day .warnDot{color:var(--mid);font-size:13px;letter-spacing:0}
+.day .warnDot.hardRule{color:var(--high)}
+
+.slot{display:flex;flex-direction:column;gap:8px;border-radius:24px;border:1px dashed transparent;padding:2px}
+.slot.over{border-color:var(--accent);background:var(--accent-dim)}
+.slot.blocked.over{border-color:var(--high);background:rgba(240,101,90,.12)}
+
+.card{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:22px;padding:14px 16px;border:1px solid transparent;width:100%;text-align:left}
+.card.today{background:linear-gradient(90deg,var(--accent-dim),var(--card) 60%);border-color:rgba(60,224,161,.45)}
+.card.past{opacity:.55}
+.card .tile{width:50px;height:50px;border-radius:16px;background:var(--card2);display:grid;place-items:center;font-size:21px;flex:none;color:var(--accent)}
+.card.today .tile{background:var(--accent);color:var(--accent-ink)}
+.card .vbars{display:flex;flex-direction:column;gap:3px;flex:none}
+.card .vbars i{width:3px;height:10px;border-radius:2px;background:var(--line);display:block}
+.card .txt{flex:1;min-width:0}
+.card .txt b{display:block;font-family:var(--display);font-size:17px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .txt small{display:block;color:var(--sub);font-size:13.5px;margin-top:2px}
+.card .more{color:var(--sub);font-size:19px;letter-spacing:1px;flex:none}
+.card .handle{flex:none;color:var(--sub);font-size:20px;width:30px;text-align:center;touch-action:none;cursor:grab}
+.card.lifted{opacity:.28}
+.card.stacked{border-color:rgba(245,181,74,.5)}
+
+.floating{position:fixed;z-index:60;pointer-events:none;width:400px;max-width:88vw;box-shadow:0 18px 40px rgba(0,0,0,.6);transform:scale(1.03);border-radius:22px}
+.rest{color:var(--mute);font-size:14px;padding:6px 8px}
+.free{color:var(--accent);font-size:13.5px;padding:6px 8px;font-weight:700;font-family:var(--display)}
+
+.banner{position:sticky;bottom:0;margin-top:22px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--mid);border-radius:18px;padding:14px 16px}
+.banner.hardRule{border-left-color:var(--high)}
+.banner h5{font-family:var(--display);font-size:14px;font-weight:800;margin:0 0 8px;color:var(--text)}
+.banner ul{margin:0;padding-left:16px;color:var(--sub);font-size:13.5px}
+.banner li{margin-bottom:6px}
+.banner li b{color:var(--mid);font-weight:700}
+.banner li b.hardRule{color:var(--high)}
+.banner .acts{display:flex;gap:10px;margin-top:12px}
+.banner .acts button{flex:1;border-radius:999px;padding:10px 0;font-family:var(--display);font-weight:700;font-size:13.5px;border:1px solid var(--line);background:none;color:var(--sub)}
+.banner .acts button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.okline{margin-top:22px;color:var(--accent);font-size:13.5px;font-family:var(--display);font-weight:700;background:var(--accent-dim);border-radius:14px;padding:12px 14px}
+
+.tabbar{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);width:calc(100% - 32px);height:62px;border-radius:32px;background:rgba(21,23,28,.92);border:1px solid var(--line);display:flex;justify-content:space-around;align-items:center;font-size:19px;color:var(--sub)}
+.tabbar button{border:0;background:none}
+.tabbar button.on{background:var(--card2);color:var(--accent);width:54px;height:42px;border-radius:21px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="phone" id="phone">
+  <div class="topbar">
+    <div class="brand"><span class="brandMark">CC</span><span>COACH<br>CONCOURS</span></div>
+    <div class="syncDot">Drive à jour</div>
+  </div>
+
+  <section class="heroHead">
+    <div class="kicker">Apprendre · semaine 2 / 11</div>
+    <h2>Semaine 2</h2>
+    <p>3 semaines avant le trail · 9 avant le test police</p>
+  </section>
+
+  <div class="editRow">
+    <div class="prog" style="margin:0"><b>Séances 3/5</b></div>
+    <button class="ghost" id="editBtn">Modifier l'ordre</button>
+  </div>
+  <div class="track"><i style="width:60%"></i></div>
+
+  <div id="days"></div>
+  <div id="feedback"></div>
+
+  <div class="tabbar">
+    <button class="on">▦</button><button>◷</button><button>☰</button>
+  </div>
+</div>
+
+<div class="notes">
+  <h3>Mockup CR-014 · déplacer les jours</h3>
+  <p>Tap <b>Modifier l'ordre</b>, then drag a card by its handle onto another day. Works with a mouse and with a finger.</p>
+
+  <h4>What to try</h4>
+  <ul>
+    <li>Drag <b>Explosivité en salle</b> (Friday) onto Saturday: the day holds two sessions, and only the stack flag speaks.</li>
+    <li>Move it on to Sunday: the stack flag clears and the other checks come back.</li>
+    <li>Drag <b>Explosivité en salle</b> onto Thursday, then the trail onto Friday: three training days in a row, two of them hard.</li>
+    <li>Try to drop something on Monday, Tuesday or Wednesday: refused, the date has passed.</li>
+  </ul>
+
+  <h4>The checks behind it</h4>
+  <ul>
+    <li><code>STACK</code> two sessions on one day. While it lasts, nothing else is checked.</li>
+    <li><code>C1</code> two hard days side by side. The CrossFit and run-intervals pair is the accepted one, since you chose it on 15 September.</li>
+    <li><code>C2</code> three hard days in a row. Hard rule R-WS-10, so it is shown in red.</li>
+    <li><code>C3</code> more than three training days with no rest.</li>
+    <li><code>C4</code> a police session with a running HIIT the day after the run intervals (R-WS-08).</li>
+    <li><code>C5</code> the two runs side by side.</li>
+    <li><code>C6</code> the trail leaves le week-end (R-WS-03).</li>
+  </ul>
+  <p>Monday says nothing when it moves. You know your class schedule.</p>
+  <p>Hard is read from the intensity bars the app already draws: three bars is hard, two is moderate, one is light.</p>
+</div>
+
+</div>
+
+<script>
+const TODAY = '2026-09-17';
+
+const DAYS = [
+  { date:'2026-09-14', label:'LUN 14' },
+  { date:'2026-09-15', label:'MAR 15' },
+  { date:'2026-09-16', label:'MER 16' },
+  { date:'2026-09-17', label:'JEU 17' },
+  { date:'2026-09-18', label:'VEN 18' },
+  { date:'2026-09-19', label:'SAM 19' },
+  { date:'2026-09-20', label:'DIM 20' }
+];
+
+let SESSIONS = [
+  { id:'s-cf',    date:'2026-09-14', kind:'crossfit_class',    title:'CrossFit coaché',        icon:'🏋', load:'hard',     hint:'selon le cours',        done:true },
+  { id:'s-run',   date:'2026-09-15', kind:'run_intervals',     title:'Intervalles 4 × 3 min',  icon:'🏃', load:'hard',     hint:'45:00 · plat, allure 6:00', done:true },
+  { id:'s-tech',  date:'2026-09-17', kind:'police_technique',  title:'Coordination & équilibre',icon:'🎯', load:'low',      hint:'55:00 · postes 8 à 11', done:false },
+  { id:'s-integ', date:'2026-09-18', kind:'police_integration',title:'Explosivité en salle',   icon:'🧩', load:'hard',     hint:'60:00 · postes 1 à 7', done:false, hiitIntervals:true },
+  { id:'s-trail', date:'2026-09-19', kind:'trail_maintenance', title:'Trail d\'entretien',     icon:'🏃', load:'moderate', hint:'8 km · facile', done:false }
+];
+
+const BARS = { low:{n:1,c:'var(--low)'}, moderate:{n:2,c:'var(--mid)'}, hard:{n:3,c:'var(--high)'}, event:{n:3,c:'var(--high)'} };
+const isHard = s => s.load === 'hard' || s.load === 'event';
+const isRun  = s => s.kind === 'run_intervals' || s.kind === 'trail_maintenance' || s.kind === 'trail_event';
+const isPast = d => d < TODAY;
+
+let editMode = false;
+let flags = [];
+let lastMove = null;
+
+function sessionsOn(date){ return SESSIONS.filter(s => s.date === date); }
+
+/* ---------- the checker ---------- */
+function computeFlags(){
+  const out = [];
+  const stacked = DAYS.filter(d => sessionsOn(d.date).length > 1);
+
+  if (stacked.length){
+    stacked.forEach(d => out.push({
+      code:'STACK', hard:false, date:d.date,
+      text:'<b>Deux séances le ' + d.label + '</b> : ' + sessionsOn(d.date).map(s=>s.title).join(' + ') + '. Déplace la seconde quand tu veux, rien d\'autre n\'est vérifié tant qu\'elles sont ensemble.'
+    }));
+    return out;
+  }
+
+  const filled = DAYS.map(d => ({ day:d, s:sessionsOn(d.date)[0] || null }));
+
+  /* C2 first: when three hard days in a row are flagged, the pair flag inside
+     that window would only repeat it, so those pairs are suppressed. */
+  const covered = new Set();
+  for (let i=0;i<filled.length-2;i++){
+    const w = [filled[i],filled[i+1],filled[i+2]];
+    if (w.every(x => x.s && isHard(x.s))){
+      out.push({ code:'C2', hard:true, date:w[2].day.date,
+        text:'<b>Trois journées fortes d\'affilée</b> (' + w.map(x=>x.day.label).join(', ') + '). Règle dure R-WS-10.' });
+      covered.add(i); covered.add(i+1); covered.add(i+2);
+    }
+  }
+
+  for (let i=0;i<filled.length-1;i++){
+    const a = filled[i], b = filled[i+1];
+    if (!a.s || !b.s) continue;
+    const pair = [a.s.kind, b.s.kind].sort().join('|');
+    const accepted = pair === 'crossfit_class|run_intervals';
+    if (isHard(a.s) && isHard(b.s) && !accepted && !(covered.has(i) && covered.has(i+1))){
+      out.push({ code:'C1', hard:false, date:b.day.date,
+        text:'<b>' + a.day.label + ' et ' + b.day.label + ' sont deux journées fortes qui se suivent</b> (' + a.s.title + ', ' + b.s.title + ').' });
+    }
+    if (isRun(a.s) && isRun(b.s)){
+      out.push({ code:'C5', hard:false, date:b.day.date,
+        text:'<b>Les deux courses se suivent</b> (' + a.day.label + ', ' + b.day.label + ').' });
+    }
+    if (a.s.kind === 'run_intervals' && b.s.hiitIntervals){
+      out.push({ code:'C4', hard:false, date:b.day.date,
+        text:'<b>Séance police avec un HIIT en course le lendemain des intervalles</b> (règle R-WS-08).' });
+    }
+  }
+
+  let run = 0, startIdx = 0;
+  filled.forEach((x,i) => {
+    if (x.s){ if (run === 0) startIdx = i; run++; }
+    else { if (run > 3) out.push({ code:'C3', hard:false, date:filled[i-1].day.date,
+      text:'<b>' + run + ' jours d\'entraînement sans repos</b> (' + filled.slice(startIdx,i).map(y=>y.day.label).join(', ') + ').' }); run = 0; }
+  });
+  if (run > 3) out.push({ code:'C3', hard:false, date:filled[filled.length-1].day.date,
+    text:'<b>' + run + ' jours d\'entraînement sans repos</b> (' + filled.slice(startIdx).map(y=>y.day.label).join(', ') + ').' });
+
+  const trail = SESSIONS.find(s => s.kind === 'trail_maintenance');
+  if (trail && !['2026-09-19','2026-09-20'].includes(trail.date)){
+    out.push({ code:'C6', hard:false, date:trail.date, text:'<b>Le trail n\'est plus sur le week-end</b> (règle R-WS-03).' });
+  }
+  return out;
+}
+
+/* ---------- render ---------- */
+function cardHTML(s, past){
+  const b = BARS[s.load];
+  const bars = [0,1,2].map(i => '<i style="' + (i < b.n ? 'background:' + b.c : '') + '"></i>').join('');
+  const cls = ['card', s.date === TODAY ? 'today' : '', past ? 'past' : '', sessionsOn(s.date).length > 1 ? 'stacked' : ''].filter(Boolean).join(' ');
+  const right = editMode && !past ? '<span class="handle" data-drag="' + s.id + '">⠿</span>' : '<span class="more">···</span>';
+  return '<div class="' + cls + '" data-card="' + s.id + '">' +
+      '<span class="tile">' + s.icon + '</span>' +
+      '<span class="vbars">' + bars + '</span>' +
+      '<span class="txt"><b>' + s.title + (s.done ? ' ✓' : '') + '</b><small>' + s.hint + '</small></span>' +
+      right + '</div>';
+}
+
+function render(){
+  flags = computeFlags();
+
+  document.getElementById('days').innerHTML = DAYS.map(d => {
+    const list = sessionsOn(d.date);
+    const past = isPast(d.date);
+    const dayFlags = flags.filter(f => f.date === d.date);
+    const mark = dayFlags.length ? '<span class="warnDot' + (dayFlags.some(f=>f.hard) ? ' hardRule' : '') + '">⚠</span>' : '';
+    const head = '<div class="day' + (d.date === TODAY ? ' today' : '') + '">' +
+        (d.date === TODAY ? "AUJOURD'HUI" : d.label) + mark +
+        (editMode && past ? '<span class="lock">🔒 passé</span>' : '') + '</div>';
+    const body = list.length
+      ? list.map(s => cardHTML(s, past)).join('')
+      : (editMode ? '<div class="free">Libre · dépose ici</div>' : '<div class="rest">Repos</div>');
+    return '<div class="dayRow">' + head +
+      '<div class="slot' + (past ? ' blocked' : '') + '" data-slot="' + d.date + '">' + body + '</div></div>';
+  }).join('');
+
+  const fb = document.getElementById('feedback');
+  if (!editMode){ fb.innerHTML = ''; return; }
+  if (!flags.length){
+    fb.innerHTML = '<div class="okline">✓ Semaine cohérente, aucun signalement.</div>';
+    return;
+  }
+  const anyHard = flags.some(f => f.hard);
+  fb.innerHTML = '<div class="banner' + (anyHard ? ' hardRule' : '') + '">' +
+    '<h5>' + flags.length + ' signalement' + (flags.length > 1 ? 's' : '') + ' sur cette semaine</h5>' +
+    '<ul>' + flags.map(f => '<li>' + f.text.replace('<b>', '<b class="' + (f.hard ? 'hardRule' : '') + '">') + '</li>').join('') + '</ul>' +
+    '<div class="acts">' +
+      (lastMove ? '<button id="undo">Annuler le déplacement</button>' : '') +
+      '<button class="primary" id="keep">Je garde</button>' +
+    '</div></div>';
+  const undo = document.getElementById('undo');
+  if (undo) undo.onclick = () => {
+    const s = SESSIONS.find(x => x.id === lastMove.id);
+    s.date = lastMove.from; lastMove = null; render();
+  };
+  document.getElementById('keep').onclick = () => {
+    document.getElementById('feedback').innerHTML = '<div class="okline">✓ Gardé. Rien n\'est enregistré du signalement, seul le nouvel ordre l\'est.</div>';
+  };
+}
+
+/* ---------- drag ---------- */
+let drag = null;
+
+document.addEventListener('pointerdown', e => {
+  const handle = e.target.closest('[data-drag]');
+  if (!handle || !editMode) return;
+  e.preventDefault();
+  const id = handle.dataset.drag;
+  const card = document.querySelector('[data-card="' + id + '"]');
+  const rect = card.getBoundingClientRect();
+  const ghost = card.cloneNode(true);
+  ghost.classList.add('floating');
+  ghost.style.width = rect.width + 'px';
+  document.body.appendChild(ghost);
+  card.classList.add('lifted');
+  drag = { id, ghost, card, dx: e.clientX - rect.left, dy: e.clientY - rect.top };
+  moveGhost(e);
+});
+
+function moveGhost(e){
+  if (!drag) return;
+  drag.ghost.style.left = (e.clientX - drag.dx) + 'px';
+  drag.ghost.style.top  = (e.clientY - drag.dy) + 'px';
+  document.querySelectorAll('.slot').forEach(s => s.classList.remove('over'));
+  const under = document.elementFromPoint(e.clientX, e.clientY);
+  const slot = under && under.closest ? under.closest('.slot') : null;
+  if (slot) slot.classList.add('over');
+}
+
+document.addEventListener('pointermove', e => { if (drag){ e.preventDefault(); moveGhost(e); } }, { passive:false });
+
+document.addEventListener('pointerup', e => {
+  if (!drag) return;
+  const under = document.elementFromPoint(e.clientX, e.clientY);
+  const slot = under && under.closest ? under.closest('.slot') : null;
+  const s = SESSIONS.find(x => x.id === drag.id);
+  if (slot && !slot.classList.contains('blocked')){
+    const target = slot.dataset.slot;
+    if (target !== s.date){ lastMove = { id:s.id, from:s.date }; s.date = target; }
+  }
+  drag.ghost.remove();
+  drag.card.classList.remove('lifted');
+  document.querySelectorAll('.slot').forEach(x => x.classList.remove('over'));
+  drag = null;
+  render();
+});
+
+document.getElementById('editBtn').onclick = function(){
+  editMode = !editMode;
+  this.textContent = editMode ? 'Terminer' : "Modifier l'ordre";
+  this.classList.toggle('on', editMode);
+  render();
+};
+
+render();
+</script>
+</body>
+</html>

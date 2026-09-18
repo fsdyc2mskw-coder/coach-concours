@@ -1,4 +1,8 @@
 import { generatePlan } from '../coach/planner';
+// CHANGE_REQUEST_014 — the stored weeks are thrown away and rebuilt at every
+// start, so the athlete's moves are re-applied on top of the fresh plan here
+// and everywhere else a plan is built.
+import { planWithMoves } from '../coach/dayMoves';
 import type { CoachState } from '../coach/types';
 
 const DB_NAME = 'coach-concours-db';
@@ -20,7 +24,7 @@ export async function loadCoachState(): Promise<CoachState> {
   const envelope = primary && fallback ? (primary.savedAt >= fallback.savedAt ? primary : fallback) : primary ?? fallback;
   if (envelope && isCoachState(envelope.state)) {
     lastSavedAt = Math.max(lastSavedAt, envelope.savedAt);
-    return { ...envelope.state, weeks: generatePlan(envelope.state.results) };
+    return { ...envelope.state, weeks: planWithMoves(envelope.state.results, envelope.state.dayMoves) };
   }
   const legacy = await readUnknownEnvelope('trail-coach-db', 'app-state-v1');
   return createInitialState(legacy);
@@ -58,7 +62,7 @@ export function saveCoachState(state: CoachState): Promise<void> {
 
 export function parseCoachState(value: unknown): CoachState {
   if (!isCoachState(value)) throw new Error('Le fichier Drive ne contient pas un état Coach Concours V2 valide.');
-  return { ...value, weeks: generatePlan(value.results) };
+  return { ...value, weeks: planWithMoves(value.results, value.dayMoves) };
 }
 
 export function stateForDrive(state: CoachState): CoachState {
