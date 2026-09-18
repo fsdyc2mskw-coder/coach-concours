@@ -281,3 +281,4 @@ by hand against `pnpm dev` at phone width, on week 2 (14–20 September):
 The local data written during that check was cleared afterwards.
 
 Implementation commit: `4d0767897ff5440a527b828d72ba3e81c76d9bfa`
+Merge commit (`main` merged in for pull request #6): `87257483b36d7b8ee4884df6060e5ed150bb06d8`
