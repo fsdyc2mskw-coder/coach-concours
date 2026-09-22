@@ -1,9 +1,15 @@
-// CHANGE_REQUEST_001/002/011 — one test per hard rule in weekly_shape.md
+// CHANGE_REQUEST_001/002/011/013 — one test per hard rule in weekly_shape.md
 // (R-WS-01 … R-WS-23; R-WS-16/17/18 have their own describe block below).
-// Uses week 2 (2026-09-14, generic, Friday = police_integration on this even
-// week) and week 3 (2026-09-21, generic, Friday = police_strength_transitions
-// on this odd week), plus the race week (2026-10-05) and the taper/event
-// week (2026-11-16) for the rules that only show up there.
+// Uses week 2 (2026-09-14), the last week generated under the v3 police
+// template (Thursday = police_technique, Friday = police_integration), plus
+// the race week (2026-10-05) and the taper/event week (2026-11-16) for the
+// rules that only show up there.
+//
+// CHANGE_REQUEST_013 — week 3 (2026-09-21) is the first week of the v4
+// shapes, so `v4Week` below replaces what used to be the "odd week" fixture
+// here. Everything about the two shapes themselves is tested in cr013.test.ts;
+// this file only keeps what it already checked: that the week still validates
+// clean, and that the v3 rules are not applied to it.
 import { describe, expect, it } from 'vitest';
 import { countMemoryExposures, generatePlan, hiitShortFormNotes, validateWeek } from '../coach/planner';
 import { memoryPromptsAskingToExplain, recipeById, recipes } from '../coach/recipes';
@@ -11,7 +17,7 @@ import type { TrainingWeek } from '../coach/types';
 
 const weeks = generatePlan();
 const genericWeek = weeks.find((week) => week.startDate === '2026-09-14')!;
-const oddWeek = weeks.find((week) => week.startDate === '2026-09-21')!;
+const v4Week = weeks.find((week) => week.startDate === '2026-09-21')!;
 const raceWeek = weeks.find((week) => week.startDate === '2026-10-05')!;
 const taperWeek = weeks.find((week) => week.startDate === '2026-11-16')!;
 
@@ -57,10 +63,13 @@ describe('weekly_shape.md v3 hard rules, on a generic week (2026-09-14)', () => 
     expect(validateWeek(genericWeek)).toHaveLength(0);
   });
 
-  it('R-WS-07 v3: integration on even weeks, strength_transitions on odd weeks', () => {
+  it('R-WS-07 v3 applies to week 2, the last week under the v3 template; week 3 is already v4', () => {
     expect(genericWeek.sessions.some((session) => session.kind === 'police_integration')).toBe(true);
-    expect(oddWeek.sessions.some((session) => session.kind === 'police_strength_transitions')).toBe(true);
-    expect(validateWeek(oddWeek)).toHaveLength(0);
+    // CHANGE_REQUEST_013 — from week 3 the Friday session is the chain
+    // session, not police_strength_transitions.
+    expect(v4Week.sessions.some((session) => session.kind === 'police_strength_transitions')).toBe(false);
+    expect(v4Week.sessions.some((session) => session.kind === 'chain_session')).toBe(true);
+    expect(validateWeek(v4Week)).toHaveLength(0);
   });
 
   it('R-WS-08: no interval block becomes its own session, and Thursday never uses the running-intervals hiit form', () => {
@@ -167,16 +176,14 @@ describe('weekly_shape.md v2/v3, R-WS-16/17/18 (CR-002 hiit block)', () => {
     expect(hiitBlocks[0]!.hiit!.durationMin).toBeLessThanOrEqual(20);
   });
 
-  it('R-WS-16/18/09: police_strength_transitions (outdoor, odd week, the day before the run) has a ≤ 10 min hiit block', () => {
-    const session = oddWeek.sessions.find((session) => session.kind === 'police_strength_transitions')!;
-    const recipe = recipeById[session.recipeId]!;
+  it('R-WS-16/18/09: the bank recipe `outdoor` still carries its ≤ 10 min hiit block (no longer scheduled from week 3 — CR-013)', () => {
+    const recipe = recipes.outdoor!;
     const hiitBlocks = recipe.blocks.filter((block) => block.hiit);
     expect(hiitBlocks).toHaveLength(1);
     expect(hiitBlocks[0]!.hiit!.durationMin).toBeLessThanOrEqual(10);
-    // this session sits the day before the week's run
-    const run = oddWeek.sessions.find((s) => s.kind === 'trail_maintenance')!;
-    const daysBefore = (Date.parse(`${run.date}T12:00:00Z`) - Date.parse(`${session.date}T12:00:00Z`)) / 86_400_000;
-    expect(daysBefore).toBe(1);
+    // R-WS-09's "day before the run" check now only ever fires on the weeks
+    // generated under v3; v4 drops R-WS-09 outright (see APP_REPORT_013.md).
+    expect(v4Week.sessions.some((session) => session.recipeId === recipe.id)).toBe(false);
   });
 
   it('R-WS-16/17: police_technique (coordination, now Thursday) has its hiit block last, ≤ 10 min ("Corde EMOM — 6 min")', () => {

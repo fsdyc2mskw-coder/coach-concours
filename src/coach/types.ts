@@ -8,17 +8,143 @@
 // running-interval session from rules v3 (R-WS-19/20). Distinct from
 // `running_intervals_exception` (Week 1's one documented Tuesday-as-trained
 // exception, still frozen and never produced by the generator itself).
+// CHANGE_REQUEST_013 — the two named session shapes of weekly_shape.md v4
+// (R-WS-07). They replace `police_technique` / `police_integration` /
+// `police_strength_transitions` *in the generator*; those three kinds stay in
+// the union below because Week 1 is frozen as trained (R-WS-15) and its
+// recipes carry them verbatim, and because `recipes.ts` keeps them as bank
+// entries the generator never schedules. `police_mock_test` is gone from the
+// union entirely: R-PC-04 forbids it anywhere.
+export type SessionShape = 'skill_session' | 'chain_session';
+
 export type SessionKind =
   | 'crossfit_class'
+  | SessionShape
   | 'police_technique'
   | 'police_strength_transitions'
   | 'police_integration'
-  | 'police_mock_test'
   | 'trail_maintenance'
   | 'trail_event'
   | 'run_intervals'
   | 'running_intervals_exception'
   | 'police_event';
+
+// CHANGE_REQUEST_013 section A. `warmup` and `cooldown` are listed here
+// exactly as the change request writes them, but they are not
+// `ExerciseBlock`s in this codebase: `SessionRecipe` has carried them as its
+// own `warmup` / `cooldown` strings since CR-001, and CR-009/CR-010 render
+// them from there. `blockSequence()` in `sessionShapes.ts` re-inserts them at
+// their real positions so the index rules below can be checked literally.
+export type BlockKind =
+  | 'warmup' | 'memory' | 'fresh_reference'
+  | 'skill_block' | 'chain_block' | 'cardio' | 'tail_b' | 'cooldown';
+
+export type CardioFormat = 'emom' | 'amrap' | 'for_time';
+
+// CHANGE_REQUEST_013 section C.
+export type DrillMeasure =
+  | 'drops' | 'foot_errors' | 'hand_errors' | 'balls_lost'
+  | 'restarts' | 'cones_touched' | 'swings' | 'round_time_s';
+
+// A card of `02_Training_brain/exercise_cards/00_INDEX.md`, referenced by its
+// id. `CardRef` and `DrillRef` are named but not defined by the change
+// request (CR-012 carries the card ids themselves and has not landed here);
+// they are defined with the minimum the blocks below actually need — see
+// APP_REPORT_013.md.
+export interface CardRef {
+  cardId: string;
+  stationId: number;
+  label: string;
+}
+
+// A drill is a card that is scored (R-WS-26). `drillId` is unique inside one
+// session, so `DrillScore` can be keyed by it without colliding when the same
+// card is used twice (tail A and tail B both use `S11_racket_on_board`).
+export interface DrillRef extends CardRef {
+  drillId: string;
+  measure: DrillMeasure;
+  scoreLabel: string;
+}
+
+export type MemoryModule = 'M1' | 'M2' | 'M3' | 'M4' | 'M5';
+
+export interface MemoryBlockSpec {
+  kind: 'memory';
+  modules: MemoryModule[];
+}
+
+// R-WS-37: the same-day clean reference a tail is measured against.
+export interface FreshReferenceSpec {
+  kind: 'fresh_reference';
+  blockId: string;
+  drills: DrillRef[];
+}
+
+export interface SkillBlock { // one station, two cards at most
+  kind: 'skill_block';
+  stationId: number;        // exactly one
+  drills: DrillRef[];       // 1 or 2, each with its own score field
+  durationMin: number;      // 16..20
+}
+
+export interface ChainBlock {
+  kind: 'chain_block';
+  rounds: number;
+  stations: number[];       // 2 or more, in order
+  transitionNote: string;   // the walk between stations IS the training
+  tailA: DrillRef;          // 30..45 s, the same drill every round
+  // Not in the change request's own interface: R-WS-34 fixes tail A at 30 to
+  // 45 s and the locked chain session writes 30 s, so the number has to live
+  // somewhere to be checked. Added here rather than guessed at check time.
+  tailASeconds: number;
+  // Not in the change request's own interface either: the locked chain
+  // session scores the chain block itself ("SCORE: time per round · cones
+  // touched"), which section C's list (skill block, tail, fresh reference)
+  // does not cover. The locked file wins, so the block carries its own
+  // scored drills.
+  roundScores: DrillRef[];
+  restS: number;
+  durationMin: number;
+  intensity: 'moderate';
+}
+
+export interface CardioBlock {
+  kind: 'cardio';
+  format: CardioFormat;
+  atoms: CardRef[];         // 1..3, NEVER more
+  durationMin: number;      // 12..15 from week 4; week 3 is 10
+  target: null;             // always null, there is no target
+}
+
+export interface TailMinute {
+  minute: number;
+  drill: DrillRef;
+  label: string;
+}
+
+export interface TailB {
+  kind: 'tail_b';
+  minutes: TailMinute[];    // 4 or 5, rising difficulty
+  referenceBlockId: string; // the fresh_reference of the same session
+  stopRule: string;         // shown to the athlete before she starts
+}
+
+export type BlockSpec =
+  | MemoryBlockSpec
+  | FreshReferenceSpec
+  | SkillBlock
+  | ChainBlock
+  | CardioBlock
+  | TailB;
+
+// CHANGE_REQUEST_013 section C — one numeric score per drill, stored per
+// session id. The fresh-to-fatigued gap is NOT here: it is computed from
+// these values (`progression.ts`), never typed.
+export interface DrillScore {
+  drillId: string;
+  measure: DrillMeasure;
+  value: number;
+}
 
 export type PlanPhase =
   | 'learn'
@@ -41,6 +167,9 @@ export type MovementQuality = 'crisp' | 'mixed' | 'degraded';
 // `details` are optional and simply not rendered when absent. `short` is an
 // optional short label for the day's flow strip (falls back to the first two
 // words of `title` when absent).
+// CHANGE_REQUEST_013 — `kind` and `spec` are optional so that Week 1's frozen
+// recipes and the run/trail recipes load and render unchanged. Every block of
+// the two new session shapes carries both.
 export interface ExerciseBlock {
   title: string;
   short?: string;
@@ -51,12 +180,18 @@ export interface ExerciseBlock {
   stationMappings: number[];
   approximation?: boolean;
   hiit?: HiitSpec;
+  kind?: BlockKind;
+  spec?: BlockSpec;
 }
 
 export interface MemoryPrompt {
   id: string;
   prompt: string;
   answer: string;
+  // CHANGE_REQUEST_013 — which module of `memory_modules.md` this prompt is.
+  // Optional: the pre-CR-013 recipes were written before the modules were
+  // named in a rule file, so they carry no module rather than a guessed one.
+  module?: MemoryModule;
 }
 
 // CHANGE_REQUEST_002 — R-WS-16: a block is tagged `hiit` when it is the
@@ -162,6 +297,15 @@ export interface SessionResult {
   // than the row's `reps` when the session was stopped early.
   repPacesSec?: number[];
   repsDone?: number;
+  // CHANGE_REQUEST_013 section C — one score per drill of a skill block, a
+  // tail or a fresh reference. Optional, so a record written before CR-013
+  // loads unchanged and `schemaVersion` stays 2.
+  drillScores?: DrillScore[];
+  // CHANGE_REQUEST_013 section C — what the athlete did in the cardio block
+  // (rounds done, or minutes held): one number plus free text, and nothing
+  // else. No target is ever stored or displayed (R-WS-31).
+  cardioValue?: number;
+  cardioNote?: string;
   completedAt: string;
 }
 
