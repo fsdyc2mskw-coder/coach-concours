@@ -5,9 +5,15 @@ import { flowStrip, recipeById, runIntervalsRepsById } from './coach/recipes';
 // `planWithMoves`, which calls it.
 import { canReceive, isMovable, isPastDay, planWithMoves, today as todayISO, withMove } from './coach/dayMoves';
 import { checkWeek } from './coach/weekChecker';
+// CHANGE_REQUEST_013 — the two session shapes, their scored drills, and the
+// two derived numbers of section D.
+import { cardioBlockOf, drillsOf, drillsOfBlock, isSessionShape } from './coach/sessionShapes';
+import { cardioBaseline, freshToFatiguedGap, gapHistory } from './coach/progression';
 import type {
+  CardioBlock,
   CoachState,
   DayMove,
+  DrillScore,
   ExerciseBlock,
   LandingQuality,
   MovementQuality,
@@ -247,10 +253,13 @@ function findPlanned(state: CoachState, sessionId: string): PlannedSession | nul
 
 const KIND_ICON: Record<PlannedSession['kind'], string> = {
   crossfit_class: '🏋',
+  // CHANGE_REQUEST_013 — the two session shapes. `police_mock_test` is gone
+  // (R-PC-04); the three v3 police kinds stay for Week 1's frozen sessions.
+  skill_session: '🎯',
+  chain_session: '🧩',
   police_technique: '🎯',
   police_strength_transitions: '⚡',
   police_integration: '🧩',
-  police_mock_test: '🚨',
   police_event: '🚔',
   trail_maintenance: '🏃',
   trail_event: '🏃',
@@ -274,6 +283,11 @@ const INTENSITY_WORD: Record<PlannedSession['load'], string> = {
   event: 'Jour J'
 };
 function intensityWord(load: PlannedSession['load']): string { return INTENSITY_WORD[load]; }
+
+// CHANGE_REQUEST_013 section D — the gap is a difference, so its sign is the
+// information: "+2" means two more drops under fatigue than fresh.
+function round1(value: number): string { return (Math.round(value * 10) / 10).toString().replace('.', ','); }
+function formatGap(value: number): string { return `${value > 0 ? '+' : ''}${round1(value)}`; }
 
 function mmss(min: number): string { return `${String(Math.max(0, Math.round(min))).padStart(2, '0')}:00`; }
 
@@ -390,7 +404,11 @@ function WeekScreen({ state, weekIndex, setWeekIndex, openSession, setDayMoves }
   const completed = week.sessions.filter((planned) => state.results[planned.id]?.status === 'done').length;
   const days = daysOfWeek(week.startDate, week.endDate);
   const today = todayISO();
-  const principal = week.sessions.find((planned) => planned.kind.startsWith('police_')) ?? week.sessions[0];
+  // CHANGE_REQUEST_013 — the week's headline session: the two v4 shapes
+  // first, then the v3 police kinds for weeks 1 and 2.
+  const principal = week.sessions.find((planned) => isSessionShape(planned.kind))
+    ?? week.sessions.find((planned) => planned.kind.startsWith('police_'))
+    ?? week.sessions[0];
   const headline = principal ? recipeById[principal.recipeId]!.title : phaseLabel(week.phase);
   const weeksToTrail = weeksUntil(week.startDate, TRAIL_EVENT_DATE);
   const weeksToPolice = weeksUntil(week.startDate, state.planEndDate);
@@ -509,8 +527,8 @@ function SessionScreen({ state, planned, sessionTab, focusBlock, setTab, openBlo
     </div>
 
     {sessionTab === 'prevu' && <PrevuTab planned={planned} recipe={recipe} openBlock={openBlock} openRetour={() => setTab('retour')} />}
-    {sessionTab === 'fait' && <FaitTab result={result} openRetour={() => setTab('retour')} openPrevu={() => setTab('prevu')} />}
-    {sessionTab === 'retour' && <RetourTab planned={planned} recipe={recipe} saved={result} focusBlock={focusBlock} save={save} saveDraft={saveDraft} remove={remove} backToPrevu={() => setTab('prevu')} onValidated={() => setTab('fait')} />}
+    {sessionTab === 'fait' && <FaitTab planned={planned} result={result} openRetour={() => setTab('retour')} openPrevu={() => setTab('prevu')} />}
+    {sessionTab === 'retour' && <RetourTab state={state} planned={planned} recipe={recipe} saved={result} focusBlock={focusBlock} save={save} saveDraft={saveDraft} remove={remove} backToPrevu={() => setTab('prevu')} onValidated={() => setTab('fait')} />}
   </>;
 }
 
@@ -606,7 +624,10 @@ function formatFieldValue(key: string, value: unknown): string {
   return String(value);
 }
 
-function FaitTab({ result, openRetour, openPrevu }: { result?: SessionResult; openRetour: () => void; openPrevu: () => void }) {
+function FaitTab({ planned, result, openRetour, openPrevu }: { planned: PlannedSession; result?: SessionResult; openRetour: () => void; openPrevu: () => void }) {
+  // CHANGE_REQUEST_013 section D — the fresh-to-fatigued gap is computed from
+  // the two scores of this same session, never typed.
+  const gap = freshToFatiguedGap(planned.recipeId, result);
   if (!result) return <>
     <p className="kvEmpty">Rien d'enregistré.</p>
     <div className="actionsBar">
@@ -622,6 +643,8 @@ function FaitTab({ result, openRetour, openPrevu }: { result?: SessionResult; op
       {result.effort !== undefined && <div><span>Effort ressenti</span><b>{result.effort} / 5</b></div>}
       {kindKeys.map((key) => <div key={key}><span>{KIND_LABELS[key]}</span><b>{formatFieldValue(key, (result as unknown as Record<string, unknown>)[key])}</b></div>)}
       {shownKeys.map((key) => <div key={key}><span>{FIELD_LABELS[key]}</span><b>{formatFieldValue(key, (result as unknown as Record<string, unknown>)[key])}</b></div>)}
+      {result.cardioValue !== undefined && <div><span>Cardio — fait</span><b>{result.cardioValue}{result.cardioNote ? ` · ${result.cardioNote}` : ''}</b></div>}
+      {gap && <div><span>Écart à froid → sous fatigue</span><b>{formatGap(gap.overall)} (à froid {round1(gap.freshMean)} → sous fatigue {round1(gap.tailMean)})</b></div>}
       <div><span>Enregistrée</span><b>{formatDateTime(result.completedAt)}</b></div>
     </div>
     <p className="syncNote">Synchronisé avec Drive · révision suit l'état de l'app.</p>
@@ -653,7 +676,8 @@ function paceSecToText(sec: number | undefined): string {
   return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 }
 
-function RetourTab({ planned, recipe, saved, focusBlock, save, saveDraft, remove, backToPrevu, onValidated }: {
+function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft, remove, backToPrevu, onValidated }: {
+  state: CoachState;
   planned: PlannedSession;
   recipe: SessionRecipe;
   saved?: SessionResult;
@@ -688,6 +712,18 @@ function RetourTab({ planned, recipe, saved, focusBlock, save, saveDraft, remove
   const runIntervalsTotalReps = isRunIntervals ? (runIntervalsRepsById[recipe.id] ?? 0) : 0;
   const [repPaces, setRepPaces] = useState<string[]>(() => Array.from({ length: runIntervalsTotalReps }, (_, index) => paceSecToText(saved?.repPacesSec?.[index])));
   const [repsDone, setRepsDone] = useState(numberToText(saved?.repsDone));
+  // CHANGE_REQUEST_013 section C — one numeric field per scored drill of a
+  // skill block, a tail or a fresh reference, keyed by the drill's own id;
+  // plus the cardio block's one number and its free text (R-WS-31: nothing
+  // else, and never a target).
+  const isSessionShapeSession = isSessionShape(planned.kind);
+  const [drillScores, setDrillScores] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    for (const score of saved?.drillScores ?? []) initial[score.drillId] = String(score.value);
+    return initial;
+  });
+  const [cardioValue, setCardioValue] = useState(numberToText(saved?.cardioValue));
+  const [cardioNote, setCardioNote] = useState(saved?.cardioNote ?? '');
   const [draftSavedAt, setDraftSavedAt] = useState<Date | null>(null);
 
   const isCrossfit = planned.kind === 'crossfit_class';
@@ -727,9 +763,29 @@ function RetourTab({ planned, recipe, saved, focusBlock, save, saveDraft, remove
       ...(isRunIntervals ? {
         ...(repPaces.some((value) => value.trim() !== '') ? { repPacesSec: repPaces.map(parsePaceToSec).filter((value): value is number => value !== undefined) } : {}),
         ...textToNumber('repsDone', repsDone)
+      } : {}),
+      ...(isSessionShapeSession ? {
+        ...(collectedDrillScores.length ? { drillScores: collectedDrillScores } : {}),
+        ...textToNumber('cardioValue', cardioValue),
+        ...(cardioNote.trim() ? { cardioNote } : {})
       } : {})
     };
   }
+
+  // Only drills that actually carry a number are stored, so a session scored
+  // halfway keeps exactly what was typed and nothing else.
+  const collectedDrillScores: DrillScore[] = isSessionShapeSession
+    ? drillsOf(recipe).flatMap((drill) => {
+      const text = drillScores[drill.drillId];
+      if (text === undefined || text.trim() === '') return [];
+      const value = Number(text);
+      return Number.isFinite(value) ? [{ drillId: drill.drillId, measure: drill.measure, value }] : [];
+    })
+    : [];
+
+  // R-WS-33 / section D — the previous week's number for the same session
+  // shape, read only, beside the cardio block. No target, no prediction.
+  const baseline = isSessionShapeSession ? cardioBaseline(state.weeks, state.results, planned.id) : null;
 
   // CHANGE_REQUEST_010 section D — autosave: every field writes to the state
   // on change (debounced), so leaving the tab or closing the app never loses
@@ -743,7 +799,7 @@ function RetourTab({ planned, recipe, saved, focusBlock, save, saveDraft, remove
     }, DRAFT_SAVE_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effort, status, statusTouched, note, quality, hesitation, tags, memoryErrors, ballFumbles, obstacleHesitations, racketDropsR1, racketDropsR2, racketDropsR3, amrapRounds, landingQuality, distanceKm, elevationGainM, durationMin, intervalDistance1M, intervalDistance2M, repPaces, repsDone]);
+  }, [effort, status, statusTouched, note, quality, hesitation, tags, memoryErrors, ballFumbles, obstacleHesitations, racketDropsR1, racketDropsR2, racketDropsR3, amrapRounds, landingQuality, distanceKm, elevationGainM, durationMin, intervalDistance1M, intervalDistance2M, repPaces, repsDone, drillScores, cardioValue, cardioNote]);
 
   const groupRefs = useRef<Record<number, HTMLDivElement | null>>({});
   useEffect(() => {
@@ -763,6 +819,21 @@ function RetourTab({ planned, recipe, saved, focusBlock, save, saveDraft, remove
 
   return <>
     <div className="save"><span className="dot" /><span>{draftSavedAt ? `Brouillon enregistré · ${draftSavedAt.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })} · tu peux revenir à tout moment` : 'Brouillon enregistré automatiquement · tu peux revenir à tout moment'}</span></div>
+
+    {isSessionShapeSession && recipe.blocks.map((block, index) => {
+      const drills = drillsOfBlock(block);
+      const cardio = block.kind === 'cardio' ? cardioBlockOf(recipe) : null;
+      if (drills.length === 0 && !cardio) return null;
+      return <div className="grp" key={block.title} ref={(node) => { groupRefs.current[index] = node; }}>
+        <div className="gh"><span className="gn">{index + 1}</span>{block.title}</div>
+        {drills.map((drill) => <NumberField key={drill.drillId} label={drill.scoreLabel} value={drillScores[drill.drillId] ?? ''} onChange={(next) => setDrillScores((current) => ({ ...current, [drill.drillId]: next }))} step={1} />)}
+        {cardio && <>
+          <div className="lab">{baseline ? `Semaine précédente : ${baseline.value}${baseline.note ? ` · ${baseline.note}` : ''}. Aucune cible.` : 'Pas encore de référence de la semaine précédente. Aucune cible.'}</div>
+          <NumberField label={cardio.format === 'emom' ? 'Minutes tenues' : 'Tours faits'} value={cardioValue} onChange={setCardioValue} step={1} />
+          <label className="field"><span>Ce que tu as fait</span><textarea rows={2} maxLength={300} value={cardioNote} onChange={(event) => setCardioNote(event.target.value)} placeholder="facultatif" /></label>
+        </>}
+      </div>;
+    })}
 
     {blockGroups.map(({ block, index, fields }) => <div className="grp" key={block.title} ref={(node) => { groupRefs.current[index] = node; }}>
       <div className="gh"><span className="gn">{index + 1}</span>{block.title}</div>
@@ -886,11 +957,30 @@ function blockPictogram(block: ExerciseBlock): string {
 
 const HIIT_FORMAT_LABEL: Record<string, string> = { amrap: 'max de tours', emom: 'EMOM', intervals: 'intervalles', for_time: 'for time', chipper: 'chipper' };
 
+// CHANGE_REQUEST_013 section D — the gap week after week, oldest first. Shown
+// on the Parcours screen because that is where the athlete already reads her
+// progress; the number itself is computed, never typed.
+function GapHistory({ state }: { state: CoachState }) {
+  const history = gapHistory(state.weeks, state.results);
+  if (history.length === 0) return null;
+  return <div className="timeline">
+    <p className="eyebrow">ÉCART À FROID → SOUS FATIGUE</p>
+    {history.map((entry) => <div className="timelineRow" key={entry.date}>
+      <span>{entry.date.slice(8)}/{entry.date.slice(5, 7)}</span>
+      <div><b>{formatGap(entry.gap)}</b><p>chutes de plus sous fatigue qu’à froid</p></div>
+    </div>)}
+  </div>;
+}
+
 function BlockScreen({ planned, blockIndex, back, openRetour }: { planned: PlannedSession; blockIndex: number; back: () => void; openRetour: () => void }) {
   const recipe = recipeById[planned.recipeId]!;
   const block = recipe.blocks[blockIndex]!;
   const minutes = block.title.match(/(\d+)\s*min/)?.[1];
   const fields = blockFields(recipe.id, blockIndex);
+  // CHANGE_REQUEST_013 — a block of the two session shapes lists its own
+  // scored drills instead of the Week 1 Friday field map.
+  const blockDrills = drillsOfBlock(block);
+  const cardio = block.kind === 'cardio' ? (block.spec as CardioBlock) : null;
   const toRecord = useMemo(() => {
     const items: string[] = [];
     if (fields.includes('memoryErrors')) items.push('Erreurs de mémoire / postes oubliés ou inversés');
@@ -899,8 +989,10 @@ function BlockScreen({ planned, blockIndex, back, openRetour }: { planned: Plann
     if (fields.includes('racketTrio')) items.push('Chutes raquette — Tour 1 · 2 · 3');
     if (fields.includes('amrapRounds')) items.push('Tours complets + partiel');
     if (fields.includes('landingQuality')) items.push('Réceptions — propres · mixtes · sales');
+    for (const drill of blockDrills) items.push(drill.scoreLabel);
+    if (cardio) items.push(cardio.format === 'emom' ? 'Minutes tenues, et score d’effort' : 'Tours faits, et score d’effort');
     return items;
-  }, [fields]);
+  }, [fields, blockDrills, cardio]);
 
   return <>
     <div className="snav"><button className="back" type="button" onClick={back} aria-label="Retour">‹</button><h3>{block.title}</h3></div>
@@ -910,6 +1002,8 @@ function BlockScreen({ planned, blockIndex, back, openRetour }: { planned: Plann
         {minutes && <span className="chip">⏱ {minutes.padStart(2, '0')}:00</span>}
         {block.hiit && <span className="chip">↻ {HIIT_FORMAT_LABEL[block.hiit.format]}</span>}
         {block.hiit && <span className="chip">⚡ HIIT</span>}
+        {cardio && <span className="chip">↻ {HIIT_FORMAT_LABEL[cardio.format]}</span>}
+        {cardio && <span className="chip">⚡ Cardio · aucune cible</span>}
       </div>
     </div>
     <div className="circ">
@@ -934,7 +1028,7 @@ function BlockScreen({ planned, blockIndex, back, openRetour }: { planned: Plann
 
 // ---------- Journey / Drive (CHANGE_REQUEST_010 section G — theme only, content unchanged) ----------
 
-function JourneyView({ state }: { state: CoachState }) { const total = Object.values(state.results).filter((result) => result.status === 'done').length; return <section className="page"><p className="eyebrow">JUSQU’AU 20 NOVEMBRE</p><h1>Ton parcours</h1><p className="lead">{total} séances terminées. Les semaines futures se recalculent à partir de tes retours sans ajouter de sixième jour.</p><div className="timeline">{state.weeks.map((week, index) => { const done = week.sessions.filter((session) => state.results[session.id]?.status === 'done').length; return <div className="timelineRow" key={week.id}><span>{String(index + 1).padStart(2, '0')}</span><div><b>{phaseLabel(week.phase)}</b><p>{formatRange(week.startDate, week.endDate)}</p></div><strong>{done}/{week.sessions.length}</strong></div>; })}</div></section>; }
+function JourneyView({ state }: { state: CoachState }) { const total = Object.values(state.results).filter((result) => result.status === 'done').length; return <section className="page"><p className="eyebrow">JUSQU’AU 20 NOVEMBRE</p><h1>Ton parcours</h1><p className="lead">{total} séances terminées. Les semaines futures se recalculent à partir de tes retours sans ajouter de sixième jour.</p><div className="timeline">{state.weeks.map((week, index) => { const done = week.sessions.filter((session) => state.results[session.id]?.status === 'done').length; return <div className="timelineRow" key={week.id}><span>{String(index + 1).padStart(2, '0')}</span><div><b>{phaseLabel(week.phase)}</b><p>{formatRange(week.startDate, week.endDate)}</p></div><strong>{done}/{week.sessions.length}</strong></div>; })}</div><GapHistory state={state} /></section>; }
 
 function DriveView({ state, session, busy, sync, backup, disconnect, exportData, importData }: { state: CoachState; session: GoogleSession | null; busy: boolean; sync: () => void; backup: () => void; disconnect: () => void; exportData: () => void; importData: (file: File) => void }) {
   const clientConfigured = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
