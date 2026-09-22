@@ -154,6 +154,13 @@ that no target-shaped word appears on the tab.
   typecheck/test/build could be run for real — they were — but the browser pane could not
   reach a local dev server (the launcher's shell is denied `getcwd`, so neither `vite` nor
   a plain static server would start). The jsdom render test above is the substitute.
+- **The branch was not pushed from this session.** There are no git push credentials here
+  (`git push` → "could not read Username for 'https://github.com'"), no `gh` CLI, and the
+  in-app browser is not signed in to GitHub; fetching works only because the repository is
+  public. **The athlete pushed the branch from her own machine**, exactly as she did for
+  CR-002, CR-009 and CR-011. CI then ran the three checks for real on the push. This is now
+  the normal shape of a coder session, not a surprise: worth stating once in §7 of the
+  cockpit rather than being rediscovered every time.
 - **The deployed page** is the last line of the change request's test list. It can only be
   checked after the merge, since Pages rebuilds on push to `main`. Please check it then.
 - `pnpm validate:repository` fails with 10 broken relative links in `README.md` and
@@ -282,10 +289,19 @@ box. If they should be session-level numbers instead, say so and they move.
 
 ## 8. Commit
 
-Branch `cr-013-blocks-tails-sessions`, one commit:
+Branch `cr-013-blocks-tails-sessions`. The commit this report is about — everything under
+§1, all the code and all the tests — is
 
-**`54ebdbeb0ab8f324b8ec303efb273e6593f465b7`** — *CR-013: blocks, tails and the two session shapes as app data*
+**`54ebdbeb0ab8f324b8ec303efb273e6593f465b7`**
 
-Pull request `CR-013 blocks, tails and the two session shapes`, not merged, not tagged.
-The athlete merges, then publishes the tag `cr-013` on the merge commit from the Releases
-page.
+*CR-013: blocks, tails and the two session shapes as app data*
+
+followed by two documentation-only commits that add and then correct this file.
+
+The branch was pushed by the athlete (this session has no push credentials). The pull
+request is titled **CR-013 blocks, tails and the two session shapes**; CI runs on it
+(`no-personal-names`, validate schemas, typecheck, test, build), so the three checks in §3
+are re-run for real on the push.
+
+Not merged, not tagged, as the change request requires. The athlete merges, then publishes
+the tag `cr-013` on the merge commit from the Releases page.
