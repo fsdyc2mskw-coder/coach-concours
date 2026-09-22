@@ -57,7 +57,7 @@ describe('weekly_shape.md v3 hard rules, on a generic week (2026-09-14)', () => 
   it('R-WS-07 v3: two police sessions per week (technique on Thursday, one of integration/strength on Friday)', () => {
     const technique = genericWeek.sessions.find((session) => session.kind === 'police_technique');
     expect(technique?.date).toBe('2026-09-17');
-    const fridayPolice = genericWeek.sessions.filter((session) => ['police_integration', 'police_strength_transitions', 'police_mock_test'].includes(session.kind));
+    const fridayPolice = genericWeek.sessions.filter((session) => ['police_integration', 'police_strength_transitions'].includes(session.kind));
     expect(fridayPolice).toHaveLength(1);
     expect(fridayPolice[0]?.date).toBe('2026-09-18');
     expect(validateWeek(genericWeek)).toHaveLength(0);

@@ -409,6 +409,21 @@ describe('CR-013 — no session of kind police_mock_test, nothing predicts an of
     }
   });
 
+  // Regression test for a real miss caught on the deployed page after the
+  // CR-013 merge: `weekChecker.ts` held 'police_mock_test' in a
+  // `readonly string[]`, so removing the kind from `SessionKind` did not make
+  // the compiler flag it, and the literal shipped in the bundle. Checking the
+  // recipes alone (the test below) did not catch it either. This scans the
+  // source itself. Comments may still discuss the name — they write it in
+  // backticks — so only a quoted string literal counts.
+  it('no source file carries `police_mock_test` as a string literal (R-PC-04)', () => {
+    const sources = import.meta.glob('../**/*.{ts,tsx}', { eager: true, query: '?raw', import: 'default' }) as Record<string, string>;
+    const paths = Object.keys(sources);
+    expect(paths.length).toBeGreaterThan(5);
+    const offenders = paths.filter((path) => /['"]police_mock_test['"]/.test(sources[path]!));
+    expect(offenders).toEqual([]);
+  });
+
   it('the string "mock" appears in no recipe of the library', () => {
     expect(JSON.stringify(recipes)).not.toMatch(/mock/i);
     expect(JSON.stringify(Object.values(recipeById))).not.toMatch(/mock/i);

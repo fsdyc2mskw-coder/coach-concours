@@ -33,7 +33,15 @@ export interface Flag {
 // CR-011 lands and stay live for Week 1's documented Tuesday exception.
 const RUN_INTERVAL_KINDS: readonly string[] = ['run_intervals', 'running_intervals_exception'];
 const RUN_KINDS: readonly string[] = [...RUN_INTERVAL_KINDS, 'trail_maintenance', 'trail_event'];
-const POLICE_KINDS: readonly string[] = ['police_technique', 'police_strength_transitions', 'police_integration', 'police_mock_test'];
+// CHANGE_REQUEST_013 — `police_mock_test` removed: R-PC-04 forbids it anywhere,
+// and CR-013 deleted it from `SessionKind`. This array is typed
+// `readonly string[]`, so nothing in the compiler was ever going to catch the
+// leftover literal — `cr013.test.ts` now scans the source for it instead.
+// The two v4 shapes are deliberately NOT added here: this file is CR-014's
+// day-move checker, which CR-013 lists as out of scope. Its C4 check reads a
+// block's legacy `hiit` tag, which the v4 shapes never carry, so it is inert
+// for them either way (see Q6 in APP_REPORT_013.md).
+const POLICE_KINDS: readonly string[] = ['police_technique', 'police_strength_transitions', 'police_integration'];
 
 const isHard = (session: PlannedSession) => session.load === 'hard' || session.load === 'event';
 const isRun = (session: PlannedSession) => RUN_KINDS.includes(session.kind);

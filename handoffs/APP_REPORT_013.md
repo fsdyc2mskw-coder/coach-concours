@@ -276,6 +276,23 @@ box. If they should be session-level numbers instead, say so and they move.
 
 ---
 
+## 6b. Fix landed after the merge
+
+`police_mock_test` was still present as a string literal in
+`src/coach/weekChecker.ts`'s `POLICE_KINDS`, which is typed `readonly string[]` —
+so removing the kind from `SessionKind` did not make the compiler flag it, and the literal
+shipped in the deployed bundle. The R-PC-04 test in `cr013.test.ts` scanned the *recipes*
+only, so it passed. Caught by grepping the deployed bundle after the merge.
+
+Fixed on branch `cr-013-fix-mock-test-literal`: the literal is removed from
+`weekChecker.ts` and from one filter array in `weeklyShape.test.ts`, and a new test scans
+every source file for a quoted `police_mock_test` literal so it cannot come back. The test
+was verified to fail (naming `weekChecker.ts`) when the literal is reintroduced.
+
+The two v4 shapes were deliberately **not** added to that array: `weekChecker.ts` is
+CR-014's day-move checker, which CR-013 lists as out of scope, and its C4 check reads a
+block's legacy `hiit` tag, which the v4 shapes never carry (see Q6).
+
 ## 7. Unrelated problems found, not fixed
 
 - `pnpm validate:repository`: 10 broken relative links in `README.md`, `docs/CLAUDE_WORKFLOW.md`,
