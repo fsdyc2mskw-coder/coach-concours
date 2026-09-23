@@ -13,8 +13,16 @@ Read first, because it limits what this report may claim.
 
 - **`pnpm typecheck` — passed.** Run as `tsc -b --force --pretty false`, exit 0, no
   diagnostics, TypeScript 5.9.3. This is the `typecheck` script verbatim.
-- **`pnpm test` — not run.**
-- **`pnpm build` — not run.**
+- **`pnpm test` — not run here. Passed in CI**, see the note below.
+- **`pnpm build` — not run here. Passed in CI**, see the note below.
+
+**Added after CI ran.** The two commits of this branch reached `main` (see "How this branch
+reached main" at the end of this report), which triggered the deploy workflow on
+`385d87741d3e34b32f07c2a32b6d1bcbea36f363`. Every step passed on the workflow's own Node:
+`no-personal-names`, `Validate schemas`, `Type check`, `Test`, `Build`, then the Pages
+deploy. **So the suite does pass on the v3 code, including the four tests this change
+request asks for — that result comes from CI, not from this machine.** Everything below
+that says "not run" describes the machine this was written on and is left as written.
 
 There is no Node.js and no pnpm on this machine: `node`, `pnpm`, `npm` and `npx` are all
 absent from the path. The only runtime present is a Node 16 binary bundled inside an
@@ -187,14 +195,28 @@ ten test call sites) belongs in a change request that is allowed to touch v2 tes
 ## Verification
 
 - [x] `pnpm typecheck` — **passed**, `tsc -b --force`, exit 0, no diagnostics
-- [ ] `pnpm test` — **not run**, no Node 18+ on this machine
-- [ ] `pnpm build` — **not run**, same reason
-- [ ] drag checked by hand in a browser — **not done**, no dev server without Node
+- [x] `pnpm test` — **passed in CI**, not runnable on this machine (no Node 18+)
+- [x] `pnpm build` — **passed in CI**, same
+- [ ] drag checked by hand in a browser — **not done**, no dev server without Node. The
+      deployed app now carries v3, so this can be done on the phone
 - [x] no person's name, e-mail, hostname, device name or personal folder path in the diff
 - [x] no session dated after 20 November 2026 introduced
 - [x] no invented heart-rate target or load
 - [x] Week 1 not regenerated
 - [x] `generatePlan` not touched; the moves stay a layer on top
 - [x] not merged, not tagged
+
+## How this branch reached `main` (recorded, not intended)
+
+The session that wrote this branch had no git push credentials, so the push was run by hand
+outside it. It went to `main` instead of to `cr-014-reorder-past-days`: both commits are on
+`main`, no branch of that name exists on the remote, and the Pages deploy ran and published.
+No pull request was opened and no tag was created.
+
+This breaks "work on a branch, open a pull request, never merge". It is written down here
+because the repository should carry the reason its history looks like this, and because the
+decision of what to do about `main` — leave it, or roll it back and re-land through a pull
+request — is the athlete's, not the coder's. Nothing was force-pushed or reverted from the
+session.
 
 Implementation commit: `0d09efea0bdb0a5d697f687e486d11366b70ab7c`
