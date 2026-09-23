@@ -9,18 +9,6 @@ import { checkWeek } from './coach/weekChecker';
 // two derived numbers of section D.
 import { cardioBlockOf, drillsOf, drillsOfBlock, isSessionShape } from './coach/sessionShapes';
 import { cardioBaseline, freshToFatiguedGap, gapHistory } from './coach/progression';
-// CHANGE_REQUEST_017 — the baseline block is attached to a session id, not to
-// a recipe, so every screen resolves its recipe through `recipeForSession`.
-import {
-  baselineBlockOf,
-  baselineReference,
-  baselineTestsOf,
-  bestBroadJumpCm,
-  bestSprint20mS,
-  hasBaselineReference,
-  vmaKmh,
-  withBaselineBlock
-} from './coach/baseline';
 import type {
   CardioBlock,
   CoachState,
@@ -308,15 +296,6 @@ function mmss(min: number): string { return `${String(Math.max(0, Math.round(min
 // derives an equivalent hint from what the recipe already has (its stations,
 // or a fixed phrase for crossfit/trail), rather than inventing new copy —
 // see the APP_REPORT for this substitution.
-// CHANGE_REQUEST_017 — the one place a screen turns a planned session into
-// the recipe it renders. `recipeById` holds the SHARED recipe (the week 3
-// trail run uses the same `trail-maintenance-v1` object as every other
-// weekend run), so the baseline block is laid on top per session id here
-// rather than written into the shared object.
-function recipeForSession(planned: PlannedSession): SessionRecipe {
-  return withBaselineBlock(recipeById[planned.recipeId]!, planned.id);
-}
-
 function sessionHint(recipe: SessionRecipe): string {
   if (recipe.kind === 'crossfit_class') return 'selon le cours';
   if (recipe.kind === 'trail_maintenance' || recipe.kind === 'trail_event') return 'course facile';
@@ -488,7 +467,7 @@ function WeekScreen({ state, weekIndex, setWeekIndex, openSession, setDayMoves }
             {onThisDay.length === 0
               ? (editMode ? <div className="free">Libre · dépose ici</div> : <div className="rest">Repos</div>)
               : onThisDay.map((planned) => {
-                const recipe = recipeForSession(planned);
+                const recipe = recipeById[planned.recipeId]!;
                 const result = state.results[planned.id];
                 const bars = loadBars(planned.load);
                 const durationLabel = recipe.durationMin ? mmss(recipe.durationMin * planned.volumeFactor) : recipe.kind === 'crossfit_class' ? '' : '—';
@@ -538,7 +517,7 @@ function SessionScreen({ state, planned, sessionTab, focusBlock, setTab, openBlo
   saveDraft: (planned: PlannedSession, result: Omit<SessionResult, 'sessionId' | 'completedAt'>) => void;
   remove: (planned: PlannedSession) => void;
 }) {
-  const recipe = recipeForSession(planned);
+  const recipe = recipeById[planned.recipeId]!;
   const result = state.results[planned.id];
   return <>
     <div className="snav"><button className="back" type="button" onClick={back} aria-label="Retour">‹</button><h3>{recipe.title}</h3></div>
@@ -682,19 +661,6 @@ function FaitTab({ planned, result, openRetour, openPrevu }: { planned: PlannedS
 function numberToText(value: number | undefined): string { return value === undefined ? '' : String(value); }
 function textToNumber<Key extends string>(key: Key, value: string): Partial<Record<Key, number>> { if (value.trim() === '') return {}; const parsed = Number(value); return Number.isFinite(parsed) ? { [key]: parsed } as Partial<Record<Key, number>> : {}; }
 
-// CHANGE_REQUEST_017 — the three attempt boxes of a baseline test. Always
-// three boxes on screen; only the ones holding a number are stored, so a
-// baseline stopped after two attempts keeps exactly what was typed.
-const BASELINE_ATTEMPTS = 3;
-function attemptsToText(values: number[] | undefined): string[] {
-  return Array.from({ length: BASELINE_ATTEMPTS }, (_, index) => numberToText(values?.[index]));
-}
-function textToAttempts(values: string[]): number[] {
-  return values
-    .map((value) => (value.trim() === '' ? Number.NaN : Number(value)))
-    .filter((value) => Number.isFinite(value));
-}
-
 // CHANGE_REQUEST_011 section D — a rep pace accepts `m:ss` (read off the
 // watch's auto-lap) or a decimal number of minutes ("6,20" / "6.2"), always
 // stored as whole seconds per kilometre.
@@ -759,15 +725,6 @@ function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft,
   });
   const [cardioValue, setCardioValue] = useState(numberToText(saved?.cardioValue));
   const [cardioNote, setCardioNote] = useState(saved?.cardioNote ?? '');
-  // CHANGE_REQUEST_017 section B — the baseline's own fields. Three attempt
-  // boxes for the jump and three for the sprint, one box for the 6-min
-  // distance, and nothing else: the best of each and the VMA are computed
-  // below and shown read-only, never typed (R-TB-02, R-TB-03).
-  const baselineBlock = baselineBlockOf(recipe);
-  const baselineTests = baselineTestsOf(recipe);
-  const [broadJump, setBroadJump] = useState<string[]>(() => attemptsToText(saved?.broadJumpCm));
-  const [sprint20m, setSprint20m] = useState<string[]>(() => attemptsToText(saved?.sprint20mS));
-  const [sixMinRun, setSixMinRun] = useState(numberToText(saved?.sixMinRunM));
   const [draftSavedAt, setDraftSavedAt] = useState<Date | null>(null);
 
   const isCrossfit = planned.kind === 'crossfit_class';
@@ -812,15 +769,7 @@ function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft,
         ...(collectedDrillScores.length ? { drillScores: collectedDrillScores } : {}),
         ...textToNumber('cardioValue', cardioValue),
         ...(cardioNote.trim() ? { cardioNote } : {})
-      } : {}),
-      // CHANGE_REQUEST_017 — only the tests this session's baseline block
-      // actually carries, and only attempts that hold a number, exactly as
-      // `repPacesSec` does. A session with no baseline block writes nothing.
-      ...(baselineTests.includes('broad_jump') && textToAttempts(broadJump).length
-        ? { broadJumpCm: textToAttempts(broadJump) } : {}),
-      ...(baselineTests.includes('sprint_20m') && textToAttempts(sprint20m).length
-        ? { sprint20mS: textToAttempts(sprint20m) } : {}),
-      ...(baselineTests.includes('six_min_run') ? textToNumber('sixMinRunM', sixMinRun) : {})
+      } : {})
     };
   }
 
@@ -834,29 +783,6 @@ function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft,
       return Number.isFinite(value) ? [{ drillId: drill.drillId, measure: drill.measure, value }] : [];
     })
     : [];
-
-  // CHANGE_REQUEST_017 — the best jump, the best sprint and the VMA, computed
-  // live from what is in the boxes right now, through the same functions the
-  // Référence card uses. Read-only text: there is no input to type them into,
-  // which is how R-TB-02/R-TB-03 are kept honest at the screen as well as in
-  // the record.
-  const liveBaseline = {
-    broadJumpCm: textToAttempts(broadJump),
-    sprint20mS: textToAttempts(sprint20m),
-    ...textToNumber('sixMinRunM', sixMinRun)
-  };
-  const liveBestJump = bestBroadJumpCm(liveBaseline);
-  const liveBestSprint = bestSprint20mS(liveBaseline);
-  const liveVma = vmaKmh(liveBaseline);
-  const bestBroadJumpText = liveBestJump !== undefined
-    ? `Meilleur saut : ${formatCm(liveBestJump)} · calculé`
-    : 'Le meilleur des trois est calculé.';
-  const bestSprintText = liveBestSprint !== undefined
-    ? `Meilleur sprint : ${formatSprintS(liveBestSprint)} · calculé`
-    : 'Le meilleur des trois est calculé.';
-  const vmaText = liveVma !== undefined
-    ? `VMA : ${formatVma(liveVma)} · calculée`
-    : 'La VMA est calculée à partir de la distance.';
 
   // R-WS-33 / section D — the previous week's number for the same session
   // shape, read only, beside the cardio block. No target, no prediction.
@@ -874,7 +800,7 @@ function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft,
     }, DRAFT_SAVE_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effort, status, statusTouched, note, quality, hesitation, tags, memoryErrors, ballFumbles, obstacleHesitations, racketDropsR1, racketDropsR2, racketDropsR3, amrapRounds, landingQuality, distanceKm, elevationGainM, durationMin, intervalDistance1M, intervalDistance2M, repPaces, repsDone, drillScores, cardioValue, cardioNote, broadJump, sprint20m, sixMinRun]);
+  }, [effort, status, statusTouched, note, quality, hesitation, tags, memoryErrors, ballFumbles, obstacleHesitations, racketDropsR1, racketDropsR2, racketDropsR3, amrapRounds, landingQuality, distanceKm, elevationGainM, durationMin, intervalDistance1M, intervalDistance2M, repPaces, repsDone, drillScores, cardioValue, cardioNote]);
 
   const groupRefs = useRef<Record<number, HTMLDivElement | null>>({});
   useEffect(() => {
@@ -895,35 +821,7 @@ function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft,
   return <>
     <div className="save"><span className="dot" /><span>{draftSavedAt ? `Brouillon enregistré · ${draftSavedAt.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })} · tu peux revenir à tout moment` : 'Brouillon enregistré automatiquement · tu peux revenir à tout moment'}</span></div>
 
-    {baselineBlock && <div className="grp" ref={(node) => { groupRefs.current[0] = node; }}>
-      <div className="gh"><span className="gn">1</span>{baselineBlock.title}</div>
-      <div className="lab">{baselineBlock.regle}</div>
-      {baselineTests.includes('broad_jump') && <>
-        <div className="lab">Saut en longueur — 3 essais</div>
-        <div className="trio">
-          {broadJump.map((value, index) => <NumberField key={index} label={`Saut — essai ${index + 1}`} value={value}
-            onChange={(next) => setBroadJump((current) => current.map((item, itemIndex) => itemIndex === index ? next : item))}
-            step={1} unit="cm" placeholder="cm" />)}
-        </div>
-        <div className="lab">{bestBroadJumpText}</div>
-      </>}
-      {baselineTests.includes('sprint_20m') && <>
-        <div className="lab">Sprint 20 m — 3 essais</div>
-        <div className="trio">
-          {sprint20m.map((value, index) => <NumberField key={index} label={`Sprint — essai ${index + 1}`} value={value}
-            onChange={(next) => setSprint20m((current) => current.map((item, itemIndex) => itemIndex === index ? next : item))}
-            step={0.01} unit="s" placeholder="s" />)}
-        </div>
-        <div className="lab">{bestSprintText}</div>
-      </>}
-      {baselineTests.includes('six_min_run') && <>
-        <NumberField label="6 minutes — distance" value={sixMinRun} onChange={setSixMinRun} step={1} unit="m" />
-        <div className="lab">{vmaText}</div>
-      </>}
-    </div>}
-
     {isSessionShapeSession && recipe.blocks.map((block, index) => {
-      if (block.kind === 'baseline') return null; // rendered by its own group above
       const drills = drillsOfBlock(block);
       const cardio = block.kind === 'cardio' ? cardioBlockOf(recipe) : null;
       if (drills.length === 0 && !cardio) return null;
@@ -1076,7 +974,7 @@ function GapHistory({ state }: { state: CoachState }) {
 }
 
 function BlockScreen({ planned, blockIndex, back, openRetour }: { planned: PlannedSession; blockIndex: number; back: () => void; openRetour: () => void }) {
-  const recipe = recipeForSession(planned);
+  const recipe = recipeById[planned.recipeId]!;
   const block = recipe.blocks[blockIndex]!;
   const minutes = block.title.match(/(\d+)\s*min/)?.[1];
   const fields = blockFields(recipe.id, blockIndex);
@@ -1131,24 +1029,7 @@ function BlockScreen({ planned, blockIndex, back, openRetour }: { planned: Plann
 
 // ---------- Journey / Drive (CHANGE_REQUEST_010 section G — theme only, content unchanged) ----------
 
-function JourneyView({ state }: { state: CoachState }) { const total = Object.values(state.results).filter((result) => result.status === 'done').length; return <section className="page"><p className="eyebrow">JUSQU’AU 20 NOVEMBRE</p><h1>Ton parcours</h1><p className="lead">{total} séances terminées. Les semaines futures se recalculent à partir de tes retours sans ajouter de sixième jour.</p><div className="timeline">{state.weeks.map((week, index) => { const done = week.sessions.filter((session) => state.results[session.id]?.status === 'done').length; return <div className="timelineRow" key={week.id}><span>{String(index + 1).padStart(2, '0')}</span><div><b>{phaseLabel(week.phase)}</b><p>{formatRange(week.startDate, week.endDate)}</p></div><strong>{done}/{week.sessions.length}</strong></div>; })}</div><ReferenceCard state={state} /><GapHistory state={state} /></section>; }
-
-// CHANGE_REQUEST_017 section C — the "Référence" card. Recorded values only:
-// a test with no number simply has no row, and the card itself is absent
-// until the first value is recorded. There is no target, no arrow, no
-// comparison and no predicted time anywhere in it (R-TB-04), and the best
-// jump, the best sprint and the VMA are computed on the way in, never read
-// from a stored field (R-TB-02, R-TB-03).
-function ReferenceCard({ state }: { state: CoachState }) {
-  const reference = baselineReference(state.results);
-  if (!hasBaselineReference(reference)) return null;
-  return <div className="kv" style={{ marginTop: 22 }}>
-    <p className="eyebrow">RÉFÉRENCE, SEMAINE DU 21 SEPTEMBRE</p>
-    {reference.bestBroadJumpCm !== undefined && <div><span>Saut en longueur</span><b>{formatCm(reference.bestBroadJumpCm)}</b></div>}
-    {reference.bestSprint20mS !== undefined && <div><span>Sprint 20 m</span><b>{formatSprintS(reference.bestSprint20mS)}</b></div>}
-    {reference.sixMinRunM !== undefined && <div><span>6 minutes</span><b>{formatMetres(reference.sixMinRunM)}{reference.vmaKmh !== undefined ? ` · VMA ${formatVma(reference.vmaKmh)}` : ''}</b></div>}
-  </div>;
-}
+function JourneyView({ state }: { state: CoachState }) { const total = Object.values(state.results).filter((result) => result.status === 'done').length; return <section className="page"><p className="eyebrow">JUSQU’AU 20 NOVEMBRE</p><h1>Ton parcours</h1><p className="lead">{total} séances terminées. Les semaines futures se recalculent à partir de tes retours sans ajouter de sixième jour.</p><div className="timeline">{state.weeks.map((week, index) => { const done = week.sessions.filter((session) => state.results[session.id]?.status === 'done').length; return <div className="timelineRow" key={week.id}><span>{String(index + 1).padStart(2, '0')}</span><div><b>{phaseLabel(week.phase)}</b><p>{formatRange(week.startDate, week.endDate)}</p></div><strong>{done}/{week.sessions.length}</strong></div>; })}</div><GapHistory state={state} /></section>; }
 
 function DriveView({ state, session, busy, sync, backup, disconnect, exportData, importData }: { state: CoachState; session: GoogleSession | null; busy: boolean; sync: () => void; backup: () => void; disconnect: () => void; exportData: () => void; importData: (file: File) => void }) {
   const clientConfigured = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
@@ -1165,16 +1046,4 @@ function maskEmail(email: string): string {
 function daysOfWeek(start: string, end: string) { const days: string[] = []; for (let time = Date.parse(`${start}T12:00:00Z`); time <= Date.parse(`${end}T12:00:00Z`); time += 86_400_000) days.push(new Date(time).toISOString().slice(0, 10)); return days; }
 function formatRange(start: string, end: string) { const a = new Date(`${start}T12:00:00Z`); const b = new Date(`${end}T12:00:00Z`); return `${a.getUTCDate()} ${a.toLocaleDateString('fr-CH', { month: 'short', timeZone: 'UTC' })} – ${b.getUTCDate()} ${b.toLocaleDateString('fr-CH', { month: 'short', year: 'numeric', timeZone: 'UTC' })}`.replace(/\./g, ''); }
 function phaseLabel(phase: CoachState['weeks'][number]['phase']) { return ({ learn: 'Apprendre', combine: 'Combiner', trail_event: 'Semaine trail', reset: 'Récupérer', integrate: 'Intégrer', peak: 'Pic spécifique', taper: 'Alléger' } as const)[phase]; }
-// CHANGE_REQUEST_017 section C — the Référence card's number formats, written
-// as the change request draws them ("212 cm", "4.12 s", "1 040 m",
-// "10.4 km/h"). The thousands separator is a narrow no-break space, set here
-// rather than left to `toLocaleString` so the card reads the same on every
-// device.
-function formatCm(value: number): string { return `${Math.round(value)} cm`; }
-function formatSprintS(value: number): string { return `${value.toFixed(2)} s`; }
-function formatVma(value: number): string { return `${value.toFixed(1)} km/h`; }
-function formatMetres(value: number): string {
-  return `${Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f')} m`;
-}
-
 function formatDateTime(value: string) { return new Date(value).toLocaleString('fr-CH', { dateStyle: 'medium', timeStyle: 'short' }); }

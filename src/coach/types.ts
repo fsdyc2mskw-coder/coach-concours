@@ -35,13 +35,9 @@ export type SessionKind =
 // own `warmup` / `cooldown` strings since CR-001, and CR-009/CR-010 render
 // them from there. `blockSequence()` in `sessionShapes.ts` re-inserts them at
 // their real positions so the index rules below can be checked literally.
-// CHANGE_REQUEST_017 — `baseline` added: the one-off baseline block of
-// `rules/test_battery.md` v2. R-TB-01 keeps it on exactly two sessions of the
-// week of 21 September 2026 and on no other session in any week; which two is
-// decided by session id in `baseline.ts`, never by date and never by kind.
 export type BlockKind =
   | 'warmup' | 'memory' | 'fresh_reference'
-  | 'skill_block' | 'chain_block' | 'cardio' | 'tail_b' | 'baseline' | 'cooldown';
+  | 'skill_block' | 'chain_block' | 'cardio' | 'tail_b' | 'cooldown';
 
 export type CardioFormat = 'emom' | 'amrap' | 'for_time';
 
@@ -133,27 +129,13 @@ export interface TailB {
   stopRule: string;         // shown to the athlete before she starts
 }
 
-// CHANGE_REQUEST_017 section A — the three cheap tests of the baseline. The
-// block carries only which tests it holds; the numbers themselves live in
-// `SessionResult`, like every other Retour field.
-export type BaselineTest = 'broad_jump' | 'sprint_20m' | 'six_min_run';
-
-export interface BaselineBlockSpec {
-  kind: 'baseline';
-  tests: BaselineTest[];
-  // R-TB-04 forbids a target, so there is no target field here to hold one.
-  // `conditions` is the sentence shown before the block (section C).
-  conditions: string;
-}
-
 export type BlockSpec =
   | MemoryBlockSpec
   | FreshReferenceSpec
   | SkillBlock
   | ChainBlock
   | CardioBlock
-  | TailB
-  | BaselineBlockSpec;
+  | TailB;
 
 // CHANGE_REQUEST_013 section C — one numeric score per drill, stored per
 // session id. The fresh-to-fatigued gap is NOT here: it is computed from
@@ -324,16 +306,6 @@ export interface SessionResult {
   // else. No target is ever stored or displayed (R-WS-31).
   cardioValue?: number;
   cardioNote?: string;
-  // CHANGE_REQUEST_017 section B — the baseline's recorded numbers, and
-  // nothing else. Optional, so a record written before CR-017 loads unchanged
-  // and `schemaVersion` stays 2. Stored against the session id the baseline
-  // block belongs to, so a CR-014 move carries them with the session.
-  // R-TB-02/R-TB-03: only the attempts and the distance are stored here; the
-  // best jump, the best sprint and the VMA are computed in `baseline.ts` and
-  // have deliberately no field of their own.
-  broadJumpCm?: number[];   // up to 3 attempts, cm
-  sprint20mS?: number[];    // up to 3 attempts, seconds, two decimals
-  sixMinRunM?: number;      // metres covered in 6 minutes
   completedAt: string;
 }
 
