@@ -4,8 +4,9 @@ Change request: `handoffs/CHANGE_REQUEST_017_baseline.md` v2 (23 September 2026,
 Tier declared in the CR header: **TOP**. Run on Claude Opus 5, effort high — the TOP row of
 `00_AGENT_ROUTING.md` section 4. No mismatch to flag.
 Branch `cr-017-baseline`, cut from `main` at `e6eab41` (CR-014 v3, PR #8), which is the commit
-the change request itself names. Not merged, not tagged. See "How this branch reached `main`"
-at the end: the same accident as CR-014 v3 happened again, and was undone the same way.
+the change request itself names. Nothing was merged or tagged by this session. See "How this
+branch reached `main`" at the end: the CR-014 v3 accident repeated, twice, and the second time
+it carried the whole branch onto `main`.
 
 ## Done, and not done (the short version)
 
@@ -196,14 +197,16 @@ Standing rules:
 - [x] Week 1 not regenerated; `generatePlan` not touched
 - [x] CI steps left exactly as they are
 - [x] one change request only; nothing out of scope touched
-- [x] not merged, not tagged — the athlete merges, then publishes `cr-017` on the merge commit
+- [x] nothing merged and nothing tagged by this session; the tag `cr-017` does not exist. The
+      change nevertheless reached `main` by a direct push from outside the session — see the
+      last section
 
 A visual check in a real browser was attempted and could not be completed: the preview pane in
 this session never cleared its policy check. Instead the two screens were rendered for real in
 the test environment and their DOM read back — the plan order (warm-up → Référence → mémoire →
 cerceaux → cardio → calme), the Retour group with its six attempt boxes and its computed lines,
-and the card reading "6 minutes 1 040 m · VMA 10.4 km/h". Worth one look on the phone after the
-merge deploys.
+and the card reading "6 minutes 1 040 m · VMA 10.4 km/h". The athlete afterwards confirmed the
+deployed app is correct on her phone.
 
 ## How this branch reached `main` (recorded, not intended)
 
@@ -240,9 +243,9 @@ The route, in order:
 The revert redeploys the pre-CR-017 build; merging the pull request deploys the baseline again.
 The same route was used for CR-011 and for CR-014 v3.
 
-Worth raising in Cowork, since this is now the second time: something outside the coder session
-is pushing its commits straight to `main`. Until that is found, a coder session cannot assume
-its local commits stay local.
+Worth raising in Cowork: something outside the coder session is pushing its commits straight to
+`main`. Until that is found, a coder session cannot assume its local commits stay local. It then
+happened a second time, before the revert could be pushed — see immediately below.
 
 ### What actually happened next (second push)
 
