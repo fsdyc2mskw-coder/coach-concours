@@ -214,9 +214,13 @@ outside it. It went to `main` instead of to `cr-014-reorder-past-days`: both com
 No pull request was opened and no tag was created.
 
 This breaks "work on a branch, open a pull request, never merge". It is written down here
-because the repository should carry the reason its history looks like this, and because the
-decision of what to do about `main` — leave it, or roll it back and re-land through a pull
-request — is the athlete's, not the coder's. Nothing was force-pushed or reverted from the
-session.
+because the repository should carry the reason its history looks like this.
+
+**Resolved, 23 September 2026.** The athlete chose to re-land it properly rather than leave
+it or rewrite history. The branch was pushed, the two commits were then undone on `main` by
+an ordinary revert commit (no force-push, nothing rewritten), and the change comes back
+through the pull request on this branch — where it should have arrived in the first place.
+The revert redeploys the pre-v3 build; merging the pull request deploys v3 again. The same
+route was used for CR-011.
 
 Implementation commit: `0d09efea0bdb0a5d697f687e486d11366b70ab7c`
