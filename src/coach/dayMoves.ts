@@ -1,9 +1,14 @@
-// CHANGE_REQUEST_014 section C — the move layer.
+// CHANGE_REQUEST_014 section C — the move layer, v3 (22 September 2026).
 //
 // `generatePlan` is not touched: the rules keep producing the standard week
 // and the moves are applied on top of the result, every time a plan is built.
 // A move changes `date` and `dayLabel` only; `id`, `recipeId`, `load`,
 // `phase` and `volumeFactor` stay exactly as the generator wrote them.
+//
+// v3: every day of the week can be dragged and can receive a session,
+// including days already past — the athlete fixes the week after the fact so
+// it matches what she actually did. Only the two fixed events stay locked.
+// `weekly_shape.md` v4 carries the matching R-WS-14.
 import { generatePlan } from './planner';
 import type { DayMove, PlannedSession, SessionResult, TrainingWeek } from './types';
 
@@ -11,24 +16,16 @@ export function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-// A day whose date has passed cannot be dragged and cannot receive a session
-// (R-WS-14: no session is moved into the past). Today is still movable.
-export function isPastDay(date: string, reference: string = today()): boolean {
-  return date < reference;
+// A session the athlete may pick up. The only session she may not is a
+// `fixed_event`: the trail race of 11 October and the police test of
+// 20 November keep their dates. A day already past is no longer a reason.
+export function isMovable(session: PlannedSession): boolean {
+  return session.status !== 'fixed_event';
 }
 
-// A session the athlete may pick up: never a `fixed_event` (the trail race of
-// 11 October and the police test of 20 November keep their dates), never one
-// sitting on a day that has passed.
-export function isMovable(session: PlannedSession, reference: string = today()): boolean {
-  return session.status !== 'fixed_event' && !isPastDay(session.date, reference);
-}
-
-// A day that can receive a drop: not in the past, and not a day already held
-// by a fixed event — a move that targets one of those two dates is refused
-// like a past day.
-export function canReceive(week: TrainingWeek, date: string, reference: string = today()): boolean {
-  if (isPastDay(date, reference)) return false;
+// A day that can receive a drop. The only refused targets are the two
+// fixed-event dates; a day already past accepts a drop like any other.
+export function canReceive(week: TrainingWeek, date: string): boolean {
   return !week.sessions.some((session) => session.status === 'fixed_event' && session.date === date);
 }
 
@@ -39,16 +36,23 @@ export function canReceive(week: TrainingWeek, date: string, reference: string =
  *
  * Dropped silently:
  *  - a `sessionId` that no longer exists;
- *  - a `toDate` in the past, or outside the session's own week;
+ *  - a `toDate` outside the session's own week;
  *  - a move of a `fixed_event`, or onto a date a fixed event already holds.
+ *
+ * A `toDate` already past is kept (v3): that is how the week comes to match
+ * what the athlete actually did.
  *
  * One move per `sessionId`: when several are present, the last one wins, so a
  * new move simply replaces the previous one.
+ *
+ * `_reference` is the "today" the v2 signature took. Nothing in the layer is
+ * relative to today any more; the parameter is kept so existing call sites
+ * and tests read unchanged.
  */
 export function applyDayMoves(
   weeks: TrainingWeek[],
   moves: DayMove[] | undefined,
-  reference: string = today()
+  _reference: string = today()
 ): TrainingWeek[] {
   if (!moves || moves.length === 0) return weeks;
 
@@ -66,9 +70,9 @@ export function applyDayMoves(
     const sessions = sessionsOf(weekIndex);
     const session = sessions.find((item) => item.id === move.sessionId)!;
 
-    if (!isMovable(session, reference)) continue;
+    if (!isMovable(session)) continue;
     if (move.toDate < week.startDate || move.toDate > week.endDate) continue;
-    if (!canReceive(week, move.toDate, reference)) continue;
+    if (!canReceive(week, move.toDate)) continue;
     if (move.toDate === session.date) continue;
 
     changedWeeks.set(

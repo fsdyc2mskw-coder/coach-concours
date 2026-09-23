@@ -3,7 +3,7 @@ import { flowStrip, recipeById, runIntervalsRepsById } from './coach/recipes';
 // CHANGE_REQUEST_014 — the move layer and the checker. `generatePlan` is no
 // longer imported here: every plan this file builds now goes through
 // `planWithMoves`, which calls it.
-import { canReceive, isMovable, isPastDay, planWithMoves, today as todayISO, withMove } from './coach/dayMoves';
+import { canReceive, isMovable, planWithMoves, today as todayISO, withMove } from './coach/dayMoves';
 import { checkWeek } from './coach/weekChecker';
 // CHANGE_REQUEST_013 — the two session shapes, their scored drills, and the
 // two derived numbers of section D.
@@ -453,14 +453,15 @@ function WeekScreen({ state, weekIndex, setWeekIndex, openSession, setDayMoves }
         const onThisDay = week.sessions.filter((item) => item.date === date);
         const dayLabel = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM'][new Date(`${date}T12:00:00Z`).getUTCDay()];
         const isToday = date === today;
-        const past = isPastDay(date, today);
-        const blocked = !canReceive(week, date, today);
+        // CHANGE_REQUEST_014 v3 — a day already past is an ordinary day: it
+        // can be dragged and it can receive a drop. `blocked` is now only the
+        // two fixed-event dates, which `canReceive` still refuses.
+        const blocked = !canReceive(week, date);
         const dayFlags = flags.filter((flag) => flag.date === date);
         return <div key={date}>
           <div className={`day${isToday ? ' today' : ''}`}>
             {isToday ? "Aujourd'hui" : `${dayLabel} ${new Date(`${date}T12:00:00Z`).getUTCDate()}`}
             {dayFlags.length > 0 && <span className={`warnDot${dayFlags.some((flag) => flag.hard) ? ' hardRule' : ''}`} role="img" aria-label="Signalement">⚠</span>}
-            {editMode && past && <span className="lock">🔒 passé</span>}
           </div>
           <div className={`slot${blocked ? ' blocked' : ''}`} data-slot={date}>
             {onThisDay.length === 0
@@ -471,8 +472,8 @@ function WeekScreen({ state, weekIndex, setWeekIndex, openSession, setDayMoves }
                 const bars = loadBars(planned.load);
                 const durationLabel = recipe.durationMin ? mmss(recipe.durationMin * planned.volumeFactor) : recipe.kind === 'crossfit_class' ? '' : '—';
                 const hint = sessionHint(recipe);
-                const movable = editMode && isMovable(planned, today);
-                const cardClass = ['card', isToday ? 'today' : '', past ? 'past' : '', onThisDay.length > 1 ? 'stacked' : '', result?.status === 'done' ? 'done' : '', result?.status === 'draft' ? 'draft' : ''].filter(Boolean).join(' ');
+                const movable = editMode && isMovable(planned);
+                const cardClass = ['card', isToday ? 'today' : '', onThisDay.length > 1 ? 'stacked' : '', result?.status === 'done' ? 'done' : '', result?.status === 'draft' ? 'draft' : ''].filter(Boolean).join(' ');
                 return <button key={planned.id} className={cardClass} data-card={planned.id} type="button"
                   onClick={(event) => { if ((event.target as HTMLElement).closest('[data-drag]')) return; openSession(planned); }}>
                   <span className="tile">{kindIcon(planned.kind)}</span>
