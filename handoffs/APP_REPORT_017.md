@@ -7,6 +7,37 @@ Branch `cr-017-baseline`, cut from `main` at `e6eab41` (CR-014 v3, PR #8), which
 the change request itself names. Not merged, not tagged. See "How this branch reached `main`"
 at the end: the same accident as CR-014 v3 happened again, and was undone the same way.
 
+## Done, and not done (the short version)
+
+**Done, and verified on the athlete's phone on the deployed build:**
+
+- the baseline block on the two week 3 sessions, bound by session id so a CR-014 move carries
+  it and its numbers
+- the three stored fields (`broadJumpCm`, `sprint20mS`, `sixMinRunM`), `schemaVersion` still 2
+- best jump, best sprint and VMA computed and never typed, on the screen as well as in the record
+- the "Référence" card on the Parcours tab, recorded values only
+- the conditions sentence before the block
+- 18 new tests, one per line of the change request's test list; 163 tests green in total
+- `pnpm typecheck`, `pnpm test`, `pnpm build` all pass locally
+
+**Not done, and why:**
+
+- **No pull request.** The change reached `main` by direct push from outside the coder session,
+  twice, and the second push carried the whole branch. By then `cr-017-baseline` and `main` were
+  the same commit, so a pull request would have been empty. See the last section.
+- **The block's duration** is not shown: no input file gives one and inventing it was refused
+  (substitution 2, question 1).
+- **The trail block's "7-8 km" text** was left alone although the baseline above it says
+  "8-9 km au total" for 27 September — the change request requires the week 3 fixtures otherwise
+  unchanged, and that block is shared by every other week (question 2).
+- **R-TB-05, the Tuesday pace-zone reset**, is out of scope by the change request's own words.
+  Nothing in the app reads the baseline to change a pace zone; it stays a Cowork decision.
+- **Two pre-existing repository problems were not fixed** (broken README/docs links, untracked
+  `*.tsbuildinfo`): out of scope, listed below rather than touched.
+- **No browser check from inside the coder session**: the preview pane never cleared its policy
+  check. The screens were rendered and read back in the test environment instead, and the athlete
+  confirmed the deployed app on her phone.
+
 ## What changed
 
 **The baseline is bound to a session id.** Two ids, written once in `src/coach/baseline.ts`:
@@ -213,4 +244,36 @@ Worth raising in Cowork, since this is now the second time: something outside th
 is pushing its commits straight to `main`. Until that is found, a coder session cannot assume
 its local commits stay local.
 
+### What actually happened next (second push)
+
+The revert route above was overtaken by the same problem it was meant to repair. Before the
+branch could be pushed and a pull request opened, **the whole branch was pushed to `main` a
+second time from outside the coder session** — `refs/remotes/origin/main@{0}: update by push`,
+followed by a `pull: fast-forward` of the local `main`.
+
+That push carried the revert *and* the reapply together, so the two cancel out and the net
+content of `main` is the complete, correct CR-017. `origin/main` is `1f6f59e`, identical to the
+branch tip that was built and verified here. `cr-017-baseline` still does not exist on the
+remote, and no pull request was ever opened.
+
+State as it stands, checked against the remote:
+
+```
+ origin/main       1f6f59e   = the verified branch tip, CR-017 complete and deployed
+ cr-017-baseline   1f6f59e   local only, same commit, nothing left to propose
+ tag cr-017        not created
+```
+
+The deployed build was checked: `src/coach/baseline.ts`, the change request and this report are
+all on `main`, typecheck clean, 163 tests green, build green. The athlete then confirmed the app
+itself is correct on her phone.
+
+So the change is right and it is live; what failed is the route, three pushes in a row.
+**The open item is not CR-017, it is the automation**: something on the athlete's machine pushes
+the coder session's local commits straight to `main` and pulls afterwards. Until it is found, a
+coder session cannot assume its commits stay local, cannot honour "work on a branch, open a pull
+request, never merge", and this will recur on CR-018. Worth a look at git hooks, any file watcher
+on the repository, and any editor or agent with push rights.
+
 Implementation commit: `6ef0643105110c7313c5a85f211aabaf1d8d4726`
+Final commit on `main`: `1f6f59e8691fbe4e90bf59935d8c2d8b9b2368ce`
