@@ -83,8 +83,8 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 
 .day { font-family: var(--display); font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--sub); margin: 22px 2px 10px; display: flex; align-items: center; gap: 8px; }
 .day.today { color: var(--text); }
-/* CHANGE_REQUEST_014 — the day header's marker. The v2 "passé" lock chip is
-   gone in v3: a day already past is an ordinary day. */
+/* CHANGE_REQUEST_014 — the day header's two markers. */
+.day .lock { color: var(--mute); font-size: 11px; letter-spacing: 0; text-transform: none; }
 .day .warnDot { color: var(--mid); font-size: 13px; letter-spacing: 0; }
 .day .warnDot.hardRule { color: var(--high); }
 
@@ -104,12 +104,13 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 .rest { color: var(--mute); font-size: 14px; padding: 4px 6px; }
 
 /* CHANGE_REQUEST_014 — a day is a drop slot: it may hold several cards, it
-   highlights while a card hovers it, and (v3) it refuses the drop only when a
-   fixed event already holds it. */
+   highlights while a card hovers it, and it refuses the drop when the date has
+   passed or a fixed event already holds it. */
 .slot { display: flex; flex-direction: column; gap: 8px; border-radius: 24px; border: 1px dashed transparent; padding: 2px; }
 .slot.over { border-color: var(--accent); background: var(--accent-dim); }
 .slot.blocked.over { border-color: var(--high); background: rgba(240, 101, 90, .12); }
 .free { color: var(--accent); font-size: 13.5px; padding: 6px 8px; font-weight: 700; font-family: var(--display); }
+.card.past { opacity: .55; }
 .card.stacked { border-color: rgba(245, 181, 74, .5); }
 .card.lifted { opacity: .28; }
 .card .handle { flex: none; color: var(--sub); font-size: 20px; width: 30px; text-align: center; touch-action: none; cursor: grab; }

@@ -1,18 +1,14 @@
 // CHANGE_REQUEST_014 section F — one test per line of the change request's
 // test list, plus two light screen tests for the edit-mode button and the
-// handles (the drag itself is pointer geometry, which jsdom has no layout
-// for: `document.elementFromPoint` always returns null there, so the drop
-// path is covered through `applyDayMoves` rather than through a synthetic
-// pointer gesture).
-//
-// v3 (22 September 2026) — past days can be re-ordered. Three lines of this
-// file change with the rule: the move into the past is now kept, and the
-// screen test counts handles on every day instead of three locked ones.
+// locked past day (the drag itself is pointer geometry, which jsdom has no
+// layout for: `document.elementFromPoint` always returns null there, so the
+// drop path is covered through `applyDayMoves` rather than through a
+// synthetic pointer gesture).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import CoachConcoursApp from '../CoachConcoursApp';
-import { applyDayMoves, canReceive, isMovable, planWithMoves, withMove } from '../coach/dayMoves';
+import { applyDayMoves, planWithMoves, withMove } from '../coach/dayMoves';
 import { generatePlan } from '../coach/planner';
 import { checkWeek } from '../coach/weekChecker';
 import { recipes } from '../coach/recipes';
@@ -61,42 +57,15 @@ describe('CR-014 applyDayMoves', () => {
     expect(moved.volumeFactor).toBe(friday.volumeFactor);
   });
 
-  // v3, was "a move into the past is dropped". The athlete skipped Monday and
-  // fixes the week on Tuesday: the move onto a day already past must hold.
-  it('a move into the past is kept', () => {
+  it('a move into the past is dropped', () => {
     const saturday = sessionOn(weekOf(generatePlan(), WEEK2), '2026-09-19');
     const moves: DayMove[] = [{ sessionId: saturday.id, toDate: '2026-09-15', movedAt: '2026-09-16T08:00:00.000Z' }];
     // "Today" is the Thursday of that week, so Tuesday 15 has passed.
     const week = weekOf(planWithMoves({}, moves, '2026-09-17'), WEEK2);
-    const moved = week.sessions.find((session) => session.id === saturday.id)!;
-    expect(moved.date).toBe('2026-09-15');
-    expect(moved.dayLabel).toBe('MAR');
-    // Tuesday 15 now holds its own generated session and the moved one.
-    expect(week.sessions.filter((session) => session.date === '2026-09-15')).toHaveLength(2);
-    expect(week.sessions.some((session) => session.date === '2026-09-19')).toBe(false);
-    // A move never adds a session and never creates a sixth training day.
-    expect(week.sessions).toHaveLength(5);
-  });
-
-  // v3, new.
-  it('a session on a past day is movable', () => {
-    const week = weekOf(generatePlan(), WEEK2);
-    const monday = sessionOn(week, '2026-09-14');
-    expect(monday.status).not.toBe('fixed_event');
-    expect(isMovable(monday)).toBe(true);
-
-    // And the move itself holds: Monday's class onto the Wednesday that has
-    // also passed, decided on the Thursday.
-    const moved = weekOf(planWithMoves({}, [{ sessionId: monday.id, toDate: '2026-09-16', movedAt: '2026-09-17T08:00:00.000Z' }], '2026-09-17'), WEEK2);
-    expect(moved.sessions.find((session) => session.id === monday.id)!.date).toBe('2026-09-16');
-  });
-
-  // v3, new.
-  it('a past day accepts a drop', () => {
-    const week = weekOf(generatePlan(), WEEK2);
-    // Monday 14 and Tuesday 15 have both passed on the Thursday.
-    expect(canReceive(week, '2026-09-14')).toBe(true);
-    expect(canReceive(week, '2026-09-15')).toBe(true);
+    expect(sessionOn(week, '2026-09-19').id).toBe(saturday.id);
+    // Tuesday 15 keeps its own generated session and nothing else.
+    expect(week.sessions.filter((session) => session.date === '2026-09-15')).toHaveLength(1);
+    expect(week.sessions.find((session) => session.id === saturday.id)!.date).toBe('2026-09-19');
   });
 
   it('a move outside the session own week is dropped', () => {
@@ -138,7 +107,7 @@ describe('CR-014 applyDayMoves', () => {
     expect(sessionOn(movedTest, '2026-11-20').id).toBe(test.id);
   });
 
-  it('a move onto a fixed-event date is still refused', () => {
+  it('a move onto a fixed_event date is refused like a past day', () => {
     const raceWeek = weekOf(generatePlan(), '2026-10-05');
     const monday = sessionOn(raceWeek, '2026-10-05');
     const moved = weekOf(planWithMoves({}, [{ sessionId: monday.id, toDate: '2026-10-11', movedAt: '2026-10-05T08:00:00.000Z' }], '2026-10-05'), '2026-10-05');
@@ -352,14 +321,12 @@ describe('CR-014 week screen', () => {
     fireEvent.click(edit);
     await screen.findByRole('button', { name: 'Terminer' });
 
-    // Week 1 holds 5 sessions and none of them is a fixed event, so in v3
-    // every one carries a handle — including Monday 7, Tuesday 8 and
-    // Wednesday 9, which have passed on 10 September. No day is locked.
+    // Week 1 holds 5 sessions. On 10 September, Monday 7, Tuesday 8 and
+    // Wednesday 9 have passed (three locked days); Thursday 10 is today and
+    // still movable, so Thursday, Friday 11 and Saturday 12 carry a handle.
     expect(container.querySelectorAll('.card').length).toBe(5);
-    expect(container.querySelectorAll('.handle').length).toBe(5);
-    expect(container.querySelectorAll('.day .lock').length).toBe(0);
-    expect(container.querySelectorAll('.card.past').length).toBe(0);
-    expect(container.querySelectorAll('.slot.blocked').length).toBe(0);
+    expect(container.querySelectorAll('.handle').length).toBe(3);
+    expect(container.querySelectorAll('.day .lock').length).toBe(3);
   });
 
   it('a week with no flag shows the silent line, not the banner', async () => {
