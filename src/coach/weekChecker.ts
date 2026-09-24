@@ -7,11 +7,14 @@
 //
 // Order of the flags follows the mockup (`handoffs/MOCKUP_CR014.html`): the
 // stack flags alone when any day is stacked, then C2, then the neighbour
-// checks day by day (C1, C5, C4), then C3, then C6.
+// checks day by day (C1, C5), then C3, then C6.
+//
+// CHANGE_REQUEST_013 v2 — Q6 of APP_REPORT_013 answered: a police cardio
+// block is never running intervals (R-WS-08 v6), so the C4 flag is gone.
 import { recipeById } from './recipes';
 import type { PlannedSession, TrainingWeek } from './types';
 
-export type FlagCode = 'STACK' | 'C1' | 'C2' | 'C3' | 'C4' | 'C5' | 'C6';
+export type FlagCode = 'STACK' | 'C1' | 'C2' | 'C3' | 'C5' | 'C6';
 
 export interface Flag {
   code: FlagCode;
@@ -33,27 +36,9 @@ export interface Flag {
 // CR-011 lands and stay live for Week 1's documented Tuesday exception.
 const RUN_INTERVAL_KINDS: readonly string[] = ['run_intervals', 'running_intervals_exception'];
 const RUN_KINDS: readonly string[] = [...RUN_INTERVAL_KINDS, 'trail_maintenance', 'trail_event'];
-// CHANGE_REQUEST_013 — `police_mock_test` removed: R-PC-04 forbids it anywhere,
-// and CR-013 deleted it from `SessionKind`. This array is typed
-// `readonly string[]`, so nothing in the compiler was ever going to catch the
-// leftover literal — `cr013.test.ts` now scans the source for it instead.
-// The two v4 shapes are deliberately NOT added here: this file is CR-014's
-// day-move checker, which CR-013 lists as out of scope. Its C4 check reads a
-// block's legacy `hiit` tag, which the v4 shapes never carry, so it is inert
-// for them either way (see Q6 in APP_REPORT_013.md).
-const POLICE_KINDS: readonly string[] = ['police_technique', 'police_strength_transitions', 'police_integration'];
-
 const isHard = (session: PlannedSession) => session.load === 'hard' || session.load === 'event';
 const isRun = (session: PlannedSession) => RUN_KINDS.includes(session.kind);
 const isRunIntervals = (session: PlannedSession) => RUN_INTERVAL_KINDS.includes(session.kind);
-
-// C4 reads the session's own HIIT block: a police session whose one hiit
-// block has format `intervals` is a second running stimulus (R-WS-08).
-function hasIntervalHiit(session: PlannedSession): boolean {
-  if (!POLICE_KINDS.includes(session.kind)) return false;
-  const blocks = (recipeById[session.recipeId]?.blocks ?? []).filter((block) => block.hiit);
-  return blocks.length === 1 && blocks[0]!.hiit!.format === 'intervals';
-}
 
 export function checkWeek(week: TrainingWeek): Flag[] {
   const flags: Flag[] = [];
@@ -117,16 +102,6 @@ export function checkWeek(week: TrainingWeek): Flag[] {
         code: 'C5', hard: false, date: second.date,
         lead: 'Les deux courses se suivent',
         text: `(${label(first.date)}, ${label(second.date)}).`
-      });
-    }
-
-    // C4: a police session whose HIIT block has format `intervals`, the day
-    // after the running intervals (R-WS-08).
-    if (isRunIntervals(first.session) && hasIntervalHiit(second.session)) {
-      flags.push({
-        code: 'C4', hard: false, date: second.date,
-        lead: 'Séance police avec un HIIT en course le lendemain des intervalles',
-        text: '(règle R-WS-08).'
       });
     }
   }

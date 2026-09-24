@@ -276,28 +276,13 @@ describe('CR-014 checkWeek', () => {
     expect(codes(three)).not.toContain('C3');
   });
 
-  it('C4 fires on a police session with an intervals HIIT the day after the run intervals, and not otherwise', () => {
+  it('C4 is gone: a police session with an intervals HIIT the day after the run intervals says nothing (CR-013 v2, Q6)', () => {
     const dayAfter = fixtureWeek([
       session('2026-09-14', 'run_intervals', 'moderate', recipes.week1Tue8Sep!.id),
       session('2026-09-15', 'police_integration', 'hard', recipes.room!.id)
     ]);
     expect(recipes.room!.blocks.filter((block) => block.hiit).map((block) => block.hiit!.format)).toEqual(['intervals']);
-    expect(codes(dayAfter)).toContain('C4');
-
-    // The same police session two days later says nothing.
-    const twoDaysAfter = fixtureWeek([
-      session('2026-09-14', 'run_intervals', 'moderate', recipes.week1Tue8Sep!.id),
-      session('2026-09-16', 'police_integration', 'hard', recipes.room!.id)
-    ]);
-    expect(codes(twoDaysAfter)).not.toContain('C4');
-
-    // A police session whose HIIT is not running intervals says nothing either.
-    const emomNextDay = fixtureWeek([
-      session('2026-09-14', 'running_intervals_exception', 'moderate', recipes.week1Tue8Sep!.id),
-      session('2026-09-15', 'police_technique', 'low', recipes.coordination!.id)
-    ]);
-    expect(recipes.coordination!.blocks.filter((block) => block.hiit).map((block) => block.hiit!.format)).toEqual(['emom']);
-    expect(codes(emomNextDay)).not.toContain('C4');
+    expect(codes(dayAfter)).not.toContain('C4');
   });
 
   it('C5 fires on the two runs side by side and not otherwise', () => {

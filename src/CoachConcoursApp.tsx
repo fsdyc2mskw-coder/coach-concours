@@ -7,7 +7,8 @@ import { canReceive, isMovable, planWithMoves, today as todayISO, withMove } fro
 import { checkWeek } from './coach/weekChecker';
 // CHANGE_REQUEST_013 — the two session shapes, their scored drills, and the
 // two derived numbers of section D.
-import { cardioBlockOf, drillsOf, drillsOfBlock, isSessionShape } from './coach/sessionShapes';
+import { cardioBlockOf, drillsOf, drillsOfBlock, hasHillSprints, isSessionShape, seasonWeek } from './coach/sessionShapes';
+import { weekNumberOf } from './coach/planner';
 import { cardioBaseline, freshToFatiguedGap, gapHistory } from './coach/progression';
 // CHANGE_REQUEST_017 — the baseline block is attached to a session id, not to
 // a recipe, so every screen resolves its recipe through `recipeForSession`.
@@ -433,6 +434,9 @@ function WeekScreen({ state, weekIndex, setWeekIndex, openSession, setDayMoves }
   const headline = principal ? recipeById[principal.recipeId]!.title : phaseLabel(week.phase);
   const weeksToTrail = weeksUntil(week.startDate, TRAIL_EVENT_DATE);
   const weeksToPolice = weeksUntil(week.startDate, state.planEndDate);
+  // CHANGE_REQUEST_013 v2 — the week bar reads the season table's `load`
+  // (1 to 5 squares). Weeks 1 and 2 are not in the table and show none.
+  const season = seasonWeek(weekNumberOf(week.startDate));
 
   // CHANGE_REQUEST_014 — edit mode, the last move (for "Annuler le
   // déplacement") and "Je garde" are all screen state: nothing about a flag
@@ -457,6 +461,9 @@ function WeekScreen({ state, weekIndex, setWeekIndex, openSession, setDayMoves }
       <div className="kicker">{phaseLabel(week.phase)} · semaine {weekIndex + 1} / {state.weeks.length}</div>
       <h2>{headline}</h2>
       <p>{weeksToTrail} semaine{weeksToTrail > 1 ? 's' : ''} avant le trail · {weeksToPolice} avant le test police</p>
+      {season && <div className="weekbar" role="img" aria-label={`Charge de la semaine : ${season.load} sur 5`}>
+        {[1, 2, 3, 4, 5].map((square) => <i key={square} className={square <= season.load ? 'on' : undefined} />)}
+      </div>}
     </section>
     <div className="wtabs">
       <button disabled={weekIndex === 0} onClick={() => setWeekIndex(weekIndex - 1)}>{weekIndex > 0 ? formatRange(state.weeks[weekIndex - 1]!.startDate, state.weeks[weekIndex - 1]!.endDate) : '—'}</button>
@@ -747,6 +754,9 @@ function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft,
   const runIntervalsTotalReps = isRunIntervals ? (runIntervalsRepsById[recipe.id] ?? 0) : 0;
   const [repPaces, setRepPaces] = useState<string[]>(() => Array.from({ length: runIntervalsTotalReps }, (_, index) => paceSecToText(saved?.repPacesSec?.[index])));
   const [repsDone, setRepsDone] = useState(numberToText(saved?.repsDone));
+  // CHANGE_REQUEST_013 v2 — the weekend run's hill sprints are scored by the
+  // number of sprints done only (R-WS-43, card S01_hill_sprints).
+  const isHillRun = hasHillSprints(recipe);
   // CHANGE_REQUEST_013 section C — one numeric field per scored drill of a
   // skill block, a tail or a fresh reference, keyed by the drill's own id;
   // plus the cardio block's one number and its free text (R-WS-31: nothing
@@ -808,6 +818,7 @@ function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft,
         ...(repPaces.some((value) => value.trim() !== '') ? { repPacesSec: repPaces.map(parsePaceToSec).filter((value): value is number => value !== undefined) } : {}),
         ...textToNumber('repsDone', repsDone)
       } : {}),
+      ...(isHillRun ? textToNumber('repsDone', repsDone) : {}),
       ...(isSessionShapeSession ? {
         ...(collectedDrillScores.length ? { drillScores: collectedDrillScores } : {}),
         ...textToNumber('cardioValue', cardioValue),
@@ -964,6 +975,11 @@ function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft,
       <div className="gh">Intervalles</div>
       {repPaces.map((value, index) => <PaceField key={index} label={`Rép ${index + 1}`} value={value} onChange={(next) => setRepPaces((paces) => paces.map((pace, paceIndex) => paceIndex === index ? next : pace))} />)}
       <NumberField label="Répétitions faites" value={repsDone} onChange={setRepsDone} step={1} />
+    </div>}
+
+    {isHillRun && <div className="grp">
+      <div className="gh">Côtes</div>
+      <NumberField label="Sprints faits" value={repsDone} onChange={setRepsDone} step={1} />
     </div>}
 
     <div className="grp">

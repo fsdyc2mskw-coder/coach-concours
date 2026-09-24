@@ -11,7 +11,7 @@
 // `WEEK_3_CHAIN_SESSION_2026-09-22.md`: where they and the change-request
 // prose disagree, they win.
 import { describe, expect, it } from 'vitest';
-import { generatePlan, validateV4PoliceSessions, validateWeek } from '../coach/planner';
+import { generatePlan, validateV4PoliceSessions, validateWeek, weekNumberOf } from '../coach/planner';
 import { recipeById, recipes } from '../coach/recipes';
 import {
   buildChainSessionRecipe,
@@ -21,6 +21,7 @@ import {
   cardioBlocksOf,
   chainBlockOf,
   drillsOf,
+  focusStationOf,
   freshReferenceOf,
   isSessionShape,
   memoryModulesOf,
@@ -173,7 +174,10 @@ describe('CR-013 — a cardio block never contains the skill block’s station (
     for (const week of v4Weeks) {
       const skill = week.sessions.find((session) => session.kind === 'skill_session');
       if (!skill) continue;
-      const focus = skillBlockOf(recipeById[skill.recipeId]!)!.stationId;
+      // CR-013 v2: the focus comes from SEASON_PLAN; null while the table
+      // names none (weeks 9-10 'W8_WORST', week 11 'LIGHT').
+      const focus = focusStationOf(weekNumberOf(week.startDate));
+      if (focus === null) continue;
       for (const session of week.sessions.filter((item) => isSessionShape(item.kind))) {
         const cardio = cardioBlockOf(recipeById[session.recipeId]!)!;
         expect(cardio.atoms.map((atom) => atom.stationId)).not.toContain(focus);
@@ -191,30 +195,24 @@ describe('CR-013 — a cardio block never contains the skill block’s station (
     expect(errors.some((error) => error.includes('R-WS-29'))).toBe(true);
   });
 
-  it('is enforced: a card flagged fresh-only is refused in a cardio block (no card carries the flag today)', () => {
-    // The index's `state: 'fresh'` column is NOT this flag: both locked
-    // sessions put `state: 'fresh'` cards in their cardio blocks, and the
-    // locked files win. `freshOnly` is its own field — see APP_REPORT_013.md.
-    const errors = errorsOf({
-      skill: (recipe) => {
-        const cardio = cardioOf(recipe);
-        cardio.atoms[0] = { ...cardio.atoms[0]!, cardId: 'FIXTURE_fresh_only' };
-      }
-    });
-    // Unknown card id, so no fresh-only flag: the rule is not triggered by a
-    // card merely marked `fresh` in the index.
-    expect(errors.some((error) => error.includes('à froid'))).toBe(false);
+  it('a skipping atom may appear in a cardio block: no fresh-only exclusion is left (CR-013 v2, Q1)', () => {
+    const errors = errorsOf({ skill: (recipe) => { cardioOf(recipe).atoms[2] = cardRef('S10_block_switch_fresh'); } });
+    expect(errors).toEqual([]);
   });
 });
 
-describe('CR-013 — a skill block holds exactly one station and at most two drills (R-WS-25/26)', () => {
-  it('holds for every generated skill session', () => {
+describe('CR-013 — a skill block holds exactly one station and at most two cards (R-WS-25/26)', () => {
+  // CR-013 v2: "two cards at most" is counted in cards — the week 4 racket
+  // block scores five numbers from two cards. Placeholders have no drills
+  // and are tested in cr013v2.test.ts.
+  it('holds for every generated skill session that has content', () => {
     for (const session of policeSessions.filter((item) => item.kind === 'skill_session')) {
       const recipe = recipeById[session.recipeId]!;
-      const skill = skillBlockOf(recipe)!;
+      const skill = skillBlockOf(recipe);
+      if (!skill) continue;
       expect(typeof skill.stationId).toBe('number');
       expect(skill.drills.length).toBeGreaterThanOrEqual(1);
-      expect(skill.drills.length).toBeLessThanOrEqual(2);
+      expect(new Set(skill.drills.map((drill) => drill.cardId)).size).toBeLessThanOrEqual(2);
       expect(skill.durationMin).toBeGreaterThanOrEqual(16);
       expect(skill.durationMin).toBeLessThanOrEqual(20);
       // Every drill carries its own measure and its own id (R-WS-26).
@@ -228,11 +226,11 @@ describe('CR-013 — a skill block holds exactly one station and at most two dri
     }
   });
 
-  it('is enforced: a third drill is flagged', () => {
+  it('is enforced: a third card is flagged', () => {
     const errors = errorsOf({
       skill: (recipe) => {
         const skill = skillBlockOf(recipe)!;
-        skill.drills.push({ ...skill.drills[0]!, drillId: 'skill:extra' });
+        skill.drills.push({ ...cardRef('S08_return_dribble_same_side'), drillId: 'skill:extra', measure: 'balls_lost', scoreLabel: 'extra' });
       }
     });
     expect(errors.some((error) => error.includes('R-WS-25'))).toBe(true);

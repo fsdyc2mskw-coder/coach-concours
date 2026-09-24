@@ -2,21 +2,28 @@ import { buildRunIntervalsRecipe, recipeById, recipes } from './recipes';
 import type { PlanPhase, PlannedSession, SessionRecipe, SessionResult, TrainingWeek } from './types';
 import { nextRow, runIntervalsProgression, type RunIntervalsRow } from '../data/runIntervalsProgression';
 // CHANGE_REQUEST_013 — the two session shapes and their readers.
+// CHANGE_REQUEST_013 v2 — every number a week needs comes from SEASON_PLAN.
 import {
   buildChainSessionRecipe,
   buildSkillSessionRecipe,
+  buildTaperSessionRecipe,
+  buildWeekendRunRecipe,
+  blockOfKind,
   blockSequence,
   cardioBlocksOf,
-  cardioDurationForWeek,
   chainBlockOf,
   drillsOf,
+  focusStationOf,
   freshReferenceOf,
+  isPlaceholder,
   isSessionShape,
+  memoryBlockOf,
   memoryModulesOf,
+  powerSlotText,
+  seasonWeek,
   skillBlockOf,
   tailBOf
 } from './sessionShapes';
-import { isFreshOnly } from '../data/exerciseCards';
 
 const DAY_MS = 86_400_000;
 const start = new Date('2026-09-07T12:00:00Z');
@@ -148,8 +155,14 @@ function sessionsForWeek(weekStart: string, weekEnd: string, phase: PlanPhase, w
   // `weekly_shape.md` v4 states its own week shape "from week 3 on", and
   // CR-013 section E seeds week 3; weeks 1 and 2 are past weeks and keep what
   // they were generated/trained with (R-WS-14, R-WS-15) — see the APP_REPORT.
-  if (isV4Week(weekStart)) {
-    addBuilt(3, buildSkillSessionRecipe(weekNumber), 'low');
+  // CHANGE_REQUEST_013 v2 — Q3: the skill session is a MODERATE day from
+  // week 4 (weekly_shape.md v6); week 3 stays as locked (R-WS-15). Week 11
+  // has no chain session: the skill session moves to Wednesday 18 November
+  // and becomes the taper session, and Thursday 19 November stays empty.
+  if (weekNumber === 11) {
+    addBuilt(2, buildTaperSessionRecipe(), 'moderate');
+  } else if (isV4Week(weekStart)) {
+    addBuilt(3, buildSkillSessionRecipe(weekNumber), weekNumber === 3 ? 'low' : 'moderate');
     addBuilt(4, buildChainSessionRecipe(weekNumber), 'hard');
   } else {
     add(3, 'coordination', 'low'); // police_technique, Thursday
@@ -178,7 +191,11 @@ function sessionsForWeek(weekStart: string, weekEnd: string, phase: PlanPhase, w
       })
       .sort((a, b) => a.date.localeCompare(b.date));
   } else {
-    add(5, 'trailMaintenance', 'moderate');
+    // CHANGE_REQUEST_013 v2 — weeks 4 to 10: the distance of the table and,
+    // from week 7, the hill sprints. Week 3 and earlier keep the static recipe.
+    const weekendRun = buildWeekendRunRecipe(weekNumber);
+    if (weekendRun) addBuilt(5, weekendRun, 'moderate');
+    else add(5, 'trailMaintenance', 'moderate');
   }
 
   return planned.sort((a, b) => a.date.localeCompare(b.date));
@@ -438,6 +455,7 @@ export function validateV4PoliceSessions(week: TrainingWeek): string[] {
   const police = week.sessions.filter((session) => isSessionShape(session.kind));
   const skill = police.find((session) => session.kind === 'skill_session');
   const chain = police.find((session) => session.kind === 'chain_session');
+  const season = seasonWeek(weekNumber);
 
   // R-WS-07 v4: two police sessions, one of each shape, skill before chain.
   if (!isTaperEventWeek) {
@@ -449,9 +467,9 @@ export function validateV4PoliceSessions(week: TrainingWeek): string[] {
   }
 
   // R-WS-29: the station excluded from every cardio block of the week is the
-  // week's skill focus, not merely the skill session's own block.
-  const skillRecipe = skill ? recipeById[skill.recipeId] : undefined;
-  const focusStation = skillRecipe ? skillBlockOf(skillRecipe)?.stationId ?? null : null;
+  // week's skill focus, read from SEASON_PLAN (R-SP-01), not merely the skill
+  // session's own block. Null while the table names none ('W8_WORST', 'LIGHT').
+  const focusStation = focusStationOf(weekNumber);
 
   for (const session of police) {
     const recipe = recipeById[session.recipeId];
@@ -475,14 +493,11 @@ export function validateV4PoliceSessions(week: TrainingWeek): string[] {
       if (focusStation !== null && cardio.atoms.some((atom) => atom.stationId === focusStation)) {
         errors.push(`${label} : le bloc cardio ne peut pas contenir le poste travaillé en compétence cette semaine (R-WS-29).`);
       }
-      if (cardio.atoms.some((atom) => isFreshOnly(atom.cardId))) {
-        errors.push(`${label} : le bloc cardio ne peut pas contenir une carte réservée au travail à froid (R-WS-29).`);
-      }
       if (cardio.target !== null) {
         errors.push(`${label} : le bloc cardio ne porte aucune cible (R-WS-31).`);
       }
-      const expectedCardioMin = cardioDurationForWeek(weekNumber);
-      if (cardio.durationMin !== expectedCardioMin) {
+      const expectedCardioMin = season?.cardioMin;
+      if (expectedCardioMin !== undefined && cardio.durationMin !== expectedCardioMin) {
         errors.push(`${label} : le bloc cardio doit durer ${expectedCardioMin} min en semaine ${weekNumber} (R-WS-32).`);
       }
     }
@@ -499,6 +514,26 @@ export function validateV4PoliceSessions(week: TrainingWeek): string[] {
     }
     if (memoryModulesOf(recipe).includes('M5')) {
       errors.push(`${label} : le module M5 n’est jamais sélectionné (R-WS-40).`);
+    }
+    // R-MM-05: from week 4, both police sessions use the week's module.
+    if (season && season.memory !== 'LOCKED' && !memoryModulesOf(recipe).every((module) => module === season.memory)) {
+      errors.push(`${label} : le module mémoire de la semaine est ${season.memory} (R-MM-05).`);
+    }
+    // R-MM-04: from week 4, the skill session's memory block ends with the
+    // recall check, scored as errors out of 33.
+    if (season && season.week >= 4 && session.kind === 'skill_session'
+      && !(memoryBlockOf(recipe)?.drills ?? []).some((item) => item.measure === 'recall_errors')) {
+      errors.push(`${label} : le bloc mémoire se termine par le contrôle de rappel noté sur 33 (R-MM-04).`);
+    }
+    // R-WS-41: the warm-up ends with the power slot exactly when the table
+    // gives jumps for the week.
+    if (season && season.week >= 4) {
+      const hasPowerSlot = (recipe.warmup ?? '').includes('sauts en longueur');
+      if (season.powerJumps > 0 && !(recipe.warmup ?? '').includes(powerSlotText(season.powerJumps))) {
+        errors.push(`${label} : l’échauffement se termine par ${season.powerJumps} sauts en longueur (R-WS-41).`);
+      } else if (season.powerJumps === 0 && hasPowerSlot) {
+        errors.push(`${label} : pas de sauts en longueur cette semaine (R-WS-41).`);
+      }
     }
 
     const tailB = tailBOf(recipe);
@@ -567,15 +602,27 @@ export function validateV4PoliceSessions(week: TrainingWeek): string[] {
       }
     }
 
-    // R-WS-25: one station, two drills at most, 16-20 min, first block after
+    // R-WS-25: one station, two cards at most, 16-20 min, first block after
     // the memory block, and that station in no other block of the session.
-    if (session.kind === 'skill_session') {
+    // CHANGE_REQUEST_013 v2 — "two cards at most" is counted in cards: the
+    // week 4 racket block scores five numbers from two cards. A placeholder
+    // counts as the block (R-SP-06) and has no drills to count.
+    const skillKindBlock = blockOfKind(recipe, 'skill_block');
+    if (session.kind === 'skill_session' && skillKindBlock && isPlaceholder(skillKindBlock)) {
+      if (sequence.indexOf('skill_block') !== memoryIndex + 1) {
+        errors.push(`${label} : le bloc compétence est le premier bloc après la mémoire (R-WS-25).`);
+      }
+    } else if (session.kind === 'skill_session') {
       const skillBlock = skillBlockOf(recipe);
       if (!skillBlock) {
         errors.push(`${label} : une séance compétence porte un bloc compétence (R-WS-25).`);
       } else {
-        if (skillBlock.drills.length < 1 || skillBlock.drills.length > 2) {
-          errors.push(`${label} : le bloc compétence porte un ou deux exercices, pas plus (R-WS-25).`);
+        const cards = new Set(skillBlock.drills.map((item) => item.cardId));
+        if (skillBlock.drills.length < 1 || cards.size > 2) {
+          errors.push(`${label} : le bloc compétence porte une ou deux cartes, pas plus (R-WS-25).`);
+        }
+        if (focusStation !== null && skillBlock.stationId !== focusStation) {
+          errors.push(`${label} : le bloc compétence travaille le poste ${focusStation} cette semaine (R-WS-27).`);
         }
         if (skillBlock.durationMin < 16 || skillBlock.durationMin > 20) {
           errors.push(`${label} : le bloc compétence dure 16 à 20 min (R-WS-25).`);
@@ -623,18 +670,6 @@ export function hiitShortFormNotes(week: TrainingWeek, results: Record<string, S
     notes.push(`R-WS-09 : cours de CrossFit noté effort ${result.effort} → le bloc hiit de « ${recipeById[next.recipeId]?.title} » (${next.date}) devrait passer en forme courte, 10 min maximum.`);
   }
   return notes;
-}
-
-// CHANGE_REQUEST_001 — R-WS-12: counts sessions that carry a memory prompt.
-// weekly_shape.md v3 amends R-WS-12 to "four exposures, two per police
-// session" now that only two police sessions remain per week; today's
-// `SessionRecipe.memory` still holds a single prompt per session (recipe
-// content, out of CR-011's scope — see APP_REPORT_011.md), so a generated
-// week currently counts one exposure per memory-bearing session, not two per
-// police session. The taper/event week is exempt, matching its existing
-// exemption from the 5-session rule above.
-export function countMemoryExposures(week: TrainingWeek): number {
-  return week.sessions.filter((session) => recipeById[session.recipeId]?.memory).length;
 }
 
 function addDays(date: Date, count: number): string {
