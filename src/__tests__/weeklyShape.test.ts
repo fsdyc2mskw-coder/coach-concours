@@ -11,7 +11,7 @@
 // this file only keeps what it already checked: that the week still validates
 // clean, and that the v3 rules are not applied to it.
 import { describe, expect, it } from 'vitest';
-import { countMemoryExposures, generatePlan, hiitShortFormNotes, validateWeek } from '../coach/planner';
+import { generatePlan, hiitShortFormNotes, validateWeek } from '../coach/planner';
 import { memoryPromptsAskingToExplain, recipeById, recipes } from '../coach/recipes';
 import type { TrainingWeek } from '../coach/types';
 
@@ -93,13 +93,9 @@ describe('weekly_shape.md v3 hard rules, on a generic week (2026-09-14)', () => 
     expect(validateWeek(genericWeek)).not.toContain('Deux journées explosives sont adjacentes.');
   });
 
-  it('R-WS-12: memory-bearing sessions (engine still one prompt per session — see APP_REPORT_011.md)', () => {
-    // weekly_shape.md v3 amends R-WS-12 to "four exposures, two per police
-    // session"; the recipe content that would carry a second prompt per
-    // police session is out of CR-011's scope, so the generated week still
-    // exposes one prompt per memory-bearing session (crossfit + the two
-    // police sessions here).
-    expect(countMemoryExposures(genericWeek)).toBe(3);
+  it('R-WS-12: the runs carry no memory prompt (CR-013 v2 dropped the count-of-four)', () => {
+    // CHANGE_REQUEST_013 v2, Q4: one memory block per police session, at the
+    // start; the "four exposures" count of weekly_shape.md v3 is dropped.
     const runSession = genericWeek.sessions.find((session) => session.kind === 'trail_maintenance')!;
     expect(recipeById[runSession.recipeId]?.memory).toBeUndefined();
     const runIntervalsSession = genericWeek.sessions.find((session) => session.kind === 'run_intervals')!;

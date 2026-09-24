@@ -61,6 +61,10 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 .heroHead .kicker { font-family: var(--display); font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
 .heroHead h2 { font-family: var(--display); font-size: 30px; font-weight: 800; letter-spacing: -.02em; margin: 8px 0 4px; }
 .heroHead p { margin: 0; color: var(--sub); font-size: 14px; }
+/* CHANGE_REQUEST_013 v2 — the week bar: the season table's load, 1 to 5 squares. */
+.heroHead .weekbar { display: flex; gap: 4px; margin-top: 10px; }
+.heroHead .weekbar i { width: 16px; height: 6px; border-radius: 2px; background: var(--line); display: block; }
+.heroHead .weekbar i.on { background: var(--accent); }
 
 .wtabs { display: flex; gap: 22px; padding: 14px 0 0; border-bottom: 1px solid var(--line); font-family: var(--display); font-weight: 600; font-size: 15px; color: var(--mute); }
 .wtabs button { background: none; border: 0; color: inherit; font: inherit; padding: 0 0 10px; border-bottom: 2px solid transparent; }

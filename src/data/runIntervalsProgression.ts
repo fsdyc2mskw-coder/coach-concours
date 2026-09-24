@@ -1,3 +1,4 @@
+// CHANGE_REQUEST_013 v2 section F — the trail race is on SUNDAY 11 October.
 // CHANGE_REQUEST_011 — Tuesday run_intervals progression table, verbatim from
 // `02_Training_brain/rules/run_intervals_progression.md` v1 (15 September
 // 2026). One row per week 2 to 11; the generator reads the row for the week
@@ -30,7 +31,7 @@ export const runIntervalsProgression: RunIntervalsRow[] = [
   { week: 2, reps: 4, minutes: 3, paceSec: 360, jogSec: 180, purpose: 'base, apprendre l’allure I' },
   { week: 3, reps: 5, minutes: 3, paceSec: 360, jogSec: 150, purpose: 'volume' },
   { week: 4, reps: 4, minutes: 4, paceSec: 360, jogSec: 180, purpose: 'répétitions plus longues' },
-  { week: 5, reps: 3, minutes: 2, paceSec: 350, jogSec: 120, purpose: 'léger : trail le samedi 11 oct.' },
+  { week: 5, reps: 3, minutes: 2, paceSec: 350, jogSec: 120, purpose: 'léger : trail le dimanche 11 oct.' },
   { week: 6, reps: 4, minutes: 4, paceSec: 350, jogSec: 180, purpose: 'palier d’allure' },
   { week: 7, reps: 6, minutes: 2, paceSec: 330, jogSec: 120, purpose: 'vitesse de jambes' },
   { week: 8, reps: 3, minutes: 5, paceSec: 355, jogSec: 180, purpose: 'endurance, nouvelle référence', retest: true },

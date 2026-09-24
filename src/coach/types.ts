@@ -39,16 +39,22 @@ export type SessionKind =
 // `rules/test_battery.md` v2. R-TB-01 keeps it on exactly two sessions of the
 // week of 21 September 2026 and on no other session in any week; which two is
 // decided by session id in `baseline.ts`, never by date and never by kind.
+// CHANGE_REQUEST_013 v2 — `hill_sprints` added: the last block of the weekend
+// run from week 7 (R-WS-04 allows it, R-WS-43 sets the count).
 export type BlockKind =
   | 'warmup' | 'memory' | 'fresh_reference'
-  | 'skill_block' | 'chain_block' | 'cardio' | 'tail_b' | 'baseline' | 'cooldown';
+  | 'skill_block' | 'chain_block' | 'cardio' | 'tail_b' | 'baseline' | 'hill_sprints' | 'cooldown';
 
 export type CardioFormat = 'emom' | 'amrap' | 'for_time';
 
 // CHANGE_REQUEST_013 section C.
+// CHANGE_REQUEST_013 v2 — `touchdowns` (S09 and S11 on the board),
+// `balance_faults` (S09's "touchdowns + ball drops" in one number per
+// minute) and `recall_errors` (R-MM-04, errors out of 33).
 export type DrillMeasure =
   | 'drops' | 'foot_errors' | 'hand_errors' | 'balls_lost'
-  | 'restarts' | 'cones_touched' | 'swings' | 'round_time_s';
+  | 'restarts' | 'cones_touched' | 'swings' | 'round_time_s'
+  | 'touchdowns' | 'balance_faults' | 'recall_errors';
 
 // A card of `02_Training_brain/exercise_cards/00_INDEX.md`, referenced by its
 // id. `CardRef` and `DrillRef` are named but not defined by the change
@@ -75,6 +81,9 @@ export type MemoryModule = 'M1' | 'M2' | 'M3' | 'M4' | 'M5';
 export interface MemoryBlockSpec {
   kind: 'memory';
   modules: MemoryModule[];
+  // CHANGE_REQUEST_013 v2 — R-MM-04: from week 4 the skill session's memory
+  // block ends with the scored recall check.
+  drills?: DrillRef[];
 }
 
 // R-WS-37: the same-day clean reference a tail is measured against.
@@ -116,8 +125,11 @@ export interface CardioBlock {
   kind: 'cardio';
   format: CardioFormat;
   atoms: CardRef[];         // 1..3, NEVER more
-  durationMin: number;      // 12..15 from week 4; week 3 is 10
+  durationMin: number;      // SEASON_PLAN[week].cardioMin (R-WS-32)
   target: null;             // always null, there is no target
+  // CHANGE_REQUEST_013 v2 — the atoms removed from a reused cardio entry
+  // because they belong to the week's focus station ("atomes à remplacer").
+  toReplace?: CardRef[];
 }
 
 export interface TailMinute {
@@ -200,6 +212,9 @@ export interface ExerciseBlock {
   hiit?: HiitSpec;
   kind?: BlockKind;
   spec?: BlockSpec;
+  // CHANGE_REQUEST_013 v2 section D — a named gap (R-SP-03): no spec, no
+  // drills, no score box, "À construire dans Cowork".
+  placeholder?: boolean;
 }
 
 export interface MemoryPrompt {
