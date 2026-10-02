@@ -9,7 +9,11 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // CHANGE_REQUEST_015 section A — the app must never silently swap the
+      // code under the athlete: 'prompt' registers the new service worker
+      // without activating it, and CoachConcoursApp's UpdateBanner is the
+      // only thing that calls updateServiceWorker(true).
+      registerType: 'prompt',
       includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png'],
       manifest: {
         name: 'Coach Concours',

@@ -10,19 +10,22 @@ The thinking (rules, cards, weekly plans) lives in Google Drive; you only see it
    files it lists under "Inputs". Nothing else unless the CR points to it.
 
 ## Tier
-- The issue label `tier:FAST`, `tier:MID` or `tier:TOP` sets your model and effort.
-- The CR header carries a `Tier:` line. If the label and the header disagree, stop before
-  touching code and say so in a comment.
-- State the tier in your first comment.
+- The CR header carries a `Tier:` line. It sets your model and effort.
+- State the tier in your first comment, and say if the model you run on does not match.
 
 ## How to work
 - One change request per issue, exactly as written. Out-of-scope items are not touched.
-- Work on a branch `cr-nnn`, open a pull request titled `CR-nnn <short title>`. Never merge.
+- Branch names are `cr-nnn-short-title`, never the bare `cr-nnn`, cut with no upstream
+  (`git switch --no-track -c cr-nnn-short-title origin/main`). Open a pull request titled
+  `CR-nnn <short title>`.
 - Keep CI steps as they are (`no-personal-names`, validate, typecheck, test, build, deploy).
 - Add tests to the existing harness when the CR lists tests. Do not fix unrelated bugs; list them.
 - Write `handoffs/APP_REPORT_nnn.md` in the same pull request: what changed, substitutions,
-  questions, files touched, verification, and the commit hash. The tag `cr-nnn` is created
-  automatically when the pull request is merged.
+  questions, files touched, verification, and the commit hash.
+- The coder never tags, never merges and never pushes to main. The athlete merges the pull
+  request on GitHub. After she confirms the merge, the Cowork chat publishes the tag `cr-nnn`
+  (or `cr-nnn-v2` for a version) on the merge commit, through the GitHub Releases page in her
+  own browser. Nothing creates a tag automatically.
 
 ## Never
 - A person's name, e-mail, hostname, device name or personal folder path in any file or

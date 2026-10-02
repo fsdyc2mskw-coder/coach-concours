@@ -54,6 +54,9 @@ importers:
       vitest:
         specifier: ^3.0.5
         version: 3.2.7(@types/node@26.5.1)(jsdom@26.1.0)(terser@5.51.2)
+      workbox-window:
+        specifier: ^7.3.0
+        version: 7.4.1
 
 packages:
 

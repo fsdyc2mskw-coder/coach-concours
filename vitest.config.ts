@@ -7,6 +7,14 @@ import { defineConfig } from 'vitest/config';
 // providing IndexedDB (jsdom does not implement it), which matches how the
 // storage layer already degrades to its localStorage fallback.
 export default defineConfig({
+  // CHANGE_REQUEST_015 — `virtual:pwa-register/react` only exists inside the
+  // real PWA plugin pipeline this config deliberately stays off (see the
+  // comment above); test runs alias it to the stub in src/testing/.
+  resolve: {
+    alias: {
+      'virtual:pwa-register/react': new URL('./src/testing/mockPwaRegister.ts', import.meta.url).pathname
+    }
+  },
   test: {
     environment: 'jsdom',
     include: ['src/**/*.test.ts']

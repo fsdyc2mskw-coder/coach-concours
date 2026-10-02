@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+// CHANGE_REQUEST_015 section A — the update banner reads this hook's own
+// state; nothing else in the app talks to the service worker directly.
+import { useRegisterSW } from 'virtual:pwa-register/react';
 import { flowStrip, recipeById, runIntervalsRepsById } from './coach/recipes';
 // CHANGE_REQUEST_014 — the move layer and the checker. `generatePlan` is no
 // longer imported here: every plan this file builds now goes through
@@ -68,6 +71,13 @@ export default function CoachConcoursApp() {
   const sessionRef = useRef<GoogleSession | null>(null);
   const autoSyncTimer = useRef<number | null>(null);
   sessionRef.current = session;
+  // CHANGE_REQUEST_015 section A — `registerType: 'prompt'` in vite.config.ts
+  // means the new worker sits ready but inactive until this banner's
+  // "Recharger" button calls `updateServiceWorker(true)`. The check for a
+  // waiting build runs on open and on every return to the foreground
+  // (`onRegisteredSW`'s own periodic check plus the browser's normal
+  // visibilitychange-triggered update check; no extra polling added here).
+  const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW();
 
   const setTab = (next: Tab) => { setTabState(next); setDrill({ screen: 'list' }); };
 
@@ -233,6 +243,7 @@ export default function CoachConcoursApp() {
   const found = drill.screen !== 'list' ? findPlanned(state, drill.sessionId) : null;
 
   return <main className="shell">
+    {needRefresh && <UpdateBanner onReload={() => updateServiceWorker(true)} />}
     {drill.screen === 'list' && <header className="topbar"><div className="brand"><span className="brandMark">C↗</span><span>COACH<br /><b>CONCOURS</b></span></div><span className={`syncDot syncDot--${state.drive.status}`}>{state.drive.status === 'synced' ? 'Drive à jour' : state.drive.status === 'pending' ? 'À synchroniser' : 'Copie locale'}</span></header>}
 
     {tab === 'week' && drill.screen === 'list' && <WeekScreen state={state} weekIndex={weekIndex} setWeekIndex={setWeekIndex} openSession={openSession} setDayMoves={setDayMoves} />}
@@ -251,6 +262,16 @@ export default function CoachConcoursApp() {
     {notice && <button className="notice" onClick={() => setNotice('')} type="button" aria-label="Fermer le message">{notice}<span>×</span></button>}
     {drill.screen === 'list' && <nav className="tabbar" aria-label="Navigation principale"><button className={tab === 'week' ? 'on' : ''} onClick={() => setTab('week')} aria-label="Semaine">▤</button><button className={tab === 'journey' ? 'on' : ''} onClick={() => setTab('journey')} aria-label="Parcours">↗</button><button className={tab === 'drive' ? 'on' : ''} onClick={() => setTab('drive')} aria-label="Drive">☁</button></nav>}
   </main>;
+}
+
+// CHANGE_REQUEST_015 section A — one banner, one button, no other UI: the
+// dark card and accent-button tokens are the same ones CR-010 already put in
+// coach.css. It never reloads on its own: only the tap does.
+function UpdateBanner({ onReload }: { onReload: () => void }) {
+  return <div className="updateBanner" role="status">
+    <span>Nouvelle version disponible</span>
+    <button type="button" className="primary" onClick={onReload}>Recharger</button>
+  </div>;
 }
 
 function findPlanned(state: CoachState, sessionId: string): PlannedSession | null {
