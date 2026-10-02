@@ -41,9 +41,12 @@ export type SessionKind =
 // decided by session id in `baseline.ts`, never by date and never by kind.
 // CHANGE_REQUEST_013 v2 — `hill_sprints` added: the last block of the weekend
 // run from week 7 (R-WS-04 allows it, R-WS-43 sets the count).
+// CHANGE_REQUEST_013 v3 — `power_emom` added: the POWER EMOM of the engine
+// chain session (weekly_shape.md v7). Its own kind, so it can never satisfy
+// "one cardio block per police session" (R-WS-16).
 export type BlockKind =
   | 'warmup' | 'memory' | 'fresh_reference'
-  | 'skill_block' | 'chain_block' | 'cardio' | 'tail_b' | 'baseline' | 'hill_sprints' | 'cooldown';
+  | 'skill_block' | 'chain_block' | 'power_emom' | 'cardio' | 'tail_b' | 'baseline' | 'hill_sprints' | 'cooldown';
 
 export type CardioFormat = 'emom' | 'amrap' | 'for_time';
 
@@ -54,7 +57,9 @@ export type CardioFormat = 'emom' | 'amrap' | 'for_time';
 export type DrillMeasure =
   | 'drops' | 'foot_errors' | 'hand_errors' | 'balls_lost'
   | 'restarts' | 'cones_touched' | 'swings' | 'round_time_s'
-  | 'touchdowns' | 'balance_faults' | 'recall_errors';
+  | 'touchdowns' | 'balance_faults' | 'recall_errors'
+  // CHANGE_REQUEST_013 v3 — the best jump of the power EMOM, in cm.
+  | 'best_jump_cm';
 
 // A card of `02_Training_brain/exercise_cards/00_INDEX.md`, referenced by its
 // id. `CardRef` and `DrillRef` are named but not defined by the change
@@ -100,16 +105,19 @@ export interface SkillBlock { // one station, two cards at most
   durationMin: number;      // 16..20
 }
 
+// CHANGE_REQUEST_013 v3 — from week 5 the chain session is the ENGINE chain
+// (weekly_shape.md v7): no tail A (R-WS-34) and a hard chain block, so both
+// tail A fields are optional and the intensity can be `hard`.
 export interface ChainBlock {
   kind: 'chain_block';
   rounds: number;
   stations: number[];       // 2 or more, in order
   transitionNote: string;   // the walk between stations IS the training
-  tailA: DrillRef;          // 30..45 s, the same drill every round
+  tailA?: DrillRef;         // 30..45 s, the same drill every round; none from week 5
   // Not in the change request's own interface: R-WS-34 fixes tail A at 30 to
   // 45 s and the locked chain session writes 30 s, so the number has to live
   // somewhere to be checked. Added here rather than guessed at check time.
-  tailASeconds: number;
+  tailASeconds?: number;
   // Not in the change request's own interface either: the locked chain
   // session scores the chain block itself ("SCORE: time per round · cones
   // touched"), which section C's list (skill block, tail, fresh reference)
@@ -118,7 +126,7 @@ export interface ChainBlock {
   roundScores: DrillRef[];
   restS: number;
   durationMin: number;
-  intensity: 'moderate';
+  intensity: 'moderate' | 'hard';
 }
 
 export interface CardioBlock {
@@ -130,6 +138,21 @@ export interface CardioBlock {
   // CHANGE_REQUEST_013 v2 — the atoms removed from a reused cardio entry
   // because they belong to the week's focus station ("atomes à remplacer").
   toReplace?: CardRef[];
+  // CHANGE_REQUEST_013 v3 — the one-minute finisher of "Quatre coins" (week 5
+  // skill session). Not an atom: the plan counts four atoms in that block.
+  finisher?: CardRef;
+  // CHANGE_REQUEST_013 v3 — the label of the Retour box when "Tours faits" or
+  // "Minutes tenues" does not describe what the block records.
+  valueLabel?: string;
+}
+
+// CHANGE_REQUEST_013 v3 — the POWER EMOM of the engine chain session: hard,
+// scored by the best jump, never the session's cardio block (R-WS-16).
+export interface PowerEmomSpec {
+  kind: 'power_emom';
+  atoms: CardRef[];
+  durationMin: number;
+  drills: DrillRef[];
 }
 
 export interface TailMinute {
@@ -165,6 +188,7 @@ export type BlockSpec =
   | ChainBlock
   | CardioBlock
   | TailB
+  | PowerEmomSpec
   | BaselineBlockSpec;
 
 // CHANGE_REQUEST_013 section C — one numeric score per drill, stored per

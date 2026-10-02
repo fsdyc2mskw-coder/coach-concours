@@ -7,6 +7,7 @@ import {
   buildChainSessionRecipe,
   buildSkillSessionRecipe,
   buildTaperSessionRecipe,
+  buildTuesdayHillSprintsRecipe,
   buildWeekendRunRecipe,
   blockOfKind,
   blockSequence,
@@ -15,8 +16,10 @@ import {
   drillsOf,
   focusStationOf,
   freshReferenceOf,
+  isEngineChainWeek,
   isPlaceholder,
   isSessionShape,
+  maxCardioAtoms,
   memoryBlockOf,
   memoryModulesOf,
   powerSlotText,
@@ -78,16 +81,22 @@ export function generatePlan(results: Record<string, SessionResult> = {}): Train
 // `run_intervals_progression.md` describes); `advanceFaster` moves on but
 // with the pace 10 s/km faster than the table's own value. Week 11 (taper)
 // is never moved, per the CR.
+// CHANGE_REQUEST_013 v3 — run_intervals_progression.md v4: a week whose
+// Tuesday is the hill sprints (week 9, SEASON_PLAN) gets no row and does not
+// move the cursor, so the sprints stay on their date whatever the repeat rule
+// did before; a travel week runs its row on the treadmill.
 function computeRunIntervalsRows(results: Record<string, SessionResult>): Map<number, RunIntervalsRow> {
   const rows = new Map<number, RunIntervalsRow>();
   let cursor = 0;
   let pendingPaceAdjustSec = 0;
   for (let weekNumber = 2; weekNumber <= 11; weekNumber += 1) {
+    if (seasonWeek(weekNumber)?.hillSprintsDay === 'TUE') continue;
     const tableRow = runIntervalsProgression[Math.min(cursor, runIntervalsProgression.length - 1)]!;
     const row: RunIntervalsRow = {
       ...tableRow,
       week: weekNumber,
-      paceSec: tableRow.paceSec + pendingPaceAdjustSec
+      paceSec: tableRow.paceSec + pendingPaceAdjustSec,
+      ...(seasonWeek(weekNumber)?.travel ? { treadmill: true } : {})
     };
     rows.set(weekNumber, row);
     pendingPaceAdjustSec = 0;
@@ -138,15 +147,26 @@ function sessionsForWeek(weekStart: string, weekEnd: string, phase: PlanPhase, w
     planned.push({ id: `${date}:${recipe.kind}`, date, dayLabel: dayName(date), kind: recipe.kind, recipeId: recipe.id, status: 'proposed', phase: phaseFor(date), load, volumeFactor: phase === 'reset' ? 0.75 : phase === 'taper' ? 0.6 : 1 });
   };
 
-  add(0, 'crossfit', 'hard', 'coached');
-  if (runIntervalsRow) {
-    const recipe = buildRunIntervalsRecipe(runIntervalsRow);
+  // CHANGE_REQUEST_013 v3 — SEASON_PLAN v3 columns: no Monday CrossFit in a
+  // travel week (W7-W8); the extra Saturday class (W6, W9) is a CrossFit day,
+  // content external, load hard, recorded only (R-SP-07, R-WS-44).
+  const season = seasonWeek(weekNumber);
+  if (!season?.travel) add(0, 'crossfit', 'hard', 'coached');
+  if (season?.crossfitPlus && season.crossfitPlus >= weekStart && season.crossfitPlus <= weekEnd) {
+    add(daysBetween(weekStart, season.crossfitPlus), 'crossfit', 'hard', 'coached');
+  }
+  // CHANGE_REQUEST_013 v3 — the Tuesday: the progression row, or in week 9 the
+  // hill sprints. The reset and taper volumeFactor never touches it: the main
+  // set is the table, as written (R-WS-20), so its factor stays 1.
+  const tuesdayRecipe = buildTuesdayHillSprintsRecipe(weekNumber) ?? (runIntervalsRow ? buildRunIntervalsRecipe(runIntervalsRow) : null);
+  if (tuesdayRecipe) {
     const date = addDays(new Date(`${weekStart}T12:00:00Z`), 1);
     if (date <= weekEnd && date <= finalDate) {
+      recipeById[tuesdayRecipe.id] = tuesdayRecipe;
       planned.push({
-        id: `${date}:run_intervals`, date, dayLabel: dayName(date), kind: 'run_intervals', recipeId: recipe.id,
+        id: `${date}:run_intervals`, date, dayLabel: dayName(date), kind: 'run_intervals', recipeId: tuesdayRecipe.id,
         status: 'proposed', phase: phaseFor(date), load: 'hard',
-        volumeFactor: phase === 'reset' ? 0.75 : phase === 'taper' ? 0.6 : 1
+        volumeFactor: 1
       });
     }
   }
@@ -159,11 +179,15 @@ function sessionsForWeek(weekStart: string, weekEnd: string, phase: PlanPhase, w
   // week 4 (weekly_shape.md v6); week 3 stays as locked (R-WS-15). Week 11
   // has no chain session: the skill session moves to Wednesday 18 November
   // and becomes the taper session, and Thursday 19 November stays empty.
+  // CHANGE_REQUEST_013 v3 — week 5 puts the skill session on Wednesday 7 and
+  // the engine chain on Thursday 8 (WEEK_5_FINAL wins for week 5); the travel
+  // weeks do the same (season_plan.md v3, "Travel weeks").
   if (weekNumber === 11) {
     addBuilt(2, buildTaperSessionRecipe(), 'moderate');
   } else if (isV4Week(weekStart)) {
-    addBuilt(3, buildSkillSessionRecipe(weekNumber), weekNumber === 3 ? 'low' : 'moderate');
-    addBuilt(4, buildChainSessionRecipe(weekNumber), 'hard');
+    const wednesdayThursday = weekNumber === 5 || season?.travel === true;
+    addBuilt(wednesdayThursday ? 2 : 3, buildSkillSessionRecipe(weekNumber), weekNumber === 3 ? 'low' : 'moderate');
+    addBuilt(wednesdayThursday ? 3 : 4, buildChainSessionRecipe(weekNumber), 'hard');
   } else {
     add(3, 'coordination', 'low'); // police_technique, Thursday
     // R-WS-07 v3: integration and strength_transitions alternate by week
@@ -193,8 +217,10 @@ function sessionsForWeek(weekStart: string, weekEnd: string, phase: PlanPhase, w
   } else {
     // CHANGE_REQUEST_013 v2 — weeks 4 to 10: the distance of the table and,
     // from week 7, the hill sprints. Week 3 and earlier keep the static recipe.
+    // CHANGE_REQUEST_013 v3 — the table's run day: Sunday in W6 and W9, where
+    // Saturday is the CrossFit class.
     const weekendRun = buildWeekendRunRecipe(weekNumber);
-    if (weekendRun) addBuilt(5, weekendRun, 'moderate');
+    if (weekendRun) addBuilt(season?.runDay === 'SUN' ? 6 : 5, weekendRun, 'moderate');
     else add(5, 'trailMaintenance', 'moderate');
   }
 
@@ -320,12 +346,22 @@ export function validateWeek(week: TrainingWeek): string[] {
     }
   }
 
+  // CHANGE_REQUEST_013 v3 — SEASON_PLAN v3: a travel week has no Monday
+  // CrossFit (one session fewer) and a crossfit_plus week has the extra
+  // Saturday class (one more); the class is moved, never added on top of a
+  // full week (R-WS-14).
+  const season = seasonWeek(weekNumberOf(week.startDate));
+  const crossfitPlusDate = season?.crossfitPlus ?? null;
+  const expectedSessions = 5 + (crossfitPlusDate ? 1 : 0) - (season?.travel ? 1 : 0);
+
   // R-WS-01: 5 principal sessions + 2 empty days (the taper/event week is a
   // documented exception, as it already was before this change request).
-  if (!isTaperEventWeek && week.sessions.length !== 5) errors.push('Une semaine complète doit compter cinq séances principales.');
+  if (!isTaperEventWeek && week.sessions.length !== expectedSessions) {
+    errors.push(expectedSessions === 5 ? 'Une semaine complète doit compter cinq séances principales.' : `Cette semaine doit compter ${expectedSessions} séances principales (SEASON_PLAN, R-WS-01).`);
+  }
 
-  // R-WS-02: Monday is the coached CrossFit class.
-  if (!isTaperEventWeek && !week.sessions.some((session) => session.kind === 'crossfit_class')) errors.push('Le CrossFit coaché du lundi manque.');
+  // R-WS-02: Monday is the coached CrossFit class (none in a travel week).
+  if (!isTaperEventWeek && !season?.travel && !week.sessions.some((session) => session.kind === 'crossfit_class')) errors.push('Le CrossFit coaché du lundi manque.');
 
   // R-WS-07 v3: two police sessions per week — police_technique on Thursday,
   // and exactly one of integration / strength_transitions on Friday (they
@@ -372,17 +408,23 @@ export function validateWeek(week: TrainingWeek): string[] {
   // v3's own R-WS-11 text still lists only Thursday/Friday — flagged as an
   // apparent gap in the rule text, not silently resolved, in
   // handoffs/APP_REPORT_011.md.
+  // CHANGE_REQUEST_013 v3 — a crossfit_plus day counts as hard whatever
+  // load it carries (R-SP-07, R-WS-44), and the chain session the day before
+  // it is the second accepted pair: the athlete placed the class on that
+  // Saturday (season_plan.md v3), raised as a question in APP_REPORT_013_v3.
+  const isHardDay = (session: PlannedSession | undefined) => session?.load === 'hard' || (crossfitPlusDate !== null && session?.date === crossfitPlusDate && session.kind === 'crossfit_class');
   for (let index = 1; index < week.sessions.length; index += 1) {
     const previous = week.sessions[index - 1];
     const current = week.sessions[index];
     const isMondayTuesday = previous?.kind === 'crossfit_class' && current?.kind === 'run_intervals';
-    if (!isMondayTuesday && previous?.load === 'hard' && current?.load === 'hard' && daysBetween(previous.date, current.date) === 1) {
+    const isChainCrossfitPlus = previous?.kind === 'chain_session' && current?.kind === 'crossfit_class' && current.date === crossfitPlusDate;
+    if (!isMondayTuesday && !isChainCrossfitPlus && isHardDay(previous) && isHardDay(current) && daysBetween(previous!.date, current!.date) === 1) {
       errors.push('Deux journées explosives sont adjacentes.');
     }
   }
   for (let index = 2; index < week.sessions.length; index += 1) {
     const [a, b, c] = [week.sessions[index - 2], week.sessions[index - 1], week.sessions[index]];
-    if (a?.load === 'hard' && b?.load === 'hard' && c?.load === 'hard' && daysBetween(a.date, c.date) === 2) {
+    if (isHardDay(a) && isHardDay(b) && isHardDay(c) && daysBetween(a!.date, c!.date) === 2) {
       errors.push('Trois journées explosives consécutives.');
     }
   }
@@ -484,10 +526,15 @@ export function validateV4PoliceSessions(week: TrainingWeek): string[] {
       errors.push(`${label} : exactement un bloc cardio par séance ; un bloc d’enchaînement n’en est pas un (R-WS-16).`);
     }
     for (const cardio of cardioBlocks) {
-      if (cardio.atoms.length < 1 || cardio.atoms.length > 3) {
+      // CHANGE_REQUEST_013 v3 — the recorded exceptions are a list in data
+      // (CARDIO_ATOM_EXCEPTIONS), not a relaxed rule.
+      if (cardio.atoms.length < 1 || cardio.atoms.length > maxCardioAtoms(weekNumber, session.kind as 'skill_session' | 'chain_session')) {
         errors.push(`${label} : le bloc cardio compte au maximum trois atomes (R-WS-30).`);
       }
-      if (cardio.atoms.length > 0 && cardio.atoms.every((atom) => atom.stationId === 0)) {
+      // CHANGE_REQUEST_013 v3 — a reused block whose real atoms were removed
+      // and named "à remplacer" (travel weeks) is a named gap waiting for the
+      // week build (R-SP-03), not a block made of fillers.
+      if (cardio.atoms.length > 0 && cardio.atoms.every((atom) => atom.stationId === 0) && !(cardio.toReplace ?? []).some((atom) => atom.stationId !== 0)) {
         errors.push(`${label} : le bloc cardio ne peut pas n’être fait que d’atomes de remplissage (R-WS-28).`);
       }
       if (focusStation !== null && cardio.atoms.some((atom) => atom.stationId === focusStation)) {
@@ -547,7 +594,7 @@ export function validateV4PoliceSessions(week: TrainingWeek): string[] {
         errors.push(`${label} : une séance avec une tail doit porter une référence fraîche prise le même jour (R-WS-37).`);
       } else {
         const freshIndex = sequence.indexOf('fresh_reference');
-        const hardIndexes = (['chain_block', 'cardio', 'skill_block'] as const)
+        const hardIndexes = (['power_emom', 'chain_block', 'cardio', 'skill_block'] as const)
           .map((kind) => sequence.indexOf(kind))
           .filter((index) => index !== -1);
         const firstHard = hardIndexes.length ? Math.min(...hardIndexes) : sequence.length;
@@ -582,6 +629,14 @@ export function validateV4PoliceSessions(week: TrainingWeek): string[] {
       }
     }
 
+    // CHANGE_REQUEST_013 v3 — from week 5 the chain session is the ENGINE
+    // chain (weekly_shape.md v7): a power EMOM, no tail A (R-WS-34), and more
+    // than one hard block on purpose, which R-WS-04/R-TL-04 do not flag.
+    const engine = session.kind === 'chain_session' && isEngineChainWeek(weekNumber);
+    if (engine && !blockOfKind(recipe, 'power_emom')) {
+      errors.push(`${label} : l’enchaînement moteur porte un EMOM puissance (R-WS-41).`);
+    }
+
     if (chainBlock) {
       // R-PC-05: at least two stations linked, transition trained.
       if (chainBlock.stations.length < 2) {
@@ -590,14 +645,21 @@ export function validateV4PoliceSessions(week: TrainingWeek): string[] {
       if (!chainBlock.transitionNote) {
         errors.push(`${label} : la transition entre les postes doit être décrite, c’est elle qui est entraînée (R-PC-05).`);
       }
-      // R-WS-34: tail A closes every round, 30 to 45 s, the same drill.
-      if (chainBlock.tailASeconds < 30 || chainBlock.tailASeconds > 45) {
-        errors.push(`${label} : la tail A dure 30 à 45 s (R-WS-34).`);
+      if (engine) {
+        // R-WS-34 v7: no tail A in the engine chain.
+        if (chainBlock.tailA) {
+          errors.push(`${label} : pas de tail A dans l’enchaînement moteur (R-WS-34).`);
+        }
+      } else {
+        // R-WS-34: tail A closes every round, 30 to 45 s, the same drill.
+        if (!chainBlock.tailA || chainBlock.tailASeconds === undefined || chainBlock.tailASeconds < 30 || chainBlock.tailASeconds > 45) {
+          errors.push(`${label} : la tail A dure 30 à 45 s (R-WS-34).`);
+        }
+        if (chainBlock.intensity !== 'moderate') {
+          errors.push(`${label} : le bloc d’enchaînement se fait à allure modérée (R-WS-34).`);
+        }
       }
-      if (chainBlock.intensity !== 'moderate') {
-        errors.push(`${label} : le bloc d’enchaînement se fait à allure modérée (R-WS-34).`);
-      }
-      if (focusStation !== null && chainBlock.tailA.stationId === focusStation) {
+      if (focusStation !== null && chainBlock.tailA?.stationId === focusStation) {
         errors.push(`${label} : une tail n’utilise jamais le poste travaillé en compétence cette semaine (R-WS-36).`);
       }
     }

@@ -5,6 +5,11 @@
 // pass" list, in its order. The reference for week 4 is
 // `handoffs/WEEK_4_PLAN_2026-09-28.md`; for every other number,
 // `handoffs/rules/season_plan.md` v2 (THE TABLE).
+//
+// CHANGE_REQUEST_013 v3 — weeks 3 and 4 are unchanged and their assertions
+// stay as written. Every assertion on weeks 5 to 11 is re-pointed to
+// season_plan.md v3; the v3 table itself and the new behaviour are tested in
+// `cr013v3.test.ts`.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
@@ -12,16 +17,13 @@ import CoachConcoursApp from '../CoachConcoursApp';
 import { generatePlan, validateV4PoliceSessions, validateWeek } from '../coach/planner';
 import { recipeById } from '../coach/recipes';
 import {
-  ATOMS_TO_REPLACE,
   PLACEHOLDER_LINE,
   SEASON_PLAN,
-  blockOfKind,
   blockSequence,
   buildChainSessionRecipe,
   buildSkillSessionRecipe,
   cardioBlockOf,
   chainBlockOf,
-  drillsOf,
   drillsOfBlock,
   freshReferenceOf,
   isSessionShape,
@@ -29,8 +31,7 @@ import {
   memoryModulesOf,
   skillBlockOf,
   skillStationOf,
-  tailBOf,
-  type SeasonWeek
+  tailBOf
 } from '../coach/sessionShapes';
 import { cardById } from '../data/exerciseCards';
 import { runIntervalsProgression } from '../data/runIntervalsProgression';
@@ -51,26 +52,7 @@ const policeRecipes = (week: TrainingWeek) => week.sessions.filter((item) => isS
 
 // ---------- 1. the table ----------
 
-describe('CR-013 v2 — SEASON_PLAN reproduces the table cell for cell', () => {
-  // The change request's table, column for column:
-  //  wk load focus  cardio power memory chain        tails    run        hill base  build
-  const expected: SeasonWeek[] = [
-    { week: 3, load: 3, focus: 8, cardioMin: 10, powerJumps: 0, memory: 'LOCKED', chain: 'locked', tails: 'racket', runKm: [8, 9], hillSprints: 0, baseline: true, buildWeek: false },
-    { week: 4, load: 4, focus: 11, cardioMin: 12, powerJumps: 3, memory: 'M1', chain: 'chain_A', tails: 'balance', runKm: [10, 11], hillSprints: 0, baseline: false, buildWeek: true },
-    { week: 5, load: 2, focus: 10, cardioMin: 10, powerJumps: 3, memory: 'M2', chain: 'chain_B', tails: 'balance', runKm: 'RACE', hillSprints: 0, baseline: false, buildWeek: false },
-    { week: 6, load: 2, focus: 8, cardioMin: 12, powerJumps: 3, memory: 'M2', chain: 'chain_B', tails: 'balance', runKm: [7, 7], hillSprints: 0, baseline: false, buildWeek: true },
-    { week: 7, load: 4, focus: 1, cardioMin: 13, powerJumps: 5, memory: 'M3', chain: 'ghost', ghostStations: [1, 6], tails: 'racket', runKm: [7, 8], hillSprints: 6, baseline: false, buildWeek: true },
-    { week: 8, load: 5, focus: 10, cardioMin: 15, powerJumps: 5, memory: 'M3', chain: 'ghost', ghostStations: [6, 11], tails: 'racket', runKm: [7, 8], hillSprints: 8, baseline: false, buildWeek: true },
-    { week: 9, load: 5, focus: 'W8_WORST', cardioMin: 15, powerJumps: 5, memory: 'M4', chain: 'ghost', ghostStations: [1, 11], tails: 'racket', runKm: [7, 8], hillSprints: 10, baseline: false, buildWeek: true },
-    { week: 10, load: 3, focus: 'W8_WORST', cardioMin: 12, powerJumps: 5, memory: 'M4', chain: 'ghost', ghostStations: [1, 11], tails: 'racket', runKm: [7, 7], hillSprints: 6, baseline: false, buildWeek: false },
-    { week: 11, load: 1, focus: 'LIGHT', cardioMin: 6, powerJumps: 0, memory: 'M4', chain: 'ghost_walk', tails: 'none', runKm: null, hillSprints: 0, baseline: false, buildWeek: false }
-  ];
-
-  it('has exactly weeks 3 to 11, each equal to its row', () => {
-    expect(Object.keys(SEASON_PLAN).map(Number)).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11]);
-    for (const row of expected) expect(SEASON_PLAN[row.week]).toEqual(row);
-  });
-
+describe('CR-013 v2 — SEASON_PLAN build weeks (the full v3 table is in cr013v3.test.ts)', () => {
   it('only week 3 carries the baseline, and the build weeks are 4, 6, 7, 8, 9 (R-SP-04)', () => {
     expect(Object.values(SEASON_PLAN).filter((row) => row.baseline).map((row) => row.week)).toEqual([3]);
     expect(Object.values(SEASON_PLAN).filter((row) => row.buildWeek).map((row) => row.week)).toEqual([4, 6, 7, 8, 9]);
@@ -102,7 +84,7 @@ describe('CR-013 v2 — week 3 still reproduces the two locked sessions block fo
     expect(chain.blocks[2]!.faire).toBe('3 tours, 90 s de récupération entre les tours. Slalom 18 m, aller tout droit, slalom au retour. Puis la marche jusqu’aux espaliers. Puis espaliers, 3 passages, monter et sauter. Puis TAIL A : raquette et balle sur la planche d’équilibre, 30 s.');
     expect(chain.blocks[2]!.noter).toBe('Temps par tour · cônes touchés · chutes sur la planche.');
     expect(chain.blocks[3]!.faire).toBe('Minute 1 : carioca, 18 m aller-retour. Minute 2 : 10 jump squats. Minute 3 : 40 appuis en montées de genoux. Puis les trois mêmes à nouveau, jusqu’à la minute 10.');
-    expect(chainBlockOf(chain)!.tailA.cardId).toBe('S11_racket_on_board');
+    expect(chainBlockOf(chain)!.tailA!.cardId).toBe('S11_racket_on_board');
     expect(tailBOf(chain)!.minutes.map((minute) => minute.drill.cardId)).toEqual(['S11_racket_on_board', 'S11_racket_obstacles', 'S11_racket_on_board', 'S11_racket_obstacles']);
     expect(chain.durationMin).toBe(45);
   });
@@ -191,7 +173,7 @@ describe('CR-013 v2 — week 4 reproduces WEEK_4_PLAN_2026-09-28.md block for bl
     expect(block.stations).toEqual([1, 3, 8]);
     expect(block.durationMin).toBe(12);
     expect(block.intensity).toBe('moderate');
-    expect(block.tailA.cardId).toBe('S09_balance_ladder');
+    expect(block.tailA!.cardId).toBe('S09_balance_ladder');
     expect(block.tailASeconds).toBe(30);
     expect(drillsOfBlock(chain.blocks[2]!).map((drill) => drill.measure)).toEqual(['round_time_s', 'cones_touched', 'foot_errors', 'touchdowns']);
     expect(chain.blocks[2]!.faire).toContain('changer de jambe à chaque tour');
@@ -260,9 +242,9 @@ describe('CR-013 v2 — both police cardio blocks of each week last cardioMin; b
 
 // ---------- 5. skill station ----------
 
-describe('CR-013 v2 — the skill block station equals focus in weeks 4-8; weeks 9-10 show a placeholder', () => {
-  it('weeks 4 to 8: the station is the focus column', () => {
-    for (let n = 4; n <= 8; n += 1) {
+describe('CR-013 v2 — the skill block station equals focus (v3: weeks 4-7, 9, 10; week 8 is open)', () => {
+  it('every week whose focus is a station: the station is the focus column', () => {
+    for (const n of [4, 5, 6, 7, 9, 10]) {
       expect(skillStationOf(recipeOf(weekNo(n), 'skill_session')!)).toBe(SEASON_PLAN[n]!.focus);
     }
   });
@@ -271,24 +253,6 @@ describe('CR-013 v2 — the skill block station equals focus in weeks 4-8; weeks
     const week3 = skillBlockOf(recipeOf(weekNo(3), 'skill_session')!)!;
     const week6 = skillBlockOf(recipeOf(weekNo(6), 'skill_session')!)!;
     expect(week6).toEqual(week3);
-  });
-
-  it('stations with no content yet (1, 10) are placeholders that still name the station', () => {
-    for (const n of [5, 7, 8]) {
-      const block = blockOfKind(recipeOf(weekNo(n), 'skill_session')!, 'skill_block')!;
-      expect(block.placeholder).toBe(true);
-      expect(block.title).toContain(`Poste ${SEASON_PLAN[n]!.focus}`);
-    }
-  });
-
-  it('weeks 9 and 10 show a placeholder and name no station (R-SP-02)', () => {
-    for (const n of [9, 10]) {
-      const recipe = recipeOf(weekNo(n), 'skill_session')!;
-      const block = blockOfKind(recipe, 'skill_block')!;
-      expect(block.placeholder).toBe(true);
-      expect(skillBlockOf(recipe)).toBeNull();
-      expect(skillStationOf(recipe)).toBeNull();
-    }
   });
 });
 
@@ -302,17 +266,6 @@ describe('CR-013 v2 — no cardio atom belongs to the week’s focus station; W7
       for (const recipe of policeRecipes(weekNo(n))) {
         expect(cardioBlockOf(recipe)!.atoms.map((atom) => atom.stationId)).not.toContain(focus);
       }
-    }
-  });
-
-  it('week 7 (focus 1): the slalom and the carioca are removed and flagged', () => {
-    const skill = recipeOf(weekNo(7), 'skill_session')!;
-    const chain = recipeOf(weekNo(7), 'chain_session')!;
-    expect(cardioBlockOf(skill)!.toReplace!.map((atom) => atom.cardId)).toEqual(['S01_slalom_18m']);
-    expect(cardioBlockOf(chain)!.toReplace!.map((atom) => atom.cardId)).toEqual(['S01_carioca_footwork']);
-    for (const recipe of [skill, chain]) {
-      const block = recipe.blocks.find((item) => item.kind === 'cardio')!;
-      expect(`${block.regle} ${block.faire}`.toLowerCase()).toContain(ATOMS_TO_REPLACE);
     }
   });
 
@@ -348,7 +301,7 @@ describe('CR-013 v2 — tails never use the focus station; weeks 4-6 use S09_bal
       const focus = SEASON_PLAN[n]!.focus;
       const tailStations = [
         ...(tailBOf(chain)?.minutes.map((minute) => minute.drill.stationId) ?? []),
-        ...(chainBlockOf(chain) ? [chainBlockOf(chain)!.tailA.stationId] : [])
+        ...(chainBlockOf(chain)?.tailA ? [chainBlockOf(chain)!.tailA!.stationId] : [])
       ];
       if (typeof focus === 'number') expect(tailStations).not.toContain(focus);
     }
@@ -362,8 +315,8 @@ describe('CR-013 v2 — tails never use the focus station; weeks 4-6 use S09_bal
     }
   });
 
-  it('weeks 7 to 10: the racket tails, as in week 3', () => {
-    for (const n of [7, 8, 9, 10]) {
+  it('weeks 7 and 8: the racket tails, as in week 3 (v3: weeks 9-10 are balance)', () => {
+    for (const n of [7, 8]) {
       const chain = recipeOf(weekNo(n), 'chain_session')!;
       expect(tailBOf(chain)!.minutes.every((minute) => minute.drill.stationId === 11)).toBe(true);
     }
@@ -378,12 +331,13 @@ describe('CR-013 v2 — every placeholder has no score box and no week 3 text (R
   );
   const placeholders = [4, 5, 6, 7, 8, 9, 10, 11].flatMap((n) => policeRecipes(weekNo(n)).flatMap((recipe) => recipe.blocks.filter((block) => block.placeholder)));
 
-  it('there are placeholders to check: chain B, the ghost circuit, the skill blocks not yet written, the walk-through', () => {
+  it('there are placeholders to check: the travel chain, the ghost circuit, the week 8 skill block, the power EMOM, the walk-through', () => {
     const titles = placeholders.map((block) => block.title);
-    expect(titles).toContain('Enchaînement B — 12 min');
-    expect(titles).toContain('Circuit fantôme : à venir, postes 1 à 6 — 12 min');
+    expect(titles).toContain('Enchaînement voyage : à construire — 11 min');
+    expect(titles).toContain('Circuit fantôme : à venir, postes 1 à 11 — 11 min');
     expect(titles).toContain('Passage fantôme au pas — 15 min');
-    expect(titles.some((title) => title.startsWith('Poste 10'))).toBe(true);
+    expect(titles).toContain('Slalom ou raquette, à confirmer — 18 min');
+    expect(titles).toContain('Puissance, EMOM 6 : à construire — 6 min');
   });
 
   it('each one: no spec, no drill, only "À construire dans Cowork", nothing from week 3', () => {
@@ -415,10 +369,11 @@ describe('CR-013 v2 — the power slot appears in both police warm-ups exactly w
     }
   });
 
-  it('the power slot is never scored', () => {
+  it('the power slot is never scored (v3: only the power EMOM block scores its best jump)', () => {
     for (let n = 4; n <= 10; n += 1) {
       for (const recipe of policeRecipes(weekNo(n))) {
-        expect(drillsOf(recipe).some((drill) => drill.cardId === 'S00_broad_jumps')).toBe(false);
+        const outsideEmom = recipe.blocks.filter((block) => block.kind !== 'power_emom').flatMap(drillsOfBlock);
+        expect(outsideEmom.some((drill) => drill.cardId === 'S00_broad_jumps')).toBe(false);
       }
     }
   });
@@ -482,9 +437,10 @@ describe('CR-013 v2 — week 11: taper session Wed 18 Nov; nothing Thu 19 Nov; n
 
 // ---------- 14. weekend runs ----------
 
-describe('CR-013 v2 — weekend runs of W7-W10 carry the hill sprint block with the right count; W5 is the race, Sunday', () => {
-  it('W7 6 · W8 8 · W9 10 · W10 6, as the last block', () => {
-    for (const n of [7, 8, 9, 10]) {
+describe('CR-013 v2 — the weekend run carries the hill sprints when the table puts them on Saturday (v3: W10 only); W5 is the race, Sunday', () => {
+  it('W10 6, as the last block; W7, W8 and W9 carry none at the weekend', () => {
+    for (const n of [7, 8, 9]) expect(recipeOf(weekNo(n), 'trail_maintenance')!.blocks.some((block) => block.kind === 'hill_sprints')).toBe(false);
+    for (const n of [10]) {
       const run = recipeOf(weekNo(n), 'trail_maintenance')!;
       const last = run.blocks.at(-1)!;
       expect(last.kind).toBe('hill_sprints');
@@ -557,8 +513,8 @@ describe('CR-013 v2 — the screens', () => {
     return view.container;
   }
 
-  it('the week bar reads the table’s load: week 7 shows 4 of 5 squares', async () => {
-    const container = await openWeek('2026-10-19');
+  it('the week bar reads the table’s load: week 8 shows 4 of 5 squares', async () => {
+    const container = await openWeek('2026-10-26');
     const bar = container.querySelector('.weekbar')!;
     expect(bar.getAttribute('aria-label')).toBe('Charge de la semaine : 4 sur 5');
     expect(bar.querySelectorAll('i')).toHaveLength(5);
@@ -570,8 +526,8 @@ describe('CR-013 v2 — the screens', () => {
     expect(container.querySelector('.weekbar')).toBeNull();
   });
 
-  it('the week 7 weekend run asks for the number of hill sprints done, and nothing else about them', async () => {
-    await openWeek('2026-10-19');
+  it('the week 10 weekend run asks for the number of hill sprints done, and nothing else about them', async () => {
+    await openWeek('2026-11-09');
     const matches = await screen.findAllByText('Trail — sortie de maintien');
     const card = matches.map((node) => node.closest('button.card')).find((node): node is HTMLButtonElement => node !== null)!;
     fireEvent.click(card);
@@ -582,7 +538,7 @@ describe('CR-013 v2 — the screens', () => {
   });
 
   it('a placeholder skill block shows "À construire dans Cowork" and no score box', async () => {
-    await openWeek('2026-10-19');
+    await openWeek('2026-10-26');
     const matches = await screen.findAllByText('Séance compétence');
     const card = matches.map((node) => node.closest('button.card')).find((node): node is HTMLButtonElement => node !== null)!;
     fireEvent.click(card);
@@ -591,7 +547,7 @@ describe('CR-013 v2 — the screens', () => {
     fireEvent.click(screen.getByText('Retour'));
     // The Retour tab shows the recall box, and the placeholder brings none.
     expect(await screen.findByLabelText('Erreurs de rappel sur 33')).toBeTruthy();
-    const placeholderGroup = screen.queryAllByText(/Poste 1 — 18 min/).map((node) => node.closest('.grp')).find(Boolean);
+    const placeholderGroup = screen.queryAllByText(/Slalom ou raquette, à confirmer — 18 min/).map((node) => node.closest('.grp')).find(Boolean);
     expect(placeholderGroup?.querySelectorAll('input').length ?? 0).toBe(0);
   });
 });

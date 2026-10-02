@@ -34,6 +34,7 @@ import type {
   MemoryBlockSpec,
   MemoryModule,
   MemoryPrompt,
+  PowerEmomSpec,
   SessionRecipe,
   SessionShape,
   SkillBlock,
@@ -43,12 +44,18 @@ import type {
 
 // ---------- A. the season table ----------
 
-export type FocusStation = 1 | 8 | 10 | 11 | 'W8_WORST' | 'LIGHT';
-export type ChainKind = 'locked' | 'chain_A' | 'chain_B' | 'ghost' | 'ghost_walk';
+// CHANGE_REQUEST_013 v3 — `season_plan.md` v3 (2 October 2026): `W8_WORST`
+// is gone (weeks 9 and 10 are the racket, decided 24 September), week 8 shows
+// both options until the athlete confirms one (R-SP-02), the travel chain T
+// and the ghost from week 9.
+export type FocusStation = 1 | 8 | 10 | 11 | 'SLALOM_OR_RACKET' | 'LIGHT';
+export type ChainKind = 'locked' | 'chain_A' | 'chain_B' | 'travel_T' | 'ghost' | 'ghost_walk';
 export type TailSkill = 'racket' | 'balance' | 'none';
+export type Phase = 'combine' | 'trail' | 'reset' | 'travel' | 'peak' | 'taper';
 
 export interface SeasonWeek {
   week: number;              // 3..11
+  phase: Phase;
   load: 1 | 2 | 3 | 4 | 5;   // the week bar
   focus: FocusStation;
   cardioMin: number;         // R-WS-32
@@ -58,22 +65,41 @@ export interface SeasonWeek {
   ghostStations?: [number, number];
   tails: TailSkill;
   runKm: [number, number] | 'RACE' | null;
-  hillSprints: 0 | 6 | 8 | 10;
+  runDay: 'SAT' | 'SUN';     // the weekend run's day
+  hillSprints: 0 | 6;
+  hillSprintsDay: 'TUE' | 'SAT' | null;
+  crossfitPlus: string | null; // ISO date of the extra Saturday class (R-SP-07)
+  travel: boolean;           // W7-W8: no Monday CrossFit, treadmill intervals
   baseline: boolean;         // only week 3 (CR-017)
   buildWeek: boolean;        // R-SP-04
 }
 
 export const SEASON_PLAN: Readonly<Record<number, SeasonWeek>> = {
-  3: { week: 3, load: 3, focus: 8, cardioMin: 10, powerJumps: 0, memory: 'LOCKED', chain: 'locked', tails: 'racket', runKm: [8, 9], hillSprints: 0, baseline: true, buildWeek: false },
-  4: { week: 4, load: 4, focus: 11, cardioMin: 12, powerJumps: 3, memory: 'M1', chain: 'chain_A', tails: 'balance', runKm: [10, 11], hillSprints: 0, baseline: false, buildWeek: true },
-  5: { week: 5, load: 2, focus: 10, cardioMin: 10, powerJumps: 3, memory: 'M2', chain: 'chain_B', tails: 'balance', runKm: 'RACE', hillSprints: 0, baseline: false, buildWeek: false },
-  6: { week: 6, load: 2, focus: 8, cardioMin: 12, powerJumps: 3, memory: 'M2', chain: 'chain_B', tails: 'balance', runKm: [7, 7], hillSprints: 0, baseline: false, buildWeek: true },
-  7: { week: 7, load: 4, focus: 1, cardioMin: 13, powerJumps: 5, memory: 'M3', chain: 'ghost', ghostStations: [1, 6], tails: 'racket', runKm: [7, 8], hillSprints: 6, baseline: false, buildWeek: true },
-  8: { week: 8, load: 5, focus: 10, cardioMin: 15, powerJumps: 5, memory: 'M3', chain: 'ghost', ghostStations: [6, 11], tails: 'racket', runKm: [7, 8], hillSprints: 8, baseline: false, buildWeek: true },
-  9: { week: 9, load: 5, focus: 'W8_WORST', cardioMin: 15, powerJumps: 5, memory: 'M4', chain: 'ghost', ghostStations: [1, 11], tails: 'racket', runKm: [7, 8], hillSprints: 10, baseline: false, buildWeek: true },
-  10: { week: 10, load: 3, focus: 'W8_WORST', cardioMin: 12, powerJumps: 5, memory: 'M4', chain: 'ghost', ghostStations: [1, 11], tails: 'racket', runKm: [7, 7], hillSprints: 6, baseline: false, buildWeek: false },
-  11: { week: 11, load: 1, focus: 'LIGHT', cardioMin: 6, powerJumps: 0, memory: 'M4', chain: 'ghost_walk', tails: 'none', runKm: null, hillSprints: 0, baseline: false, buildWeek: false }
+  3: { week: 3, phase: 'combine', load: 3, focus: 8, cardioMin: 10, powerJumps: 0, memory: 'LOCKED', chain: 'locked', tails: 'racket', runKm: [8, 9], runDay: 'SUN', hillSprints: 0, hillSprintsDay: null, crossfitPlus: null, travel: false, baseline: true, buildWeek: false },
+  4: { week: 4, phase: 'combine', load: 4, focus: 11, cardioMin: 12, powerJumps: 3, memory: 'M1', chain: 'chain_A', tails: 'balance', runKm: [10, 11], runDay: 'SAT', hillSprints: 0, hillSprintsDay: null, crossfitPlus: null, travel: false, baseline: false, buildWeek: true },
+  5: { week: 5, phase: 'trail', load: 2, focus: 10, cardioMin: 10, powerJumps: 3, memory: 'M2', chain: 'chain_B', tails: 'balance', runKm: 'RACE', runDay: 'SUN', hillSprints: 0, hillSprintsDay: null, crossfitPlus: null, travel: false, baseline: false, buildWeek: false },
+  6: { week: 6, phase: 'reset', load: 3, focus: 8, cardioMin: 12, powerJumps: 3, memory: 'M2', chain: 'chain_B', tails: 'balance', runKm: [7, 7], runDay: 'SUN', hillSprints: 0, hillSprintsDay: null, crossfitPlus: '2026-10-17', travel: false, baseline: false, buildWeek: true },
+  7: { week: 7, phase: 'travel', load: 3, focus: 10, cardioMin: 13, powerJumps: 5, memory: 'M3', chain: 'travel_T', tails: 'racket', runKm: [7, 8], runDay: 'SAT', hillSprints: 0, hillSprintsDay: null, crossfitPlus: null, travel: true, baseline: false, buildWeek: true },
+  8: { week: 8, phase: 'travel', load: 4, focus: 'SLALOM_OR_RACKET', cardioMin: 15, powerJumps: 5, memory: 'M3', chain: 'travel_T', tails: 'racket', runKm: [7, 8], runDay: 'SAT', hillSprints: 0, hillSprintsDay: null, crossfitPlus: null, travel: true, baseline: false, buildWeek: true },
+  9: { week: 9, phase: 'peak', load: 5, focus: 11, cardioMin: 15, powerJumps: 5, memory: 'M4', chain: 'ghost', ghostStations: [1, 11], tails: 'balance', runKm: [7, 8], runDay: 'SUN', hillSprints: 6, hillSprintsDay: 'TUE', crossfitPlus: '2026-11-07', travel: false, baseline: false, buildWeek: true },
+  10: { week: 10, phase: 'peak', load: 3, focus: 11, cardioMin: 12, powerJumps: 5, memory: 'M4', chain: 'ghost', ghostStations: [1, 11], tails: 'balance', runKm: [7, 7], runDay: 'SAT', hillSprints: 6, hillSprintsDay: 'SAT', crossfitPlus: null, travel: false, baseline: false, buildWeek: false },
+  11: { week: 11, phase: 'taper', load: 1, focus: 'LIGHT', cardioMin: 6, powerJumps: 0, memory: 'M4', chain: 'ghost_walk', tails: 'none', runKm: null, runDay: 'SAT', hillSprints: 0, hillSprintsDay: null, crossfitPlus: null, travel: false, baseline: false, buildWeek: false }
 };
+
+// The week from which the chain session is the ENGINE chain (weekly_shape.md
+// v7, "lock week 5"). Weeks 3 and 4 keep their own chain session, untouched.
+export const ENGINE_CHAIN_FROM_WEEK = 5;
+
+// R-WS-30: three atoms at most. The recorded exceptions, as data: the week 5
+// Wednesday "Quatre coins" (4 atoms, accepted at "lock week 5"). Nothing
+// else, and the rule itself stays at three.
+export const CARDIO_ATOM_EXCEPTIONS: ReadonlyArray<{ week: number; shape: SessionShape; atoms: number }> = [
+  { week: 5, shape: 'skill_session', atoms: 4 }
+];
+
+export function maxCardioAtoms(weekNumber: number, shape: SessionShape): number {
+  return CARDIO_ATOM_EXCEPTIONS.find((item) => item.week === weekNumber && item.shape === shape)?.atoms ?? 3;
+}
 
 /** The table row of a week, or null for weeks 1 and 2, which the table does not cover. */
 export function seasonWeek(weekNumber: number): SeasonWeek | null {
@@ -82,8 +108,8 @@ export function seasonWeek(weekNumber: number): SeasonWeek | null {
 
 /**
  * The week's skill station as a number, or null when the table does not name
- * one yet ('W8_WORST', chosen in the week 8 review, R-SP-02) or names none
- * ('LIGHT', the taper).
+ * one yet ('SLALOM_OR_RACKET', confirmed by the athlete at the week 8 build,
+ * R-SP-02) or names none ('LIGHT', the taper).
  */
 export function focusStationOf(weekNumber: number): number | null {
   const focus = seasonWeek(weekNumber)?.focus;
@@ -128,13 +154,42 @@ interface SkillBlockContent {
   drills: DrillRef[];
   durationMin: number;
   faire: string;
+  regle?: string;
   details?: string;
   noter: string;
   equipment: string[];
 }
 
+// CHANGE_REQUEST_013 v3 — Q8: the racket block scores ONE ROW PER SET, the
+// obstacle drops flat 1 · obstacles · flat 2 for set 1 and again for set 2.
+// Week 4 is past and locked (its plan wins for week 4, which must not
+// change): it keeps the three boxes it was trained with.
+const WEEK4_RACKET_DRILLS: DrillRef[] = [
+  drill('S11_racket_on_board', 'skill:S11_racket_on_board:drops', 'drops', 'Chutes par 30 s — raquette sur la planche'),
+  drill('S11_racket_on_board', 'skill:S11_racket_on_board:touchdowns', 'touchdowns', 'Touchers de la planche — raquette sur la planche'),
+  drill('S11_racket_obstacles', 'skill:S11_racket_obstacles:flat_1', 'drops', 'Chutes — obstacles, à plat 1'),
+  drill('S11_racket_obstacles', 'skill:S11_racket_obstacles:obstacles', 'drops', 'Chutes — obstacles, sur les obstacles'),
+  drill('S11_racket_obstacles', 'skill:S11_racket_obstacles:flat_2', 'drops', 'Chutes — obstacles, à plat 2')
+];
+const WEEK4_RACKET_NOTER = 'Planche : chutes par 30 s et touchers de la planche. Obstacles : chutes à plat 1, sur les obstacles, à plat 2.';
+
+function racketSetDrills(set: 1 | 2): DrillRef[] {
+  return [
+    drill('S11_racket_obstacles', `skill:S11_racket_obstacles:set${set}:flat_1`, 'drops', `Chutes — obstacles, série ${set}, à plat 1`),
+    drill('S11_racket_obstacles', `skill:S11_racket_obstacles:set${set}:obstacles`, 'drops', `Chutes — obstacles, série ${set}, sur les obstacles`),
+    drill('S11_racket_obstacles', `skill:S11_racket_obstacles:set${set}:flat_2`, 'drops', `Chutes — obstacles, série ${set}, à plat 2`)
+  ];
+}
+
+// The week 5 skipping block (WEEK_5_FINAL_2026-10-05.md, Wed 7 Oct, block 3),
+// card S10_block_switch_fresh v3. Part A scores one box per round, part B one
+// box per card.
+const SKIPPING_ROUNDS_A = [1, 2, 3, 4, 5, 6] as const;
+const SKIPPING_CARDS_B = [1, 2, 3, 4] as const;
+
 // R-SP-05: one entry per station, reused every week that station is the
-// focus. 1 and 10 arrive later as data-only versions of this request.
+// focus. 1 arrives later as a data-only version of this request; 10 is the
+// week 5 block, reused unchanged in week 7.
 export const SKILL_BLOCKS: Readonly<Record<number, SkillBlockContent>> = {
   8: {
     title: 'Cerceaux et ballon — 18 min', short: 'poste 8',
@@ -148,19 +203,32 @@ export const SKILL_BLOCKS: Readonly<Record<number, SkillBlockContent>> = {
     noter: 'Balles perdues sur le premier exercice ; erreurs de pied par passage sur le second.',
     equipment: ['Ballon de basket', 'cerceaux']
   },
+  10: {
+    title: 'Corde à sauter — 18 min', short: 'poste 10',
+    drills: [
+      ...SKIPPING_ROUNDS_A.map((round) => drill('S10_block_switch_fresh', `skill:S10_block_switch_fresh:a${round}`, 'restarts',
+        `Reprises — partie A, tour ${round}${round === 6 ? ' (variante pièce)' : ''}`)),
+      ...SKIPPING_CARDS_B.map((card) => drill('S10_block_switch_fresh', `skill:S10_block_switch_fresh:b${card}`, 'restarts', `Reprises — partie B, carte ${card}`))
+    ],
+    durationMin: 18,
+    faire: 'Carte à hauteur des yeux : 5 DROIT · 5 GAUCHE · 10 JOINTS. Partie A : 6 × 45 s, 30 à 45 s de repos ; tour 6 = variante pièce (gauche d’abord). Partie B : 4 cartes seules, 1 min de repos, UN essai chacune.',
+    regle: 'Stop : deux reprises au même changement → régresser comme le dit la carte.',
+    details: 'Lire la carte à voix haute avant chaque tour. Une erreur : rester immobile 2 s, respirer, reprendre le bloc en cours, pas toute la carte.',
+    noter: 'Reprises par tour (partie A) · par carte (partie B) · où était l’erreur.',
+    equipment: ['Corde à sauter', 'la carte sur papier, à hauteur des yeux', 'une pièce']
+  },
   11: {
     title: 'Raquette — 18 min', short: 'poste 11',
     drills: [
       drill('S11_racket_on_board', 'skill:S11_racket_on_board:drops', 'drops', 'Chutes par 30 s — raquette sur la planche'),
       drill('S11_racket_on_board', 'skill:S11_racket_on_board:touchdowns', 'touchdowns', 'Touchers de la planche — raquette sur la planche'),
-      drill('S11_racket_obstacles', 'skill:S11_racket_obstacles:flat_1', 'drops', 'Chutes — obstacles, à plat 1'),
-      drill('S11_racket_obstacles', 'skill:S11_racket_obstacles:obstacles', 'drops', 'Chutes — obstacles, sur les obstacles'),
-      drill('S11_racket_obstacles', 'skill:S11_racket_obstacles:flat_2', 'drops', 'Chutes — obstacles, à plat 2')
+      ...racketSetDrills(1),
+      ...racketSetDrills(2)
     ],
     durationMin: 18,
     faire: 'Raquette sur la planche d’équilibre, 7 min : mise en place, main au mur → raquette sans balle → balle sur la raquette, main lâche le mur ; puis 3 × 30 s, 30 s de repos. Marcher 1 min. Puis raquette par-dessus les obstacles, 10 min : 45 s à plat · 10 s · 30 s d’obstacles · 10 s · 45 s à plat, 2 séries, 90 s de repos.',
     details: 'Regard : les yeux sur la balle, chaque obstacle regardé UNE fois.',
-    noter: 'Planche : chutes par 30 s et touchers de la planche. Obstacles : chutes à plat 1, sur les obstacles, à plat 2.',
+    noter: 'Planche : chutes par 30 s et touchers de la planche. Obstacles, une ligne par série : chutes à plat 1, sur les obstacles, à plat 2.',
     equipment: ['Raquette et balle', 'planche d’équilibre', '3 obstacles de 15 à 20 cm']
   }
 };
@@ -245,9 +313,10 @@ interface ChainBlockContent {
   restS: number;
   durationMin: number;
   title: string;
-  faire: string;           // the rounds; tail A's own line is appended from TAILS
-  noter: string;           // the round scores; tail A's own score is appended from TAILS
+  faire: string;           // the rounds; tail A's own line is appended from TAILS (weeks 3-4)
+  noter: string;           // the round scores; tail A's own score is appended from TAILS (weeks 3-4)
   equipment: string[];
+  intensity: ChainBlock['intensity'];
 }
 
 export const CHAIN_BLOCKS: Readonly<Partial<Record<ChainKind, ChainBlockContent>>> = {
@@ -261,7 +330,8 @@ export const CHAIN_BLOCKS: Readonly<Partial<Record<ChainKind, ChainBlockContent>
     ],
     faire: '3 tours, 90 s de récupération entre les tours. Slalom 18 m, aller tout droit, slalom au retour. Puis la marche jusqu’aux espaliers. Puis espaliers, 3 passages, monter et sauter.',
     noter: 'Temps par tour · cônes touchés',
-    equipment: ['Cônes', 'échelle extérieure']
+    equipment: ['Cônes', 'échelle extérieure'],
+    intensity: 'moderate'
   },
   // Season plan note (a): slalom → wall bars → hoops (5, ball in the arms).
   chain_A: {
@@ -275,7 +345,42 @@ export const CHAIN_BLOCKS: Readonly<Partial<Record<ChainKind, ChainBlockContent>
     ],
     faire: '3 tours, 90 s de récupération entre les tours. Slalom 18 m. Marcher. Espaliers, 3 passages. Marcher. 5 cerceaux, ballon dans les bras, un passage.',
     noter: 'Temps par tour · cônes touchés · erreurs de pied aux cerceaux',
-    equipment: ['Cônes', 'échelle extérieure', 'cerceaux', 'Ballon de basket']
+    equipment: ['Cônes', 'échelle extérieure', 'cerceaux', 'Ballon de basket'],
+    intensity: 'moderate'
+  },
+  // CHANGE_REQUEST_013 v3 — chain B, the finish of the test (WEEK_5_FINAL,
+  // Thu 8 Oct, block 5). Hard, no tail A (engine chain, R-WS-34). Week 6
+  // reuses it unchanged until a week 6 data drop.
+  chain_B: {
+    rounds: 4, stations: [1, 10, 11], restS: 60, durationMin: 11,
+    title: 'Enchaînement B, la fin du test — 11 min',
+    transitionNote: 'Les 5 m de footing entre les postes font partie du tour : arriver prête au poste suivant.',
+    roundScores: [
+      drill('S01_slalom_18m', 'chain:round_time', 'round_time_s', 'Temps par tour (s)'),
+      drill('S10_block_switch_fresh', 'chain:rope_restarts', 'restarts', 'Reprises de corde'),
+      drill('S11_racket_obstacles', 'chain:racket_drops', 'drops', 'Chutes de raquette'),
+      drill('S01_slalom_18m', 'chain:cones_touched', 'cones_touched', 'Cônes touchés')
+    ],
+    faire: '4 tours, 60 s de repos, aussi vite que propre : slalom 18 m aller-retour → 5 m de footing → UNE carte corde (5 D · 5 G · 10 J) → 5 m de footing → raquette au-dessus des 3 obstacles, un passage.',
+    noter: 'Temps par tour · reprises de corde · chutes de raquette · cônes touchés',
+    equipment: ['Cônes', 'corde à sauter', 'raquette et balle', '3 obstacles de 15 à 20 cm'],
+    intensity: 'hard'
+  }
+};
+
+// CHANGE_REQUEST_013 v3 — the POWER EMOM of the engine chain session, one
+// entry per week that has it written (R-SP-03: a later week without an entry
+// shows a named gap, never this week's content).
+interface PowerEmomContent { atoms: string[]; durationMin: number; faire: string; noter: string; drills: DrillRef[]; stations: number[] }
+
+export const POWER_EMOM_BY_WEEK: Readonly<Record<number, PowerEmomContent>> = {
+  5: {
+    atoms: ['S00_broad_jumps', 'S01_slalom_18m', 'S00_jump_squats'],
+    durationMin: 6,
+    faire: 'EMOM 6. Minutes impaires : 2 sauts en longueur + slalom 18 m aller simple, pleine vitesse, retour en marchant. Minutes paires : 6 jump squats.',
+    noter: 'Meilleur saut du bloc (mètre ruban), et l’effort.',
+    drills: [{ ...cardRef('S00_broad_jumps'), drillId: 'power:best_jump', measure: 'best_jump_cm', scoreLabel: 'Meilleur saut du bloc (cm)' }],
+    stations: [1]
   }
 };
 
@@ -283,12 +388,25 @@ export const CHAIN_BLOCKS: Readonly<Partial<Record<ChainKind, ChainBlockContent>
 // R-WS-42: the ghost circuit is shown as "Circuit fantôme : à venir").
 function chainPlaceholderLabel(season: SeasonWeek): string {
   if (season.chain === 'chain_B') return 'Enchaînement B';
+  if (season.chain === 'travel_T') return 'Enchaînement voyage : à construire';
   const stations = season.ghostStations ? `, postes ${season.ghostStations[0]} à ${season.ghostStations[1]}` : '';
   return `Circuit fantôme : à venir${stations}`;
 }
 
 interface CardioAtom { cardId: string; text: string }
-interface CardioContent { format: CardioFormat; atoms: CardioAtom[]; equipment: string[] }
+interface CardioContent {
+  format: CardioFormat;
+  atoms: CardioAtom[];
+  equipment: string[];
+  // CHANGE_REQUEST_013 v3 — a week written block for block (week 5) carries
+  // its own words; the generic text is kept for reused entries.
+  title?: string;
+  faire?: string;
+  regle?: string;
+  noter?: string;
+  valueLabel?: string;
+  finisher?: CardioAtom;
+}
 interface CardioWeek { skill: CardioContent; chain: CardioContent }
 
 export const CARDIO_BY_WEEK: Readonly<Record<number, CardioWeek>> = {
@@ -331,30 +449,104 @@ export const CARDIO_BY_WEEK: Readonly<Record<number, CardioWeek>> = {
       ],
       equipment: ['corde à sauter']
     }
+  },
+  // CHANGE_REQUEST_013 v3 — WEEK_5_FINAL_2026-10-05.md. The skill session's
+  // "Quatre coins" has four atoms, the recorded exception to R-WS-30
+  // (CARDIO_ATOM_EXCEPTIONS); its one-minute finisher is not an atom. The
+  // engine chain's "La montée" has no jump on purpose (race in 72 h).
+  5: {
+    skill: {
+      format: 'amrap',
+      title: 'Cardio, « Quatre coins » 30/15 — 10 min',
+      atoms: [
+        { cardId: 'S08_chain_out', text: 'cerceaux, ligne de 5 cerceaux, pieds selon la couleur, aller et retour sans arrêt (ballon dans les bras si c’est propre, sinon les pieds seulement)' },
+        { cardId: 'S03_ladder_one_hand_object', text: 'espaliers, montée à UNE main, ballon dans l’autre' },
+        { cardId: 'S00_jumping_jacks', text: 'jumping jacks, 30 s' },
+        { cardId: 'S00_air_squats', text: '25 air squats (le coin se termine quand les 25 sont faits ou quand les 30 s sont finies)' }
+      ],
+      finisher: { cardId: 'S00_high_knees', text: 'montées de genoux, 1 min sans arrêt' },
+      faire: '4 postes, 30 s de travail, 15 s pour passer au suivant, 3 tours (9 min) + 1 min de finisher. A : cerceaux, ligne de 5 cerceaux, pieds selon la couleur, aller et retour sans arrêt (ballon dans les bras si c’est propre, sinon les pieds seulement). B : espaliers, montée à UNE main, ballon dans l’autre. C : jumping jacks, 30 s. D : 25 air squats (le coin se termine quand les 25 sont faits ou quand les 30 s sont finies). Finisher (minute 10) : montées de genoux, 1 min sans arrêt.',
+      noter: 'Aucune cible. Noter : jumping jacks par tour, squats faits par tour, erreurs aux cerceaux (dans « Ce que tu as fait »), et le score d’effort.',
+      valueLabel: 'Tours faits (sur 3)',
+      equipment: ['cerceaux', 'Ballon de basket', 'échelle extérieure']
+    },
+    chain: {
+      format: 'amrap',
+      title: 'Cardio, « La montée », croissant — 10 min',
+      atoms: [
+        { cardId: 'S03_ladder_climb_jump_finish', text: '1 passage aux espaliers (monter, sauter les 3 derniers barreaux)' },
+        { cardId: 'S00_air_squats', text: 'air squats 4 · 8 · 12 · 16 · 20… (+4)' },
+        { cardId: 'S00_high_knees', text: 'montées de genoux 20 · 30 · 40 · 50 · 60… (+10)' }
+      ],
+      faire: 'À la limite. Chaque tour grandit ; continuer jusqu’à la fin des 10 min. Chaque tour : 1 passage aux espaliers (monter, sauter les 3 derniers barreaux) + air squats 4 · 8 · 12 · 16 · 20… (+4) + montées de genoux 20 · 30 · 40 · 50 · 60… (+10).',
+      regle: 'Repos courts mais jamais nuls. Douleur à la poitrine ou vertige : arrêter le bloc, marcher, la séance compte quand même. « La montée » n’a AUCUN saut, exprès (course dans 72 h).',
+      noter: 'Aucune cible. Noter : le dernier tour terminé + les répétitions faites dans le suivant (dans « Ce que tu as fait »), et le score d’effort.',
+      valueLabel: 'Dernier tour terminé',
+      equipment: ['échelle extérieure']
+    }
   }
 };
 
 export const ATOMS_TO_REPLACE = 'atomes à remplacer';
 
+// CHANGE_REQUEST_013 v3 — in the travel weeks the hotel gym has no ladder and
+// no hoops (season_plan.md v3, "Travel weeks"): a reused atom on the wall bars
+// (station 3) or the hoops (station 8) is removed, and the session text never
+// names them.
+const TRAVEL_MISSING_STATIONS: readonly number[] = [3, 8];
+const TRAVEL_MISSING_EQUIPMENT = /cerceau|échelle|espalier/i;
+
+export type RemovalReason = 'focus' | 'travel' | 'too_many';
+export interface RemovedAtom { atom: CardRef; reason: RemovalReason }
+
 /**
  * The cardio content of a week and shape. A week with no entry reuses the
- * latest earlier entry, removes every atom of the week's focus station and
- * lists what was removed, so the gap reads "atomes à remplacer" instead of
- * being silently filled (R-WS-29, R-SP-03).
+ * latest earlier entry (decision 9: a safety net only, cardio is written
+ * fresh at each week build) and removes, listing each as "atome à
+ * remplacer":
+ *   - every atom of the week's focus station (R-WS-29),
+ *   - in a travel week, every atom on the wall bars or the hoops,
+ *   - any atom beyond three (R-WS-30: an exception never carries over).
+ * The gap reads "atomes à remplacer" instead of being silently filled
+ * (R-SP-03).
  */
-export function cardioContentFor(weekNumber: number, shape: 'skill' | 'chain'): { content: CardioContent; removed: CardRef[] } {
+export function cardioContentFor(weekNumber: number, shape: 'skill' | 'chain'): { content: CardioContent; removed: CardRef[]; removals: RemovedAtom[]; reused: boolean } {
   let source = weekNumber;
   while (source >= 3 && !CARDIO_BY_WEEK[source]) source -= 1;
   const content = CARDIO_BY_WEEK[Math.max(source, 3)]![shape];
-  if (source === weekNumber) return { content, removed: [] };
+  if (source === weekNumber) return { content, removed: [], removals: [], reused: false };
   const focus = focusStationOf(weekNumber);
-  const removed = content.atoms.filter((atom) => cardRef(atom.cardId).stationId === focus).map((atom) => cardRef(atom.cardId));
-  return { content, removed };
+  const travel = seasonWeek(weekNumber)?.travel === true;
+  const removals: RemovedAtom[] = [];
+  let kept = 0;
+  const limit = maxCardioAtoms(weekNumber, shape === 'skill' ? 'skill_session' : 'chain_session');
+  for (const item of content.atoms) {
+    const atom = cardRef(item.cardId);
+    if (atom.stationId === focus) removals.push({ atom, reason: 'focus' });
+    else if (travel && TRAVEL_MISSING_STATIONS.includes(atom.stationId)) removals.push({ atom, reason: 'travel' });
+    else if (kept >= limit) removals.push({ atom, reason: 'too_many' });
+    else kept += 1;
+  }
+  return { content, removed: removals.map((item) => item.atom), removals, reused: true };
+}
+
+function cardioEquipment(weekNumber: number, shape: 'skill' | 'chain'): string[] {
+  const { content } = cardioContentFor(weekNumber, shape);
+  return seasonWeek(weekNumber)?.travel ? content.equipment.filter((item) => !TRAVEL_MISSING_EQUIPMENT.test(item)) : content.equipment;
+}
+
+function removalText(removals: RemovedAtom[]): string {
+  const named = removals.filter((item) => item.reason !== 'travel').map(({ atom, reason }) => reason === 'focus'
+    ? `${atom.label} (poste ${atom.stationId}, travaillé en compétence cette semaine)`
+    : `${atom.label} (trois atomes au maximum, R-WS-30)`);
+  const travelCount = removals.filter((item) => item.reason === 'travel').length;
+  const travel = travelCount ? [`${travelCount === 1 ? 'un atome' : `${travelCount} atomes`} sans le matériel de l’hôtel`] : [];
+  return `${ATOMS_TO_REPLACE.charAt(0).toUpperCase()}${ATOMS_TO_REPLACE.slice(1)} dans Cowork : ${[...named, ...travel].join(', ')}.`;
 }
 
 function cardioBlock(weekNumber: number, shape: 'skill' | 'chain', durationMin: number): ExerciseBlock {
-  const { content, removed } = cardioContentFor(weekNumber, shape);
-  const removedIds = new Set(removed.map((atom) => atom.cardId));
+  const { content, removals, reused } = cardioContentFor(weekNumber, shape);
+  const removedIds = new Set(removals.map((item) => item.atom.cardId));
   const kept = content.atoms.filter((atom) => !removedIds.has(atom.cardId));
   const spec: CardioBlock = {
     kind: 'cardio',
@@ -362,21 +554,28 @@ function cardioBlock(weekNumber: number, shape: 'skill' | 'chain', durationMin: 
     atoms: kept.map((atom) => cardRef(atom.cardId)),
     durationMin,
     target: null,
-    ...(removed.length ? { toReplace: removed } : {})
+    ...(removals.length ? { toReplace: removals.map((item) => item.atom) } : {}),
+    ...(content.finisher ? { finisher: cardRef(content.finisher.cardId) } : {}),
+    ...(content.valueLabel && !reused ? { valueLabel: content.valueLabel } : {})
   };
-  const slot = (atom: CardioAtom) => (removedIds.has(atom.cardId) ? `atome à remplacer (${cardRef(atom.cardId).label.toLowerCase()} retiré)` : atom.text);
-  const faire = content.format === 'emom'
+  const slot = (atom: CardioAtom) => {
+    const removal = removals.find((item) => item.atom.cardId === atom.cardId);
+    if (!removal) return atom.text;
+    return removal.reason === 'travel' ? 'atome à remplacer (matériel absent à l’hôtel)' : `atome à remplacer (${removal.atom.label.toLowerCase()} retiré)`;
+  };
+  const generatedFaire = content.format === 'emom'
     ? `${content.atoms.map((atom, index) => `Minute ${index + 1} : ${slot(atom)}.`).join(' ')} Puis les ${content.atoms.length === 3 ? 'trois' : content.atoms.length} mêmes à nouveau, jusqu’à la minute ${durationMin}.`
     : `Autant de tours que possible en ${durationMin} minutes : ${kept.map((atom) => atom.text).join(' ; ')}.`;
-  const noter = content.format === 'emom'
+  const generatedNoter = content.format === 'emom'
     ? `Aucune cible. Noter seulement : les ${durationMin} minutes tenues ou non, et le score d’effort.`
     : 'Aucune cible. Noter seulement : les tours faits, et le score d’effort.';
   const stations = [...new Set(spec.atoms.map((atom) => atom.stationId).filter((station) => station !== 0))];
+  const regle = [removals.length ? removalText(removals) : null, !reused ? content.regle ?? null : null].filter((line): line is string => line !== null);
   return {
-    title: `Cardio ${content.format === 'emom' ? 'EMOM' : 'AMRAP'} — ${durationMin} min`, short: 'cardio', kind: 'cardio', spec,
-    faire,
-    ...(removed.length ? { regle: `${ATOMS_TO_REPLACE.charAt(0).toUpperCase()}${ATOMS_TO_REPLACE.slice(1)} dans Cowork : ${removed.map((atom) => `${atom.label} (poste ${atom.stationId}, travaillé en compétence cette semaine)`).join(', ')}.` } : {}),
-    noter,
+    title: !reused && content.title ? content.title : `Cardio ${content.format === 'emom' ? 'EMOM' : 'AMRAP'} — ${durationMin} min`, short: 'cardio', kind: 'cardio', spec,
+    faire: !reused && content.faire ? content.faire : generatedFaire,
+    ...(regle.length ? { regle: regle.join(' ') } : {}),
+    noter: !reused && content.noter ? content.noter : generatedNoter,
     stationMappings: stations, approximation: true
   };
 }
@@ -397,13 +596,20 @@ export const RECALL_CHECK_DRILL: DrillRef = {
   drillId: 'memory:recall_errors', measure: 'recall_errors', scoreLabel: 'Erreurs de rappel sur 33'
 };
 
-function memoryBlock(module: Exclude<MemoryModule, 'M5'>, minutes: number, withRecallCheck: boolean): ExerciseBlock {
+// CHANGE_REQUEST_013 v3 — WEEK_5_FINAL, Wed 7 Oct, block 2: "order + action +
+// done-when, out loud". The module stays M2 (R-MM-05); the plan's words win
+// for week 5.
+const SKILL_MEMORY_TEXT_BY_WEEK: Readonly<Record<number, string>> = {
+  5: 'L’ordre, l’action et quand le poste compte comme réussi, à voix haute.'
+};
+
+function memoryBlock(module: Exclude<MemoryModule, 'M5'>, minutes: number, withRecallCheck: boolean, text: string = MEMORY_TEXT[module]): ExerciseBlock {
   const spec: MemoryBlockSpec = { kind: 'memory', modules: [module], ...(withRecallCheck ? { drills: [RECALL_CHECK_DRILL] } : {}) };
   return {
     title: `Mémoire, ${module} — ${minutes} min`, short: 'mémoire', kind: 'memory', spec,
     faire: withRecallCheck
-      ? `${MEMORY_TEXT[module]} Les 2 dernières minutes : contrôle de rappel, 33 éléments (les 11 postes × ordre, action, réussite), dits à voix haute sans aide, puis vérifiés sur la fiche officielle.`
-      : MEMORY_TEXT[module],
+      ? `${text} Les 2 dernières minutes : contrôle de rappel, 33 éléments (les 11 postes × ordre, action, réussite), dits à voix haute sans aide, puis vérifiés sur la fiche officielle.`
+      : text,
     ...(withRecallCheck ? { noter: 'Erreurs de rappel sur 33 : éléments oubliés ou faux. But : 0.' } : {}),
     stationMappings: []
   };
@@ -455,15 +661,21 @@ function skillBlockFor(season: SeasonWeek): ExerciseBlock {
   const station = focusStationOf(season.week);
   const content = station !== null ? SKILL_BLOCKS[station] : undefined;
   if (!content) {
-    const label = station !== null ? `Poste ${station}` : 'Poste le plus faible en semaine 8';
+    // R-SP-02: week 8 shows both options until the athlete confirms one.
+    const label = station !== null ? `Poste ${station}` : season.focus === 'SLALOM_OR_RACKET' ? 'Slalom ou raquette, à confirmer' : 'Poste à confirmer';
     return placeholderBlock('skill_block', label, 18, station !== null ? [station] : []);
   }
-  const spec: SkillBlock = { kind: 'skill_block', stationId: station!, drills: content.drills, durationMin: content.durationMin };
+  // Week 4 is past and locked: it keeps the three obstacle boxes it was
+  // trained with (Q8 applies from the next racket week).
+  const week4Racket = season.week === 4 && station === 11;
+  const drills = week4Racket ? WEEK4_RACKET_DRILLS : content.drills;
+  const spec: SkillBlock = { kind: 'skill_block', stationId: station!, drills, durationMin: content.durationMin };
   return {
     title: content.title, short: content.short, kind: 'skill_block', spec,
     faire: content.faire,
+    ...(content.regle ? { regle: content.regle } : {}),
     ...(content.details ? { details: content.details } : {}),
-    noter: content.noter,
+    noter: week4Racket ? WEEK4_RACKET_NOTER : content.noter,
     stationMappings: [station!], approximation: true
   };
 }
@@ -473,6 +685,8 @@ function skillBlockFor(season: SeasonWeek): ExerciseBlock {
 const SKILL_PURPOSE = 'Un seul poste, travaillé frais et sans chrono, deux cartes au maximum, chaque exercice noté. Puis un bloc cardio dont le seul rôle est de construire le cardio, sans cible.';
 const SKILL_WARMUP_BASE = 'trot facile, chevilles, poignets, épaules';
 const COOLDOWN = '5 min : marche facile, respiration qui redescend.';
+// WEEK_5_FINAL, Wed 7 Oct, block 5.
+const SKILL_COOLDOWN_BY_WEEK: Readonly<Record<number, string>> = { 5: '5 min : retour au calme, mollets et chevilles.' };
 
 function lockedWeek3SkillBlocks(): ExerciseBlock[] {
   const memory: MemoryBlockSpec = { kind: 'memory', modules: ['M1', 'M2'] };
@@ -510,17 +724,18 @@ export function buildSkillSessionRecipe(weekNumber: number): SessionRecipe {
 
   const module = season.memory as Exclude<MemoryModule, 'M5'>;
   const warmup = warmupFor(season, SKILL_WARMUP_BASE);
-  const blocks = [memoryBlock(module, 6, true), skillBlockFor(season), cardioBlock(season.week, 'skill', season.cardioMin)];
+  const blocks = [memoryBlock(module, 6, true, SKILL_MEMORY_TEXT_BY_WEEK[season.week] ?? MEMORY_TEXT[module]), skillBlockFor(season), cardioBlock(season.week, 'skill', season.cardioMin)];
   const station = focusStationOf(season.week);
+  const cooldown = SKILL_COOLDOWN_BY_WEEK[season.week] ?? COOLDOWN;
   return {
     id: `skill-session-v2-week-${season.week}`, version: 2, kind: 'skill_session',
     title: 'Séance compétence',
     purpose: SKILL_PURPOSE,
-    durationMin: sessionMinutes(warmup.text, blocks, COOLDOWN),
-    equipment: unique([...(station !== null ? SKILL_BLOCKS[station]?.equipment ?? [] : []), ...cardioContentFor(season.week, 'skill').content.equipment]),
+    durationMin: sessionMinutes(warmup.text, blocks, cooldown),
+    equipment: unique([...(station !== null ? SKILL_BLOCKS[station]?.equipment ?? [] : []), ...cardioEquipment(season.week, 'skill')]),
     warmup: warmup.text,
     blocks,
-    cooldown: COOLDOWN,
+    cooldown,
     memory: memoryPrompt('skill_session', module)
   };
 }
@@ -541,7 +756,7 @@ export function buildTaperSessionRecipe(): SessionRecipe {
     title: 'Séance d’affûtage',
     purpose: 'Jambes fraîches, technique nette, mémoire répétée. Le test est vendredi.',
     durationMin: sessionMinutes(warmup.text, blocks, COOLDOWN),
-    equipment: unique(cardioContentFor(11, 'skill').content.equipment),
+    equipment: unique(cardioEquipment(11, 'skill')),
     warmup: warmup.text,
     blocks,
     cooldown: COOLDOWN,
@@ -555,10 +770,25 @@ const CHAIN_PURPOSE = 'Deux postes reliés, avec la transition entre eux entraî
 const CHAIN_WARMUP_BASE = 'trot facile, chevilles, épaules, quelques accélérations à la fin';
 const CHAIN_COOLDOWN = '5 min : marche facile.';
 
-function freshReferenceBlock(tails: TailContent): ExerciseBlock {
+// CHANGE_REQUEST_013 v3 — the ENGINE chain session, from week 5
+// (weekly_shape.md v7): about 49-50 min, hard from the power EMOM to the end
+// of the cardio, on purpose (R-WS-04/R-TL-04 do not apply to it).
+const ENGINE_PURPOSE = 'Séance moteur, à bloc : cardio, explosivité, endurance. Une référence fraîche au début ; puis dur, exprès, de l’EMOM puissance jusqu’à la fin du cardio ; la tail B mesure sous fatigue à la fin. Repos courts mais jamais nuls ; douleur à la poitrine ou vertige : arrêter le bloc, marcher, la séance compte quand même.';
+const ENGINE_COOLDOWN = '4 min : marche facile.';
+// WEEK_5_FINAL, Thu 8 Oct, block 1. Later weeks use the generic warm-up
+// (6 min + the power slot, so 8 or 9 min).
+const ENGINE_WARMUP_BY_WEEK: Readonly<Record<number, string>> = {
+  5: `9 min : « La ligne des 18 m ». 3 min de footing facile autour du parcours · 2 min de mobilité : balancés de jambes devant et sur le côté, cercles de hanches, rebonds de chevilles · 2 min sur la ligne de 18 m, un aller chacun, retour en marchant : montées de genoux, talons-fesses, carioca à gauche, carioca à droite · 1 min : 2 accélérations de 20 m (60 % puis 85 %) ; ${powerSlotText(3)}.`
+};
+
+export function isEngineChainWeek(weekNumber: number): boolean {
+  return weekNumber >= ENGINE_CHAIN_FROM_WEEK;
+}
+
+function freshReferenceBlock(tails: TailContent, minutes: number): ExerciseBlock {
   const spec: FreshReferenceSpec = { kind: 'fresh_reference', blockId: FRESH_REFERENCE_BLOCK_ID, drills: tails.freshReference.drills };
   return {
-    title: 'Référence fraîche — 3 min', short: 'référence', kind: 'fresh_reference', spec,
+    title: `Référence fraîche — ${minutes} min`, short: 'référence', kind: 'fresh_reference', spec,
     faire: tails.freshReference.faire,
     noter: tails.freshReference.noter,
     stationMappings: [tails.stationId], approximation: true
@@ -567,32 +797,46 @@ function freshReferenceBlock(tails: TailContent): ExerciseBlock {
 
 function chainBlockFor(season: SeasonWeek, tails: TailContent): ExerciseBlock {
   const content = CHAIN_BLOCKS[season.chain];
-  if (!content) return placeholderBlock('chain_block', chainPlaceholderLabel(season), 12);
+  const engine = isEngineChainWeek(season.week);
+  if (!content) return placeholderBlock('chain_block', chainPlaceholderLabel(season), engine ? 11 : 12);
   const spec: ChainBlock = {
     kind: 'chain_block',
     rounds: content.rounds,
     stations: content.stations,
     transitionNote: content.transitionNote,
-    tailA: tails.tailA.drill,
-    tailASeconds: tails.tailA.seconds,
+    // R-WS-34: no tail A in the engine chain.
+    ...(engine ? {} : { tailA: tails.tailA.drill, tailASeconds: tails.tailA.seconds }),
     roundScores: content.roundScores,
     restS: content.restS,
     durationMin: content.durationMin,
-    intensity: 'moderate'
+    intensity: content.intensity
   };
   return {
     title: content.title, short: 'enchaînement', kind: 'chain_block', spec,
-    faire: `${content.faire} Puis ${tails.tailA.faire}`,
+    faire: engine ? content.faire : `${content.faire} Puis ${tails.tailA.faire}`,
     details: content.transitionNote,
-    noter: `${content.noter} · ${tails.tailA.noter}.`,
-    stationMappings: [...content.stations, tails.tailA.drill.stationId], approximation: true
+    noter: engine ? `${content.noter}.` : `${content.noter} · ${tails.tailA.noter}.`,
+    stationMappings: engine ? content.stations : [...content.stations, tails.tailA.drill.stationId], approximation: true
   };
 }
 
-function tailBBlock(tails: TailContent): ExerciseBlock {
+// The power EMOM of the engine chain: the week's own entry, or a named gap.
+function powerEmomBlock(season: SeasonWeek): ExerciseBlock {
+  const content = POWER_EMOM_BY_WEEK[season.week];
+  if (!content) return placeholderBlock('power_emom', 'Puissance, EMOM 6 : à construire', 6);
+  const spec: PowerEmomSpec = { kind: 'power_emom', atoms: content.atoms.map(cardRef), durationMin: content.durationMin, drills: content.drills };
+  return {
+    title: `Puissance, EMOM ${content.durationMin} — ${content.durationMin} min`, short: 'puissance', kind: 'power_emom', spec,
+    faire: content.faire,
+    noter: content.noter,
+    stationMappings: content.stations, approximation: true
+  };
+}
+
+function tailBBlock(tails: TailContent, minutes: number): ExerciseBlock {
   const spec: TailB = { kind: 'tail_b', minutes: tails.tailB.minutes, referenceBlockId: FRESH_REFERENCE_BLOCK_ID, stopRule: tails.tailB.stopRule };
   return {
-    title: 'Tail B — 5 min', short: 'tail B', kind: 'tail_b', spec,
+    title: `Tail B — ${minutes} min`, short: 'tail B', kind: 'tail_b', spec,
     faire: tails.tailB.faire,
     regle: tails.tailB.stopRule,
     noter: tails.tailB.noter,
@@ -602,6 +846,18 @@ function tailBBlock(tails: TailContent): ExerciseBlock {
 
 function chainSessionBlocks(season: SeasonWeek): ExerciseBlock[] {
   const tails = TAILS[season.tails === 'none' ? 'racket' : season.tails];
+  if (isEngineChainWeek(season.week)) {
+    // Q3 / decision 6: the memory slot is 6 min with M4 (weeks 9 to 11), 4 min before.
+    const module = season.memory as Exclude<MemoryModule, 'M5'>;
+    return [
+      freshReferenceBlock(tails, 2),
+      memoryBlock(module, module === 'M4' ? 6 : 4, false),
+      powerEmomBlock(season),
+      chainBlockFor(season, tails),
+      cardioBlock(season.week, 'chain', season.cardioMin),
+      tailBBlock(tails, 4)
+    ];
+  }
   const memory: ExerciseBlock = season.memory === 'LOCKED'
     ? {
       title: 'Mémoire — 4 min', short: 'mémoire', kind: 'memory', spec: { kind: 'memory', modules: ['M3'] },
@@ -610,11 +866,11 @@ function chainSessionBlocks(season: SeasonWeek): ExerciseBlock[] {
     }
     : memoryBlock(season.memory, 4, false);
   return [
-    freshReferenceBlock(tails),
+    freshReferenceBlock(tails, 3),
     memory,
     chainBlockFor(season, tails),
     cardioBlock(season.week, 'chain', season.cardioMin),
-    tailBBlock(tails)
+    tailBBlock(tails, 5)
   ];
 }
 
@@ -639,17 +895,20 @@ export function buildChainSessionRecipe(weekNumber: number): SessionRecipe {
     };
   }
   const module = season.memory as Exclude<MemoryModule, 'M5'>;
-  const warmup = warmupFor(season, CHAIN_WARMUP_BASE);
+  const engine = isEngineChainWeek(season.week);
+  const generic = warmupFor(season, CHAIN_WARMUP_BASE).text;
+  const warmup = ENGINE_WARMUP_BY_WEEK[season.week] ?? generic;
+  const cooldown = engine ? ENGINE_COOLDOWN : CHAIN_COOLDOWN;
   const tails = TAILS[season.tails === 'none' ? 'racket' : season.tails];
   return {
-    id: `chain-session-v2-week-${season.week}`, version: 2, kind: 'chain_session',
-    title: 'Séance enchaînement',
-    purpose: CHAIN_PURPOSE,
-    durationMin: sessionMinutes(warmup.text, blocks, CHAIN_COOLDOWN),
-    equipment: unique([...(CHAIN_BLOCKS[season.chain]?.equipment ?? []), ...tails.equipment, ...cardioContentFor(season.week, 'chain').content.equipment]),
-    warmup: warmup.text,
+    id: `chain-session-${engine ? 'v3' : 'v2'}-week-${season.week}`, version: engine ? 3 : 2, kind: 'chain_session',
+    title: engine ? 'Enchaînement moteur' : 'Séance enchaînement',
+    purpose: engine ? ENGINE_PURPOSE : CHAIN_PURPOSE,
+    durationMin: sessionMinutes(warmup, blocks, cooldown),
+    equipment: unique([...(CHAIN_BLOCKS[season.chain]?.equipment ?? []), ...tails.equipment, ...cardioEquipment(season.week, 'chain')]),
+    warmup,
     blocks,
-    cooldown: CHAIN_COOLDOWN,
+    cooldown,
     memory: memoryPrompt('chain_session', module)
   };
 }
@@ -658,9 +917,10 @@ export function buildChainSessionRecipe(weekNumber: number): SessionRecipe {
 
 /**
  * The weekend run of weeks 4 to 10 except the race week: the distance from
- * the table, and from week 7 the hill sprints as the last block (R-WS-43,
- * card S01_hill_sprints), scored by the reps done only. Week 4's text is the
- * week 4 plan's own.
+ * the table and, when the table puts the hill sprints on Saturday (week 10),
+ * the sprints as the last block (R-WS-43, card S01_hill_sprints), scored by
+ * the reps done only. Week 4's text is the week 4 plan's own. In a travel
+ * week the run may be on a treadmill (season_plan.md v3).
  */
 export function buildWeekendRunRecipe(weekNumber: number): SessionRecipe | null {
   const season = seasonWeek(weekNumber);
@@ -675,19 +935,11 @@ export function buildWeekendRunRecipe(weekNumber: number): SessionRecipe | null 
     }
     : {
       title: `Sortie facile — ${km}`, short: 'sortie',
-      faire: 'Allure conversationnelle, majoritairement facile.',
+      faire: season.travel ? 'Allure conversationnelle, majoritairement facile. Dehors ou sur tapis.' : 'Allure conversationnelle, majoritairement facile.',
       stationMappings: []
     };
   const blocks: ExerciseBlock[] = [main];
-  if (season.hillSprints > 0) {
-    blocks.push({
-      title: `Côtes : ${season.hillSprints} sprints de 8 à 10 s, retour en marchant`, short: 'côtes', kind: 'hill_sprints',
-      faire: `En fin de sortie, au pied d’une courte pente : ${season.hillSprints} sprints de 8 à 10 s en montée, retour en marchant ; repartir quand la respiration est redevenue facile. Puis 5 min de trot facile.`,
-      regle: 'Stop si la vitesse chute nettement ou au moindre tiraillement au mollet ou à l’ischio. Le nombre n’est pas une cible.',
-      noter: 'Seulement le nombre de sprints faits.',
-      stationMappings: [], approximation: true
-    });
-  }
+  if (season.hillSprints > 0 && season.hillSprintsDay === 'SAT') blocks.push(hillSprintsBlock(season.hillSprints, true));
   return {
     id: `trail-maintenance-v2-week-${season.week}`, version: 2, kind: 'trail_maintenance',
     title: 'Trail — sortie de maintien',
@@ -697,6 +949,40 @@ export function buildWeekendRunRecipe(weekNumber: number): SessionRecipe | null 
     warmup: null,
     blocks,
     cooldown: null
+  };
+}
+
+function hillSprintsBlock(count: number, endOfRun: boolean): ExerciseBlock {
+  return {
+    title: `Côtes : ${count} sprints de 8 à 10 s, retour en marchant`, short: 'côtes', kind: 'hill_sprints',
+    faire: endOfRun
+      ? `En fin de sortie, au pied d’une courte pente : ${count} sprints de 8 à 10 s en montée, retour en marchant ; repartir quand la respiration est redevenue facile. Puis 5 min de trot facile.`
+      : `Au pied d’une courte pente : ${count} sprints de 8 à 10 s en montée, retour en marchant ; repartir quand la respiration est redevenue facile. Jamais sur un tapis.`,
+    regle: 'Stop si la vitesse chute nettement ou au moindre tiraillement au mollet ou à l’ischio. Le nombre n’est pas une cible.',
+    noter: 'Seulement le nombre de sprints faits.',
+    stationMappings: [], approximation: true
+  };
+}
+
+/**
+ * CHANGE_REQUEST_013 v3 — week 9: the Tuesday session is the hill sprints in
+ * place of the run intervals (season_plan.md v3, note i; R-WS-43), inside the
+ * fixed Tuesday frame (R-WS-19). It keeps the Tuesday run slot, so it still
+ * counts as the week's first run (R-WS-03). Null when the table puts no
+ * sprints on Tuesday.
+ */
+export function buildTuesdayHillSprintsRecipe(weekNumber: number): SessionRecipe | null {
+  const season = seasonWeek(weekNumber);
+  if (!season || season.hillSprintsDay !== 'TUE' || season.hillSprints === 0) return null;
+  return {
+    id: `hill-sprints-v1-week-${season.week}`, version: 1, kind: 'run_intervals',
+    title: 'Côtes — sprints en montée',
+    purpose: `Semaine ${season.week} : ${season.hillSprints} sprints en côte à la place des intervalles (carte S01_hill_sprints). Pas d’intervalles cette semaine.`,
+    durationMin: null,
+    equipment: ['Chaussures de course', 'une courte pente'],
+    warmup: '15 min facile, puis 3 × 20 s d’accélérations progressives.',
+    blocks: [hillSprintsBlock(season.hillSprints, false)],
+    cooldown: '10 min facile.'
   };
 }
 
@@ -737,6 +1023,7 @@ export function freshReferenceOf(recipe: SessionRecipe): FreshReferenceSpec | nu
 export function skillBlockOf(recipe: SessionRecipe): SkillBlock | null { return specOf<SkillBlock>(recipe, 'skill_block'); }
 export function chainBlockOf(recipe: SessionRecipe): ChainBlock | null { return specOf<ChainBlock>(recipe, 'chain_block'); }
 export function tailBOf(recipe: SessionRecipe): TailB | null { return specOf<TailB>(recipe, 'tail_b'); }
+export function powerEmomOf(recipe: SessionRecipe): PowerEmomSpec | null { return specOf<PowerEmomSpec>(recipe, 'power_emom'); }
 
 /** The block of a kind, placeholder or not. */
 export function blockOfKind(recipe: SessionRecipe, kind: BlockKind): ExerciseBlock | null {
@@ -778,7 +1065,8 @@ export function drillsOfBlock(block: ExerciseBlock): DrillRef[] {
   if (!spec) return [];
   if (spec.kind === 'fresh_reference' || spec.kind === 'skill_block') return spec.drills;
   if (spec.kind === 'memory') return spec.drills ?? [];
-  if (spec.kind === 'chain_block') return [...spec.roundScores, spec.tailA];
+  if (spec.kind === 'power_emom') return spec.drills;
+  if (spec.kind === 'chain_block') return spec.tailA ? [...spec.roundScores, spec.tailA] : spec.roundScores;
   if (spec.kind === 'tail_b') return spec.minutes.map((minute) => minute.drill);
   return [];
 }

@@ -137,11 +137,14 @@ describe('CR-013 — a chain block never satisfies the cardio requirement (R-WS-
 });
 
 describe('CR-013 — a cardio block never holds more than three atoms (R-WS-30)', () => {
+  // CHANGE_REQUEST_013 v3 — except the recorded week 5 "Quatre coins"
+  // (CARDIO_ATOM_EXCEPTIONS), tested in cr013v3.test.ts.
   it('holds for every police session of every v4 week', () => {
     for (const session of policeSessions) {
       const cardio = cardioBlockOf(recipeById[session.recipeId]!)!;
       expect(cardio.atoms.length).toBeGreaterThanOrEqual(1);
-      expect(cardio.atoms.length).toBeLessThanOrEqual(3);
+      if (session.id === '2026-10-07:skill_session') expect(cardio.atoms.length).toBe(4);
+      else expect(cardio.atoms.length).toBeLessThanOrEqual(3);
     }
   });
 
@@ -325,7 +328,7 @@ describe('CR-013 — tail A and tail B never use the skill block’s station (R-
   it('holds in week 3: the skill block is station 8, both tails are station 11', () => {
     const focus = skillBlockOf(skillRecipe3)!.stationId;
     expect(focus).toBe(8);
-    expect(chainBlockOf(chainRecipe3)!.tailA.stationId).toBe(11);
+    expect(chainBlockOf(chainRecipe3)!.tailA!.stationId).toBe(11);
     for (const minute of tailBOf(chainRecipe3)!.minutes) expect(minute.drill.stationId).not.toBe(focus);
   });
 
@@ -333,7 +336,7 @@ describe('CR-013 — tail A and tail B never use the skill block’s station (R-
     const errors = errorsOf({
       chain: (recipe) => {
         const chain = chainBlockOf(recipe)!;
-        chain.tailA = { ...chain.tailA, ...cardRef('S08_chain_out') };
+        chain.tailA = { ...chain.tailA!, ...cardRef('S08_chain_out') };
       }
     });
     expect(errors.some((error) => error.includes('R-WS-36'))).toBe(true);
@@ -485,7 +488,7 @@ describe('CR-013 section E — the week 3 fixtures reproduce the two locked Driv
     expect(chain.restS).toBe(90);
     expect(chain.durationMin).toBe(12);
     expect(chain.stations).toEqual([1, 3]);
-    expect(chain.tailA.cardId).toBe('S11_racket_on_board');
+    expect(chain.tailA!.cardId).toBe('S11_racket_on_board');
     expect(chain.tailASeconds).toBe(30);
     expect(chain.roundScores.map((drill) => drill.measure)).toEqual(['round_time_s', 'cones_touched']);
     expect(chain.transitionNote).toContain('épaules basses');
