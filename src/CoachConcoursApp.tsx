@@ -317,6 +317,11 @@ const INTENSITY_WORD: Record<PlannedSession['load'], string> = {
   event: 'Jour J'
 };
 function intensityWord(load: PlannedSession['load']): string { return INTENSITY_WORD[load]; }
+// CHANGE_REQUEST_013 v3 — the engine chain session (week 5 on) is 'hard' in
+// the data and reads "à bloc" on screen (weekly_shape.md v7, "to the limit").
+function sessionIntensityWord(planned: PlannedSession, recipe: SessionRecipe): string {
+  return planned.kind === 'chain_session' && recipe.version >= 3 && planned.load === 'hard' ? 'Intensité : à bloc' : intensityWord(planned.load);
+}
 
 // CHANGE_REQUEST_013 section D — the gap is a difference, so its sign is the
 // information: "+2" means two more drops under fatigue than fresh.
@@ -612,7 +617,7 @@ function PrevuTab({ planned, recipe, openBlock, openRetour }: { planned: Planned
       <div className="ph"><h4>Ton programme</h4></div>
       <div className="chips">
         {durationLabel && <span className="chip">⏱ {durationLabel}</span>}
-        <span className="chip">⚡ {intensityWord(planned.load)}</span>
+        <span className="chip">⚡ {sessionIntensityWord(planned, recipe)}</span>
         {recipe.blocks.length > 0 && <span className="chip">▤ {recipe.blocks.length} bloc{recipe.blocks.length > 1 ? 's' : ''}</span>}
       </div>
       {steps.length > 0 && <div className="hr" />}
@@ -964,7 +969,7 @@ function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft,
         {drills.map((drill) => <NumberField key={drill.drillId} label={drill.scoreLabel} value={drillScores[drill.drillId] ?? ''} onChange={(next) => setDrillScores((current) => ({ ...current, [drill.drillId]: next }))} step={1} />)}
         {cardio && <>
           <div className="lab">{baseline ? `Semaine précédente : ${baseline.value}${baseline.note ? ` · ${baseline.note}` : ''}. Aucune cible.` : 'Pas encore de référence de la semaine précédente. Aucune cible.'}</div>
-          <NumberField label={cardio.format === 'emom' ? 'Minutes tenues' : 'Tours faits'} value={cardioValue} onChange={setCardioValue} step={1} />
+          <NumberField label={cardio.valueLabel ?? (cardio.format === 'emom' ? 'Minutes tenues' : 'Tours faits')} value={cardioValue} onChange={setCardioValue} step={1} />
           <label className="field"><span>Ce que tu as fait</span><textarea rows={2} maxLength={300} value={cardioNote} onChange={(event) => setCardioNote(event.target.value)} placeholder="facultatif" /></label>
         </>}
       </div>;
@@ -992,7 +997,7 @@ function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft,
       {fields.includes('intervalDistance2M') && <NumberField label="Distance intervalle 2" value={intervalDistance2M} onChange={setIntervalDistance2M} step={1} unit="m" />}
     </div>)}
 
-    {isRunIntervals && <div className="grp">
+    {isRunIntervals && !isHillRun && <div className="grp">
       <div className="gh">Intervalles</div>
       {repPaces.map((value, index) => <PaceField key={index} label={`Rép ${index + 1}`} value={value} onChange={(next) => setRepPaces((paces) => paces.map((pace, paceIndex) => paceIndex === index ? next : pace))} />)}
       <NumberField label="Répétitions faites" value={repsDone} onChange={setRepsDone} step={1} />

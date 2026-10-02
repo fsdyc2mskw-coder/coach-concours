@@ -25,14 +25,15 @@ describe('CHANGE_REQUEST_011 — run_intervals generator', () => {
     expect(recipe.blocks[0]!.faire).toContain('4 × 3 min à 6:00 /km');
   });
 
-  it('Week 5 (2026-10-05): 3 × 2 min @ 5:50', () => {
+  // CHANGE_REQUEST_013 v3 — run_intervals_progression.md v4.
+  it('Week 5 (2026-10-05): 3 × 4 min @ 5:25', () => {
     const recipe = runIntervalsSession('2026-10-05').recipe;
-    expect(recipe.blocks[0]!.faire).toContain('3 × 2 min à 5:50 /km');
+    expect(recipe.blocks[0]!.faire).toContain('3 × 4 min à 5:25 /km');
   });
 
-  it('Week 11 (2026-11-16): 4 × 1 min @ 5:30', () => {
+  it('Week 11 (2026-11-16): 4 × 1 min @ 5:00', () => {
     const recipe = runIntervalsSession('2026-11-16').recipe;
-    expect(recipe.blocks[0]!.faire).toContain('4 × 1 min à 5:30 /km');
+    expect(recipe.blocks[0]!.faire).toContain('4 × 1 min à 5:00 /km');
   });
 
   it('every week 2-11 keeps the fixed frame: warm-up + exactly one main block + cool-down', () => {
@@ -48,9 +49,10 @@ describe('CHANGE_REQUEST_011 — run_intervals generator', () => {
 
   it('the main set never invents a row: it is read verbatim from the progression table (R-WS-20)', () => {
     for (let weekNumber = 2; weekNumber <= 11; weekNumber += 1) {
+      if (weekNumber === 9) continue; // CR-013 v3: week 9's Tuesday is the hill sprints, no row
       const startDate = weeks[weekNumber - 1]!.startDate;
       const recipe = runIntervalsSession(startDate).recipe;
-      const row = runIntervalsProgression[weekNumber - 2]!;
+      const row = runIntervalsProgression.find((item) => item.week === weekNumber)!;
       expect(recipe.blocks[0]!.faire).toContain(`${row.reps} × ${row.minutes} min`);
     }
   });

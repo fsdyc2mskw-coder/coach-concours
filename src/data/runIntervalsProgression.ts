@@ -1,13 +1,14 @@
+// CHANGE_REQUEST_013 v3 — `02_Training_brain/rules/run_intervals_progression.md`
+// v4 (2 October 2026): from week 5 the paces are re-anchored on the ONE
+// baseline (6-min run, 2 October: VMA 12.2 km/h), the main sets are new,
+// weeks 7 and 8 run on a hotel treadmill (the km/h is shown, `treadmill` is
+// set by the planner from SEASON_PLAN), week 9 is the hill sprints and has
+// no row here, and there is no re-test anywhere. Weeks 2 to 4 are past and
+// keep their rows (week 4 stays 4 × 4 min at 6:00, decision 3).
+// CHANGE_REQUEST_011 — Tuesday run_intervals progression table. One row per
+// week; the generator reads the row for the week and never invents a set
+// (R-WS-20).
 // CHANGE_REQUEST_013 v2 section F — the trail race is on SUNDAY 11 October.
-// CHANGE_REQUEST_011 — Tuesday run_intervals progression table, verbatim from
-// `02_Training_brain/rules/run_intervals_progression.md` v1 (15 September
-// 2026). One row per week 2 to 11; the generator reads the row for the week
-// number and never invents a set (R-WS-20). Week 8 carries `retest: true`
-// (the 1 km re-test that resets the zones, R-WS-23). Week 9 alone has a
-// second group ("2 × 6 min @ 5:45, jog 4 min, then 4 × 1 min @ 5:20") — its
-// `second.jogSec` is not given by the source table (only the jog between the
-// two groups is); the value here is a documented approximation, flagged in
-// `handoffs/APP_REPORT_011.md`, not a sporting decision made silently.
 export interface RunIntervalsGroup {
     reps: number;
     minutes: number;
@@ -22,8 +23,9 @@ export interface RunIntervalsRow {
     paceSec: number;
     jogSec: number;
     purpose: string;
-    retest?: boolean;
-    /** Only week 9: the second group of its compound main set. */
+    /** Weeks 7 and 8 (travel): the row is run on a treadmill, incline 1 %. */
+    treadmill?: boolean;
+    /** A second group in the same main set (none in v4). */
   second?: RunIntervalsGroup;
 }
 
@@ -31,34 +33,32 @@ export const runIntervalsProgression: RunIntervalsRow[] = [
   { week: 2, reps: 4, minutes: 3, paceSec: 360, jogSec: 180, purpose: 'base, apprendre l’allure I' },
   { week: 3, reps: 5, minutes: 3, paceSec: 360, jogSec: 150, purpose: 'volume' },
   { week: 4, reps: 4, minutes: 4, paceSec: 360, jogSec: 180, purpose: 'répétitions plus longues' },
-  { week: 5, reps: 3, minutes: 2, paceSec: 350, jogSec: 120, purpose: 'léger : trail le dimanche 11 oct.' },
-  { week: 6, reps: 4, minutes: 4, paceSec: 350, jogSec: 180, purpose: 'palier d’allure' },
-  { week: 7, reps: 6, minutes: 2, paceSec: 330, jogSec: 120, purpose: 'vitesse de jambes' },
-  { week: 8, reps: 3, minutes: 5, paceSec: 355, jogSec: 180, purpose: 'endurance, nouvelle référence', retest: true },
-  {
-        week: 9, reps: 2, minutes: 6, paceSec: 345, jogSec: 240, purpose: 'répétition générale du concours',
-        second: { reps: 4, minutes: 1, paceSec: 320, jogSec: 60 }
-  },
-  { week: 10, reps: 5, minutes: 3, paceSec: 340, jogSec: 90, purpose: 'récupération courte, pic' },
-  { week: 11, reps: 4, minutes: 1, paceSec: 330, jogSec: 120, purpose: 'affûtage : concours vendredi 20 nov.' }
+  { week: 5, reps: 3, minutes: 4, paceSec: 325, jogSec: 180, purpose: 'semaine de course, dimanche 11 oct.' },
+  { week: 6, reps: 5, minutes: 4, paceSec: 325, jogSec: 180, purpose: 'volume en hausse après la course' },
+  { week: 7, reps: 6, minutes: 2, paceSec: 305, jogSec: 120, purpose: 'vitesse' },
+  { week: 8, reps: 3, minutes: 5, paceSec: 320, jogSec: 180, purpose: 'endurance' },
+  { week: 10, reps: 4, minutes: 3, paceSec: 315, jogSec: 120, purpose: 'semaine allégée, affûter' },
+  { week: 11, reps: 4, minutes: 1, paceSec: 300, jogSec: 120, purpose: 'affûtage : concours vendredi 20 nov.' }
   ];
 
-// R-WS-23 — pace zones from the recorded baselines, in seconds per kilometre.
-// Reset by the Week 8 re-test (not automated here: the reset itself is a
-// sporting decision made from a recorded result, left to a future CR/rule
-// update, per `handoffs/00_COCKPIT.md` §7 precedent for adaptation notes).
+// R-WS-23 — pace zones from the ONE baseline (2 October 2026, VMA 12.2 km/h),
+// in seconds per kilometre. Reviewed only in Cowork, never automatically.
 export const runIntervalsZones = {
-    R: { minSec: 320, maxSec: 330 },
-    I: { minSec: 350, maxSec: 360 },
-    T: { minSec: 395, maxSec: 405 },
-    E: { minSec: 450, maxSec: null as number | null }
+    R: { minSec: 295, maxSec: 305 },
+    I: { minSec: 315, maxSec: 330 },
+    T: { minSec: 345, maxSec: 355 },
+    E: { minSec: 420, maxSec: null as number | null }
 };
 
 export const runIntervalsBaselines = {
-    oneKmSec: 330,
-    best6minMeters: 1000,
-    retestWeek: 8
+    vmaKmh: 12.2,
+    sixMinRunM: 1385
 };
+
+/** The treadmill speed of a pace, in km/h to one decimal (run_intervals_progression.md v4). */
+export function treadmillKmh(paceSec: number): number {
+    return Math.round(36000 / paceSec) / 10;
+}
 
 export type NextRowOutcome = 'repeat' | 'advance' | 'advanceFaster';
 

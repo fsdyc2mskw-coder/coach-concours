@@ -177,8 +177,19 @@ describe('CR-014 checkWeek', () => {
   it('the generated standard week returns no flag at all', () => {
     // The test that matters most: the checker is silent until she moves
     // something. Checked on every generated week, not only week 2.
+    // CHANGE_REQUEST_013 v3 — except what season_plan.md v3 itself writes:
+    // week 5 trains Monday to Thursday (WEEK_5_FINAL), and weeks 6 and 9
+    // put the extra CrossFit class on the Saturday after the engine chain.
+    // Those soft flags are true and stay visible; they are questions in
+    // APP_REPORT_013_v3, not something the checker hides.
+    const expectedBySeasonPlan: Record<string, string[]> = {
+      '2026-10-05': ['C3'],
+      '2026-10-12': ['C1', 'C3'],
+      '2026-11-02': ['C1', 'C3']
+    };
     for (const week of generatePlan()) {
-      expect(checkWeek(week), `flags on ${week.startDate}`).toEqual([]);
+      expect(codes(week), `flags on ${week.startDate}`).toEqual(expectedBySeasonPlan[week.startDate] ?? []);
+      expect(checkWeek(week).some((flag) => flag.hard), `hard flag on ${week.startDate}`).toBe(false);
     }
   });
 

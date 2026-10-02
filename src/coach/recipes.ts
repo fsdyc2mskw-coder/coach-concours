@@ -1,5 +1,5 @@
 import type { SessionRecipe } from './types';
-import type { RunIntervalsRow } from '../data/runIntervalsProgression';
+import { treadmillKmh, type RunIntervalsRow } from '../data/runIntervalsProgression';
 
 export const recipes: Record<string, SessionRecipe> = {
   crossfit: {
@@ -238,20 +238,32 @@ function runIntervalsDurationMin(row: RunIntervalsRow): number {
 // "Rép 1 … Rép n" fields.
 export const runIntervalsRepsById: Record<string, number> = {};
 
+// CHANGE_REQUEST_013 v3 — R-WS-22 as built, plus the heat line of
+// run_intervals_progression.md v4. Shown from week 5, where v4 starts.
+export const HEAT_RULE_TEXT = 'Au-dessus de 28 °C : courir au ressenti ; la séance ne compte pas pour la règle d’ajustement.';
+
+function kmhText(paceSec: number): string {
+  return `${treadmillKmh(paceSec).toFixed(1).replace('.', ',')} km/h`;
+}
+
 export function buildRunIntervalsRecipe(row: RunIntervalsRow): SessionRecipe {
+  const treadmill = row.treadmill === true;
   const recipe: SessionRecipe = {
     id: `run-intervals-v1-week-${row.week}`, version: 1, kind: 'run_intervals',
     title: 'Intervalles course',
-    purpose: `Plat · vitesse. Semaine ${row.week} : ${row.purpose}.${row.retest ? ' Re-test 1 km le samedi de cette semaine.' : ''}`,
+    purpose: `${treadmill ? 'Sur tapis, pente 1 %' : 'Plat'} · vitesse. Semaine ${row.week} : ${row.purpose}.`,
     durationMin: runIntervalsDurationMin(row),
-    equipment: ['Chaussures de course', 'chronomètre ou montre avec tour auto 1 km'],
+    equipment: treadmill ? ['Chaussures de course', 'tapis de course'] : ['Chaussures de course', 'chronomètre ou montre avec tour auto 1 km'],
     warmup: '15 min facile, puis 3 × 20 s d’accélérations progressives.',
     blocks: [
       {
-        title: `${row.reps} × ${row.minutes} min à ${paceText(row.paceSec)} — main set`,
+        title: `${row.reps} × ${row.minutes} min à ${paceText(row.paceSec)}${treadmill ? ` (${kmhText(row.paceSec)}, sur tapis)` : ''} — main set`,
         short: 'intervalles',
-        faire: runIntervalsFaire(row),
-        details: `${row.purpose}, allure lue au tour auto 1 km.`,
+        faire: treadmill
+          ? `Sur tapis, pente 1 % : ${runIntervalsFaire(row)} (${kmhText(row.paceSec)}).`
+          : runIntervalsFaire(row),
+        ...(row.week >= 5 ? { regle: HEAT_RULE_TEXT } : {}),
+        details: treadmill ? `${row.purpose}, vitesse lue sur le tapis.` : `${row.purpose}, allure lue au tour auto 1 km.`,
         stationMappings: [],
         // R-WS-22's second group (week 9) has no jog value in the source
         // table for its own recovery; a value is assumed here (documented in
