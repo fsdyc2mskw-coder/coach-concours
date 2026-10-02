@@ -200,3 +200,75 @@ on the merge commit are the athlete's, before Monday 5 October. After the merge,
 the old code until the app is fully closed and reopened.
 
 Commit: `fa39d352e720d9981d52b5900f5d3e737f6696b5`
+
+## 8. Answers of 2 October
+
+Source: `handoffs/DECISIONS_APP_REPORT_013v3_2026-10-02.md` (copied from Drive 04, 3 981 bytes,
+precedence 1 over `weekly_shape.md` v7, `run_intervals_progression.md` v4 and `season_plan.md` v3
+until their next versions). The file asks for the four code items to go into pull request #11
+before the merge; PR #11 was already merged (`7b0ceee`) and tagged `cr-013-v3` when the file
+arrived, so they ship as a second pull request from branch `cr-013-v3-answers`, cut from
+`origin/main` at `7b0ceee` with no upstream. The published tag is not moved.
+
+```
+ #   answer                                  in the code
+ 1   travel days Wed + Thu, as built         no change
+ 2   keep a power block in the hotel         W7-W8 placeholder "Puissance à l’hôtel : à construire"
+ 3   reuse the W5 power EMOM                 W6, W9, W10 get the W5 EMOM unchanged, same drill,
+                                             same "Meilleur saut du bloc (cm)" box; CR-019 writes
+                                             the rest later
+ 4   hoops travel with her                   travel weeks drop the wall bars atoms only; hoops
+                                             atoms and "cerceaux" stay; the regle line counts only
+                                             what is missing ("un atome sans le matériel de l’hôtel")
+ 5   rule of three killed                    R-WS-30 = four atoms maximum (MAX_CARDIO_ATOMS);
+                                             CARDIO_ATOM_EXCEPTIONS and maxCardioAtoms deleted;
+                                             the reuse rule no longer removes a 4th atom, so
+                                             W9-W11 keep the air squats
+ 6   « Quatre coins » recording, option A    no change
+ 7   heat rule killed                        the heat line is gone from every Tuesday;
+                                             R-WS-22 is exactly as built before this CR
+ 8   hard days side by side, as built        no change
+ 9   keep the chain B transition note        no change
+ 10  week 8 tails at the W8 build            no change
+ 11  57 / 54 min in W9-W10 accepted          no change
+```
+
+What the weeks look like now:
+
+```
+ wk   power EMOM                      skill cardio atoms                         engine cardio atoms
+ 5    W5 EMOM                         hoops · wall bars 1 hand · JJ · squats      wall bars · squats · high knees
+ 6    W5 EMOM (reused)                wall bars 1 hand · JJ · squats (+ hoops     same as W5
+                                      to replace, focus 8)
+ 7-8  "Puissance à l’hôtel"           hoops · JJ · squats (+ wall bars to replace) squats · high knees (+ wall bars)
+ 9-10 W5 EMOM (reused)                the four W5 atoms                           same as W5
+ 11   (no engine chain)               the four W5 atoms, 6 min                    -
+```
+
+Readings:
+
+| # | Point | What the code does | Why |
+|---|---|---|---|
+| A1 | Hotel placeholder text | `Puissance à l’hôtel : à construire`, typographic apostrophe | every French string in the app uses ’; the decisions file writes ' |
+| A2 | Power EMOM reuse rule | the latest earlier week with an entry, travel weeks excluded | answer 3 names W6, W9, W10; the rule gives exactly those |
+| A3 | Wall bars in travel text | still never named (count only) | CR-013 v3 section B; answer 4 changes only the hoops |
+
+Tests: the v3 file now checks four atoms allowed and a fifth flagged, no exception list, W9-W11
+keeping their four atoms, hoops present in the travel weeks (atoms and equipment), only the wall
+bars "à remplacer", the W5 EMOM reused in W6, W9, W10, the hotel placeholder in W7-W8, and no
+heat text on any Tuesday. `cr013.test.ts` checks "at most four" and flags a fifth atom.
+
+Verification:
+
+```
+ pnpm typecheck   clean
+ pnpm test        16 files, 254 tests passed
+ pnpm build       built, PWA precache 10 entries
+ validate:schemas OK on all three schemas
+```
+
+Still open for Cowork: the rule files fold these answers in at the week 6 build (weekly_shape v8,
+run_intervals v5, season_plan v4), and the tag for this second pull request (`cr-013-v3` already
+sits on `7b0ceee`).
+
+Commit: `840c8c7ca7fa2375eba4be78fa3f469b72431b0a`
