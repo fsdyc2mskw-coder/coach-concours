@@ -19,7 +19,7 @@ import {
   isEngineChainWeek,
   isPlaceholder,
   isSessionShape,
-  maxCardioAtoms,
+  MAX_CARDIO_ATOMS,
   memoryBlockOf,
   memoryModulesOf,
   powerSlotText,
@@ -526,10 +526,9 @@ export function validateV4PoliceSessions(week: TrainingWeek): string[] {
       errors.push(`${label} : exactement un bloc cardio par séance ; un bloc d’enchaînement n’en est pas un (R-WS-16).`);
     }
     for (const cardio of cardioBlocks) {
-      // CHANGE_REQUEST_013 v3 — the recorded exceptions are a list in data
-      // (CARDIO_ATOM_EXCEPTIONS), not a relaxed rule.
-      if (cardio.atoms.length < 1 || cardio.atoms.length > maxCardioAtoms(weekNumber, session.kind as 'skill_session' | 'chain_session')) {
-        errors.push(`${label} : le bloc cardio compte au maximum trois atomes (R-WS-30).`);
+      // CHANGE_REQUEST_013 v3 — answer 5 of 2 October: four atoms maximum.
+      if (cardio.atoms.length < 1 || cardio.atoms.length > MAX_CARDIO_ATOMS) {
+        errors.push(`${label} : le bloc cardio compte au maximum quatre atomes (R-WS-30).`);
       }
       // CHANGE_REQUEST_013 v3 — a reused block whose real atoms were removed
       // and named "à remplacer" (travel weeks) is a named gap waiting for the

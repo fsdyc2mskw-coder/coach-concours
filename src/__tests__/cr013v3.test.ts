@@ -12,12 +12,12 @@ import CoachConcoursApp from '../CoachConcoursApp';
 import { generatePlan, validateV4PoliceSessions, validateWeek } from '../coach/planner';
 import { recipeById } from '../coach/recipes';
 import {
-  CARDIO_ATOM_EXCEPTIONS,
+  MAX_CARDIO_ATOMS,
+  POWER_EMOM_HOTEL_PLACEHOLDER,
   SEASON_PLAN,
   blockOfKind,
   blockSequence,
   buildChainSessionRecipe,
-  buildSkillSessionRecipe,
   cardioBlockOf,
   cardioBlocksOf,
   chainBlockOf,
@@ -100,10 +100,9 @@ describe('CR-013 v3 — weeks 3 and 4 still reproduce their locked files (no cha
     ]);
   });
 
-  it('Tue 29 Sep stays 4 × 4 min at 6:00 (decision 3), and W3-W4 carry no heat line', () => {
+  it('Tue 29 Sep stays 4 × 4 min at 6:00 (decision 3)', () => {
     const tuesday = recipeOf(weekNo(4), 'run_intervals')!;
     expect(tuesday.blocks[0]!.faire).toContain('4 × 4 min à 6:00 /km');
-    for (const n of [3, 4]) expect(recipeOf(weekNo(n), 'run_intervals')!.blocks[0]!.regle).toBeUndefined();
   });
 
   it('the week 4 racket block keeps its three obstacle boxes (it was trained with them)', () => {
@@ -142,11 +141,11 @@ describe('CR-013 v3 — week 5 reproduces WEEK_5_FINAL_2026-10-05.md block for b
     expect(validateWeek(week)).toEqual([]);
   });
 
-  it('Tue 6 Oct: 3 × 4 min at 5:25, jog 3 min, the heat line', () => {
+  it('Tue 6 Oct: 3 × 4 min at 5:25, jog 3 min, no heat line (answer 7)', () => {
     const tuesday = recipeOf(week, 'run_intervals')!;
     expect(tuesday.blocks[0]!.title).toBe('3 × 4 min à 5:25 — main set');
     expect(tuesday.blocks[0]!.faire).toBe('3 × 4 min à 5:25 /km, récupération 3 min en trottinant');
-    expect(tuesday.blocks[0]!.regle).toBe('Au-dessus de 28 °C : courir au ressenti ; la séance ne compte pas pour la règle d’ajustement.');
+    expect(tuesday.blocks[0]!.regle).toBeUndefined();
     expect(tuesday.warmup).toBe('15 min facile, puis 3 × 20 s d’accélérations progressives.');
     expect(tuesday.cooldown).toBe('10 min facile.');
   });
@@ -310,37 +309,34 @@ function fixture(n: number, replace: { skill?: SessionRecipe; chain?: SessionRec
   };
 }
 
-// ---------- 5. R-WS-30 exception list ----------
+// ---------- 5. R-WS-30, four atoms maximum (answer 5 of 2 October) ----------
 
-describe('CR-013 v3 — the W5 Wednesday cardio passes R-WS-30 through the exception list; any other 4-atom block is flagged', () => {
-  it('the exception is data: week 5, skill session, 4 atoms, and nothing else', () => {
-    expect(CARDIO_ATOM_EXCEPTIONS).toEqual([{ week: 5, shape: 'skill_session', atoms: 4 }]);
+describe('CR-013 v3 — R-WS-30 allows four atoms; a fifth is flagged; reused cardio keeps its four', () => {
+  it('the limit is four and the week 5 exception list is gone', async () => {
+    expect(MAX_CARDIO_ATOMS).toBe(4);
+    const module = await import('../coach/sessionShapes');
+    expect('CARDIO_ATOM_EXCEPTIONS' in module).toBe(false);
+    expect('maxCardioAtoms' in module).toBe(false);
     expect(validateV4PoliceSessions(weekNo(5)).some((error) => error.includes('R-WS-30'))).toBe(false);
   });
 
-  it('a fourth atom in the week 5 engine chain cardio is flagged', () => {
+  it('a fourth atom in the week 5 engine chain cardio passes; a fifth is flagged', () => {
     const chain = structuredClone(buildChainSessionRecipe(5));
     chain.id = 'v3-fixture-chain-four-atoms';
-    (chain.blocks.find((block) => block.kind === 'cardio')!.spec as { atoms: unknown[] }).atoms.push(cardRef('S00_jumping_jacks'));
+    const atoms = (chain.blocks.find((block) => block.kind === 'cardio')!.spec as { atoms: unknown[] }).atoms;
+    atoms.push(cardRef('S00_jumping_jacks'));
     recipeById[chain.id] = chain;
+    expect(validateV4PoliceSessions(fixture(5, { chain })).some((error) => error.includes('R-WS-30'))).toBe(false);
+    atoms.push(cardRef('S00_jump_squats'));
     expect(validateV4PoliceSessions(fixture(5, { chain })).some((error) => error.includes('R-WS-30'))).toBe(true);
   });
 
-  it('a four-atom skill cardio in another week is flagged (the exception does not carry over)', () => {
-    const skill = structuredClone(buildSkillSessionRecipe(6));
-    skill.id = 'v3-fixture-skill-w6-four-atoms';
-    const atoms = (skill.blocks.find((block) => block.kind === 'cardio')!.spec as { atoms: unknown[] }).atoms;
-    while (atoms.length < 4) atoms.push(cardRef('S00_jumping_jacks'));
-    recipeById[skill.id] = skill;
-    expect(validateV4PoliceSessions(fixture(6, { skill })).some((error) => error.includes('R-WS-30'))).toBe(true);
-  });
-
-  it('a reused « Quatre coins » never keeps four atoms: the fourth is named « atome à remplacer »', () => {
+  it('a reused « Quatre coins » keeps its four atoms in weeks 9 to 11 (no air squats removed)', () => {
     for (const n of [9, 10, 11]) {
       const skill = recipeOf(weekNo(n), 'skill_session')!;
-      expect(cardioBlockOf(skill)!.atoms.length, `week ${n}`).toBeLessThanOrEqual(3);
-      expect(cardioBlockOf(skill)!.toReplace!.map((atom) => atom.cardId)).toEqual(['S00_air_squats']);
-      expect(skill.blocks.find((block) => block.kind === 'cardio')!.regle).toContain('trois atomes au maximum, R-WS-30');
+      expect(cardioBlockOf(skill)!.atoms.map((atom) => atom.cardId), `week ${n}`).toEqual(['S08_chain_out', 'S03_ladder_one_hand_object', 'S00_jumping_jacks', 'S00_air_squats']);
+      expect(cardioBlockOf(skill)!.toReplace).toBeUndefined();
+      expect(validateWeek(weekNo(n)), `week ${n}`).toEqual([]);
     }
   });
 });
@@ -393,8 +389,10 @@ describe('CR-013 v3 — Tuesday sets W5-W11 equal run_intervals v4', () => {
     for (const text of [...allTexts(), ...runIntervalsProgression.map((row) => row.purpose)]) expect(text).not.toMatch(/re-?test/i);
   });
 
-  it('the heat line is shown on every Tuesday interval session from week 5', () => {
-    for (const n of [5, 6, 7, 8, 10, 11]) expect(tuesday(n).blocks[0]!.regle).toContain('Au-dessus de 28 °C');
+  it('no Tuesday screen or text carries the heat line (answer 7)', () => {
+    for (let n = 3; n <= 11; n += 1) {
+      for (const text of textsOf(tuesday(n))) expect(text, `week ${n}`).not.toMatch(/28 °C|ressenti/);
+    }
   });
 });
 
@@ -411,22 +409,26 @@ describe('CR-013 v3 — W7 and W8 have no Monday session; W6 and W9 have a Satur
     expect(weekNo(7).sessions.map((item) => item.date)).toEqual(['2026-10-20', '2026-10-21', '2026-10-22', '2026-10-24']);
   });
 
-  it('travel weeks never name the wall bars, the hoops or the ghost', () => {
+  it('travel weeks never name the wall bars or the ghost; the hoops travel and stay (answer 4)', () => {
     for (const n of [7, 8]) {
       for (const session of weekNo(n).sessions) {
         const text = textsOf(recipeById[session.recipeId]!).join(' ').toLowerCase();
-        expect(text, `${session.id}`).not.toMatch(/espalier|cerceau|fantôme|échelle extérieure/);
-        expect(recipeById[session.recipeId]!.equipment.join(' ').toLowerCase()).not.toMatch(/espalier|cerceau|échelle/);
+        expect(text, `${session.id}`).not.toMatch(/espalier|fantôme|échelle extérieure/);
+        expect(recipeById[session.recipeId]!.equipment.join(' ').toLowerCase()).not.toMatch(/espalier|échelle/);
       }
+      const skill = recipeOf(weekNo(n), 'skill_session')!;
+      expect(skill.equipment).toContain('cerceaux');
+      expect(cardioBlockOf(skill)!.atoms.map((atom) => atom.cardId)).toContain('S08_chain_out');
     }
   });
 
-  it('travel weeks: the reused cardio drops the wall bars and hoops atoms and names the gap', () => {
+  it('travel weeks: the reused cardio drops only the wall bars atoms and names that gap only', () => {
     const skill = recipeOf(weekNo(7), 'skill_session')!;
     const chain = recipeOf(weekNo(7), 'chain_session')!;
-    expect(cardioBlockOf(skill)!.toReplace!.map((atom) => atom.cardId)).toEqual(['S08_chain_out', 'S03_ladder_one_hand_object']);
+    expect(cardioBlockOf(skill)!.atoms.map((atom) => atom.cardId)).toEqual(['S08_chain_out', 'S00_jumping_jacks', 'S00_air_squats']);
+    expect(cardioBlockOf(skill)!.toReplace!.map((atom) => atom.cardId)).toEqual(['S03_ladder_one_hand_object']);
     expect(cardioBlockOf(chain)!.toReplace!.map((atom) => atom.cardId)).toEqual(['S03_ladder_climb_jump_finish']);
-    expect(skill.blocks.find((block) => block.kind === 'cardio')!.regle).toBe('Atomes à remplacer dans Cowork : 2 atomes sans le matériel de l’hôtel.');
+    expect(skill.blocks.find((block) => block.kind === 'cardio')!.regle).toBe('Atomes à remplacer dans Cowork : un atome sans le matériel de l’hôtel.');
   });
 
   it('crossfit_plus: Sat 17 Oct and Sat 7 Nov are CrossFit days, hard, external content; the run moves to Sunday', () => {
@@ -504,10 +506,21 @@ describe('CR-013 v3 — W8 skill block is a placeholder naming both options; W9-
     expect(blockOfKind(recipeOf(weekNo(9), 'chain_session')!, 'chain_block')!.title).toBe('Circuit fantôme : à venir, postes 1 à 11 — 11 min');
   });
 
-  it('weeks 6 to 10: the power EMOM has no entry yet and is a named gap, never the week 5 content (R-SP-03)', () => {
-    for (const n of [6, 7, 8, 9, 10]) {
+  it('weeks 6, 9, 10 reuse the week 5 power EMOM unchanged, same best-jump box (answer 3)', () => {
+    const week5 = recipeOf(weekNo(5), 'chain_session')!;
+    for (const n of [6, 9, 10]) {
+      const chain = recipeOf(weekNo(n), 'chain_session')!;
+      expect(powerEmomOf(chain), `week ${n}`).toEqual(powerEmomOf(week5));
+      expect(blockOfKind(chain, 'power_emom')).toEqual(blockOfKind(week5, 'power_emom'));
+      expect(drillsOfBlock(blockOfKind(chain, 'power_emom')!).map((drill) => drill.drillId)).toEqual(['power:best_jump']);
+    }
+  });
+
+  it('weeks 7 and 8: the hotel power block is a named gap until the week 7 build (answer 2)', () => {
+    for (const n of [7, 8]) {
       const block = blockOfKind(recipeOf(weekNo(n), 'chain_session')!, 'power_emom')!;
       expect(block.placeholder, `week ${n}`).toBe(true);
+      expect(block.title).toBe(`${POWER_EMOM_HOTEL_PLACEHOLDER} — 6 min`);
       expect(drillsOfBlock(block)).toEqual([]);
     }
   });
