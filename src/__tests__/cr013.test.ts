@@ -136,20 +136,18 @@ describe('CR-013 — a chain block never satisfies the cardio requirement (R-WS-
   });
 });
 
-describe('CR-013 — a cardio block never holds more than three atoms (R-WS-30)', () => {
-  // CHANGE_REQUEST_013 v3 — except the recorded week 5 "Quatre coins"
-  // (CARDIO_ATOM_EXCEPTIONS), tested in cr013v3.test.ts.
+describe('CR-013 — a cardio block never holds more than four atoms (R-WS-30, answer 5 of 2 October)', () => {
+  // CHANGE_REQUEST_013 v3 — answer 5 of 2 October: FOUR atoms maximum.
   it('holds for every police session of every v4 week', () => {
     for (const session of policeSessions) {
       const cardio = cardioBlockOf(recipeById[session.recipeId]!)!;
       expect(cardio.atoms.length).toBeGreaterThanOrEqual(1);
-      if (session.id === '2026-10-07:skill_session') expect(cardio.atoms.length).toBe(4);
-      else expect(cardio.atoms.length).toBeLessThanOrEqual(3);
+      expect(cardio.atoms.length).toBeLessThanOrEqual(4);
     }
   });
 
-  it('is enforced: a fourth atom is flagged', () => {
-    const errors = errorsOf({ skill: (recipe) => { cardioOf(recipe).atoms.push(cardRef('S00_air_squats')); } });
+  it('is enforced: a fifth atom is flagged', () => {
+    const errors = errorsOf({ skill: (recipe) => { cardioOf(recipe).atoms.push(cardRef('S00_air_squats'), cardRef('S00_jumping_jacks')); } });
     expect(errors.some((error) => error.includes('R-WS-30'))).toBe(true);
   });
 });

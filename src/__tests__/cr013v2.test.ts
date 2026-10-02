@@ -337,7 +337,7 @@ describe('CR-013 v2 — every placeholder has no score box and no week 3 text (R
     expect(titles).toContain('Circuit fantôme : à venir, postes 1 à 11 — 11 min');
     expect(titles).toContain('Passage fantôme au pas — 15 min');
     expect(titles).toContain('Slalom ou raquette, à confirmer — 18 min');
-    expect(titles).toContain('Puissance, EMOM 6 : à construire — 6 min');
+    expect(titles).toContain('Puissance à l’hôtel : à construire — 6 min');
   });
 
   it('each one: no spec, no drill, only "À construire dans Cowork", nothing from week 3', () => {

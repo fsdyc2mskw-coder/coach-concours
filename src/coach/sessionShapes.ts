@@ -90,16 +90,10 @@ export const SEASON_PLAN: Readonly<Record<number, SeasonWeek>> = {
 // v7, "lock week 5"). Weeks 3 and 4 keep their own chain session, untouched.
 export const ENGINE_CHAIN_FROM_WEEK = 5;
 
-// R-WS-30: three atoms at most. The recorded exceptions, as data: the week 5
-// Wednesday "Quatre coins" (4 atoms, accepted at "lock week 5"). Nothing
-// else, and the rule itself stays at three.
-export const CARDIO_ATOM_EXCEPTIONS: ReadonlyArray<{ week: number; shape: SessionShape; atoms: number }> = [
-  { week: 5, shape: 'skill_session', atoms: 4 }
-];
-
-export function maxCardioAtoms(weekNumber: number, shape: SessionShape): number {
-  return CARDIO_ATOM_EXCEPTIONS.find((item) => item.week === weekNumber && item.shape === shape)?.atoms ?? 3;
-}
+// R-WS-30: FOUR atoms at most in one cardio block (DECISIONS_APP_REPORT_013v3,
+// answer 5, 2 October: the rule of three is withdrawn, and with it the
+// week 5 exception list).
+export const MAX_CARDIO_ATOMS = 4;
 
 /** The table row of a week, or null for weeks 1 and 2, which the table does not cover. */
 export function seasonWeek(weekNumber: number): SeasonWeek | null {
@@ -451,9 +445,9 @@ export const CARDIO_BY_WEEK: Readonly<Record<number, CardioWeek>> = {
     }
   },
   // CHANGE_REQUEST_013 v3 — WEEK_5_FINAL_2026-10-05.md. The skill session's
-  // "Quatre coins" has four atoms, the recorded exception to R-WS-30
-  // (CARDIO_ATOM_EXCEPTIONS); its one-minute finisher is not an atom. The
-  // engine chain's "La montée" has no jump on purpose (race in 72 h).
+  // "Quatre coins" has four atoms (R-WS-30 allows four since answer 5 of
+  // 2 October); its one-minute finisher is not an atom. The engine chain's
+  // "La montée" has no jump on purpose (race in 72 h).
   5: {
     skill: {
       format: 'amrap',
@@ -489,14 +483,15 @@ export const CARDIO_BY_WEEK: Readonly<Record<number, CardioWeek>> = {
 
 export const ATOMS_TO_REPLACE = 'atomes à remplacer';
 
-// CHANGE_REQUEST_013 v3 — in the travel weeks the hotel gym has no ladder and
-// no hoops (season_plan.md v3, "Travel weeks"): a reused atom on the wall bars
-// (station 3) or the hoops (station 8) is removed, and the session text never
-// names them.
-const TRAVEL_MISSING_STATIONS: readonly number[] = [3, 8];
-const TRAVEL_MISSING_EQUIPMENT = /cerceau|échelle|espalier/i;
+// CHANGE_REQUEST_013 v3 — in the travel weeks the hotel gym has no ladder
+// (season_plan.md v3, "Travel weeks"): a reused atom on the wall bars
+// (station 3) is removed, and the session text never names them. The hoops
+// travel with the athlete (answer 4 of 2 October): their atoms stay, and so
+// do they in the equipment lists.
+const TRAVEL_MISSING_STATIONS: readonly number[] = [3];
+const TRAVEL_MISSING_EQUIPMENT = /échelle|espalier/i;
 
-export type RemovalReason = 'focus' | 'travel' | 'too_many';
+export type RemovalReason = 'focus' | 'travel';
 export interface RemovedAtom { atom: CardRef; reason: RemovalReason }
 
 /**
@@ -505,8 +500,8 @@ export interface RemovedAtom { atom: CardRef; reason: RemovalReason }
  * fresh at each week build) and removes, listing each as "atome à
  * remplacer":
  *   - every atom of the week's focus station (R-WS-29),
- *   - in a travel week, every atom on the wall bars or the hoops,
- *   - any atom beyond three (R-WS-30: an exception never carries over).
+ *   - in a travel week, every atom on the wall bars.
+ * A reused entry keeps its four atoms otherwise (answer 5 of 2 October).
  * The gap reads "atomes à remplacer" instead of being silently filled
  * (R-SP-03).
  */
@@ -518,14 +513,10 @@ export function cardioContentFor(weekNumber: number, shape: 'skill' | 'chain'): 
   const focus = focusStationOf(weekNumber);
   const travel = seasonWeek(weekNumber)?.travel === true;
   const removals: RemovedAtom[] = [];
-  let kept = 0;
-  const limit = maxCardioAtoms(weekNumber, shape === 'skill' ? 'skill_session' : 'chain_session');
   for (const item of content.atoms) {
     const atom = cardRef(item.cardId);
     if (atom.stationId === focus) removals.push({ atom, reason: 'focus' });
     else if (travel && TRAVEL_MISSING_STATIONS.includes(atom.stationId)) removals.push({ atom, reason: 'travel' });
-    else if (kept >= limit) removals.push({ atom, reason: 'too_many' });
-    else kept += 1;
   }
   return { content, removed: removals.map((item) => item.atom), removals, reused: true };
 }
@@ -536,9 +527,8 @@ function cardioEquipment(weekNumber: number, shape: 'skill' | 'chain'): string[]
 }
 
 function removalText(removals: RemovedAtom[]): string {
-  const named = removals.filter((item) => item.reason !== 'travel').map(({ atom, reason }) => reason === 'focus'
-    ? `${atom.label} (poste ${atom.stationId}, travaillé en compétence cette semaine)`
-    : `${atom.label} (trois atomes au maximum, R-WS-30)`);
+  const named = removals.filter((item) => item.reason === 'focus')
+    .map(({ atom }) => `${atom.label} (poste ${atom.stationId}, travaillé en compétence cette semaine)`);
   const travelCount = removals.filter((item) => item.reason === 'travel').length;
   const travel = travelCount ? [`${travelCount === 1 ? 'un atome' : `${travelCount} atomes`} sans le matériel de l’hôtel`] : [];
   return `${ATOMS_TO_REPLACE.charAt(0).toUpperCase()}${ATOMS_TO_REPLACE.slice(1)} dans Cowork : ${[...named, ...travel].join(', ')}.`;
@@ -820,10 +810,25 @@ function chainBlockFor(season: SeasonWeek, tails: TailContent): ExerciseBlock {
   };
 }
 
-// The power EMOM of the engine chain: the week's own entry, or a named gap.
+// The power EMOM of the engine chain. Answers 2 and 3 of 2 October: a home
+// week with no entry of its own reuses the latest earlier entry unchanged
+// (weeks 6, 9, 10 get the week 5 EMOM, same drill, same best-jump box) until
+// CR-019 writes one per week; a travel week keeps the named gap until the
+// week 7 build writes the hotel version.
+export const POWER_EMOM_HOTEL_PLACEHOLDER = 'Puissance à l’hôtel : à construire';
+
+function powerEmomContentFor(season: SeasonWeek): PowerEmomContent | undefined {
+  if (POWER_EMOM_BY_WEEK[season.week]) return POWER_EMOM_BY_WEEK[season.week];
+  if (season.travel) return undefined;
+  for (let week = season.week - 1; week >= ENGINE_CHAIN_FROM_WEEK; week -= 1) {
+    if (POWER_EMOM_BY_WEEK[week]) return POWER_EMOM_BY_WEEK[week];
+  }
+  return undefined;
+}
+
 function powerEmomBlock(season: SeasonWeek): ExerciseBlock {
-  const content = POWER_EMOM_BY_WEEK[season.week];
-  if (!content) return placeholderBlock('power_emom', 'Puissance, EMOM 6 : à construire', 6);
+  const content = powerEmomContentFor(season);
+  if (!content) return placeholderBlock('power_emom', season.travel ? POWER_EMOM_HOTEL_PLACEHOLDER : 'Puissance, EMOM 6 : à construire', 6);
   const spec: PowerEmomSpec = { kind: 'power_emom', atoms: content.atoms.map(cardRef), durationMin: content.durationMin, drills: content.drills };
   return {
     title: `Puissance, EMOM ${content.durationMin} — ${content.durationMin} min`, short: 'puissance', kind: 'power_emom', spec,

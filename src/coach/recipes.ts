@@ -238,10 +238,6 @@ function runIntervalsDurationMin(row: RunIntervalsRow): number {
 // "Rép 1 … Rép n" fields.
 export const runIntervalsRepsById: Record<string, number> = {};
 
-// CHANGE_REQUEST_013 v3 — R-WS-22 as built, plus the heat line of
-// run_intervals_progression.md v4. Shown from week 5, where v4 starts.
-export const HEAT_RULE_TEXT = 'Au-dessus de 28 °C : courir au ressenti ; la séance ne compte pas pour la règle d’ajustement.';
-
 function kmhText(paceSec: number): string {
   return `${treadmillKmh(paceSec).toFixed(1).replace('.', ',')} km/h`;
 }
@@ -262,7 +258,6 @@ export function buildRunIntervalsRecipe(row: RunIntervalsRow): SessionRecipe {
         faire: treadmill
           ? `Sur tapis, pente 1 % : ${runIntervalsFaire(row)} (${kmhText(row.paceSec)}).`
           : runIntervalsFaire(row),
-        ...(row.week >= 5 ? { regle: HEAT_RULE_TEXT } : {}),
         details: treadmill ? `${row.purpose}, vitesse lue sur le tapis.` : `${row.purpose}, allure lue au tour auto 1 km.`,
         stationMappings: [],
         // R-WS-22's second group (week 9) has no jog value in the source
