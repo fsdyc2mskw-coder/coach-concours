@@ -22,6 +22,15 @@
 // French, the app's own language. It must not change (R-WS-15): every string
 // the week 3 sessions render is the same as before v2.
 import { cardRef } from '../data/exerciseCards';
+import {
+  MEMORY_CARD_HOME,
+  MEMORY_CARD_LABEL,
+  MEMORY_GAME_FROM_WEEK,
+  memoryBlockMinutes,
+  memoryCardDrill,
+  memoryCardFor,
+  memoryCycleOf
+} from './memoryCycle';
 import type {
   BlockKind,
   CardRef,
@@ -579,18 +588,11 @@ const MEMORY_TEXT: Record<Exclude<MemoryModule, 'M5'>, string> = {
   M4: 'Le circuit entier, yeux fermés, à l’allure du test : action, réussite, transition, poste suivant, sans aide.'
 };
 
-// R-MM-04: the weekly recall check, scored as errors out of 33. CR-018 will
-// replace it with the memory game.
+// R-MM-04 (v2): the weekly recall check, scored as errors out of 33. Week 4
+// only: from week 5 CR-018's game card replaces it (memory_modules.md v3).
 export const RECALL_CHECK_DRILL: DrillRef = {
   cardId: 'memory_recall_check', stationId: 0, label: 'Contrôle de rappel',
   drillId: 'memory:recall_errors', measure: 'recall_errors', scoreLabel: 'Erreurs de rappel sur 33'
-};
-
-// CHANGE_REQUEST_013 v3 — WEEK_5_FINAL, Wed 7 Oct, block 2: "order + action +
-// done-when, out loud". The module stays M2 (R-MM-05); the plan's words win
-// for week 5.
-const SKILL_MEMORY_TEXT_BY_WEEK: Readonly<Record<number, string>> = {
-  5: 'L’ordre, l’action et quand le poste compte comme réussi, à voix haute.'
 };
 
 function memoryBlock(module: Exclude<MemoryModule, 'M5'>, minutes: number, withRecallCheck: boolean, text: string = MEMORY_TEXT[module]): ExerciseBlock {
@@ -601,6 +603,25 @@ function memoryBlock(module: Exclude<MemoryModule, 'M5'>, minutes: number, withR
       ? `${text} Les 2 dernières minutes : contrôle de rappel, 33 éléments (les 11 postes × ordre, action, réussite), dits à voix haute sans aide, puis vérifiés sur la fiche officielle.`
       : text,
     ...(withRecallCheck ? { noter: 'Erreurs de rappel sur 33 : éléments oubliés ou faux. But : 0.' } : {}),
+    stationMappings: []
+  };
+}
+
+// CHANGE_REQUEST_018 section C — from week 5 the memory block holds ONE game
+// card of the 2-week cycle (R-MM-01/R-MM-03), opened with [Jouer] and scored by
+// the game itself (R-MM-04). 4 min, or 10 with M4 after the card (R-MM-06).
+// The video reminder is not written here: see `withMemoryVideo()`.
+function isMemoryGameWeek(weekNumber: number): boolean {
+  return weekNumber >= MEMORY_GAME_FROM_WEEK && memoryCycleOf(weekNumber) !== null;
+}
+
+function memoryGameBlock(weekNumber: number, shape: SessionShape): ExerciseBlock {
+  const cycle = memoryCycleOf(weekNumber)!;
+  const card = memoryCardFor(weekNumber, shape)!;
+  const spec: MemoryBlockSpec = { kind: 'memory', modules: cycle.m4 ? ['M4'] : [], drills: [memoryCardDrill(card)], game: { card, m4: cycle.m4 } };
+  return {
+    title: `Mémoire · ${MEMORY_CARD_LABEL[card]} — ${memoryBlockMinutes(cycle.m4)} min`, short: 'mémoire', kind: 'memory', spec,
+    faire: `${MEMORY_CARD_HOME[card].title} · ${MEMORY_CARD_HOME[card].line}.`,
     stationMappings: []
   };
 }
@@ -714,7 +735,9 @@ export function buildSkillSessionRecipe(weekNumber: number): SessionRecipe {
 
   const module = season.memory as Exclude<MemoryModule, 'M5'>;
   const warmup = warmupFor(season, SKILL_WARMUP_BASE);
-  const blocks = [memoryBlock(module, 6, true, SKILL_MEMORY_TEXT_BY_WEEK[season.week] ?? MEMORY_TEXT[module]), skillBlockFor(season), cardioBlock(season.week, 'skill', season.cardioMin)];
+  const game = isMemoryGameWeek(season.week);
+  const memory = game ? memoryGameBlock(season.week, 'skill_session') : memoryBlock(module, 6, true);
+  const blocks = [memory, skillBlockFor(season), cardioBlock(season.week, 'skill', season.cardioMin)];
   const station = focusStationOf(season.week);
   const cooldown = SKILL_COOLDOWN_BY_WEEK[season.week] ?? COOLDOWN;
   return {
@@ -726,18 +749,21 @@ export function buildSkillSessionRecipe(weekNumber: number): SessionRecipe {
     warmup: warmup.text,
     blocks,
     cooldown,
-    memory: memoryPrompt('skill_session', module)
+    // CHANGE_REQUEST_018 — M1 to M3 are retired as session content from week 5
+    // (memory_modules.md v3): a game week carries no recited prompt.
+    ...(game ? {} : { memory: memoryPrompt('skill_session', module) })
   };
 }
 
 // Week 11: no chain session. The skill session moves to Wednesday 18 November
 // and becomes the taper session (season_plan.md, "Week 11"): memory M4 ·
 // placeholder "Passage fantôme au pas" 15 min · cardio 6 · no tails.
+// CHANGE_REQUEST_018 — its memory block is the PLAN card followed by M4.
 export function buildTaperSessionRecipe(): SessionRecipe {
   const season = SEASON_PLAN[11]!;
   const warmup = warmupFor(season, SKILL_WARMUP_BASE);
   const blocks = [
-    memoryBlock('M4', 6, true),
+    memoryGameBlock(11, 'skill_session'),
     placeholderBlock('skill_block', 'Passage fantôme au pas', 15),
     cardioBlock(11, 'skill', season.cardioMin)
   ];
@@ -749,8 +775,7 @@ export function buildTaperSessionRecipe(): SessionRecipe {
     equipment: unique(cardioEquipment(11, 'skill')),
     warmup: warmup.text,
     blocks,
-    cooldown: COOLDOWN,
-    memory: memoryPrompt('skill_session', 'M4')
+    cooldown: COOLDOWN
   };
 }
 
@@ -852,11 +877,11 @@ function tailBBlock(tails: TailContent, minutes: number): ExerciseBlock {
 function chainSessionBlocks(season: SeasonWeek): ExerciseBlock[] {
   const tails = TAILS[season.tails === 'none' ? 'racket' : season.tails];
   if (isEngineChainWeek(season.week)) {
-    // Q3 / decision 6: the memory slot is 6 min with M4 (weeks 9 to 11), 4 min before.
-    const module = season.memory as Exclude<MemoryModule, 'M5'>;
+    // CHANGE_REQUEST_018 — the game card replaces the module from week 5
+    // (every engine chain week): 4 min, 10 with M4 (weeks 9 and 10).
     return [
       freshReferenceBlock(tails, 2),
-      memoryBlock(module, module === 'M4' ? 6 : 4, false),
+      memoryGameBlock(season.week, 'chain_session'),
       powerEmomBlock(season),
       chainBlockFor(season, tails),
       cardioBlock(season.week, 'chain', season.cardioMin),
@@ -914,7 +939,7 @@ export function buildChainSessionRecipe(weekNumber: number): SessionRecipe {
     warmup,
     blocks,
     cooldown,
-    memory: memoryPrompt('chain_session', module)
+    ...(isMemoryGameWeek(season.week) ? {} : { memory: memoryPrompt('chain_session', module) })
   };
 }
 

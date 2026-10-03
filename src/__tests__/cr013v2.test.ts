@@ -381,20 +381,21 @@ describe('CR-013 v2 — the power slot appears in both police warm-ups exactly w
 
 // ---------- 11. recall check ----------
 
-describe('CR-013 v2 — the skill memory block carries a recall_errors drill from week 4 (R-MM-04)', () => {
-  it('weeks 4 to 11, and never in the chain session', () => {
-    for (let n = 4; n <= 11; n += 1) {
-      const skill = recipeOf(weekNo(n), 'skill_session')!;
-      expect(memoryBlockOf(skill)!.drills!.map((drill) => drill.measure)).toEqual(['recall_errors']);
-      const chain = recipeOf(weekNo(n), 'chain_session');
-      if (chain) expect(memoryBlockOf(chain)!.drills).toBeUndefined();
+// CHANGE_REQUEST_018 — from week 5 memory_modules.md v3 replaces the recall
+// check and the weekly module with one game card per police session; those
+// weeks are covered by cr018.test.ts. Week 4 is unchanged and stays here.
+describe('CR-013 v2 — the skill memory block carries a recall_errors drill in week 4 (R-MM-04 v2)', () => {
+  it('week 4, and never in the chain session; weeks 5 to 11 score the game card instead', () => {
+    const skill = recipeOf(weekNo(4), 'skill_session')!;
+    expect(memoryBlockOf(skill)!.drills!.map((drill) => drill.measure)).toEqual(['recall_errors']);
+    expect(memoryBlockOf(recipeOf(weekNo(4), 'chain_session')!)!.drills).toBeUndefined();
+    for (let n = 5; n <= 11; n += 1) {
+      for (const recipe of policeRecipes(weekNo(n))) expect(memoryBlockOf(recipe)!.drills!.map((drill) => drill.measure)).toEqual(['memory_card']);
     }
   });
 
-  it('both police sessions use the week’s module (R-MM-05)', () => {
-    for (let n = 4; n <= 11; n += 1) {
-      for (const recipe of policeRecipes(weekNo(n))) expect(memoryModulesOf(recipe)).toEqual([SEASON_PLAN[n]!.memory]);
-    }
+  it('both police sessions use the week’s module in week 4 (R-MM-05 v2)', () => {
+    for (const recipe of policeRecipes(weekNo(4))) expect(memoryModulesOf(recipe)).toEqual([SEASON_PLAN[4]!.memory]);
   });
 });
 
@@ -425,9 +426,10 @@ describe('CR-013 v2 — week 11: taper session Wed 18 Nov; nothing Thu 19 Nov; n
     expect(week.sessions.find((item) => item.kind === 'police_event')).toMatchObject({ id: '2026-11-20:police_event', status: 'fixed_event', load: 'event' });
   });
 
-  it('the taper session: memory M4 · "Passage fantôme au pas" 15 min · cardio 6 · no tails', () => {
+  // CHANGE_REQUEST_018 — the memory block is the PLAN card followed by M4, 10 min.
+  it('the taper session: memory PLAN + M4 · "Passage fantôme au pas" 15 min · cardio 6 · no tails', () => {
     const taper = recipeOf(week, 'skill_session')!;
-    expect(taper.blocks.map((block) => block.title)).toEqual(['Mémoire, M4 — 6 min', 'Passage fantôme au pas — 15 min', 'Cardio AMRAP — 6 min']);
+    expect(taper.blocks.map((block) => block.title)).toEqual(['Mémoire · PLAN — 10 min', 'Passage fantôme au pas — 15 min', 'Cardio AMRAP — 6 min']);
     expect(memoryModulesOf(taper)).toEqual(['M4']);
     expect(blockSequence(taper)).not.toContain('tail_b');
     expect(blockSequence(taper)).not.toContain('fresh_reference');
@@ -545,8 +547,9 @@ describe('CR-013 v2 — the screens', () => {
     await screen.findByText('Ton programme');
     expect(screen.getAllByText(/À construire dans Cowork/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByText('Retour'));
-    // The Retour tab shows the recall box, and the placeholder brings none.
-    expect(await screen.findByLabelText('Erreurs de rappel sur 33')).toBeTruthy();
+    // The Retour tab shows the memory game's score box (CR-018: week 8's skill
+    // card is QUI MANQUE), and the placeholder brings none.
+    expect(await screen.findByLabelText('QUI MANQUE ? · bonnes réponses sur 3')).toBeTruthy();
     const placeholderGroup = screen.queryAllByText(/Slalom ou raquette, à confirmer — 18 min/).map((node) => node.closest('.grp')).find(Boolean);
     expect(placeholderGroup?.querySelectorAll('input').length ?? 0).toBe(0);
   });

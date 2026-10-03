@@ -27,6 +27,8 @@ import {
   skillBlockOf,
   tailBOf
 } from './sessionShapes';
+// CHANGE_REQUEST_018 — the memory game cycle, R-MM-01 to R-MM-06 v3.
+import { MEMORY_BLOCK_MAX_MIN, memoryBlockMinutes, memoryCardFor, memoryCycleOf } from './memoryCycle';
 
 const DAY_MS = 86_400_000;
 const start = new Date('2026-09-07T12:00:00Z');
@@ -561,15 +563,38 @@ export function validateV4PoliceSessions(week: TrainingWeek): string[] {
     if (memoryModulesOf(recipe).includes('M5')) {
       errors.push(`${label} : le module M5 n’est jamais sélectionné (R-WS-40).`);
     }
-    // R-MM-05: from week 4, both police sessions use the week's module.
-    if (season && season.memory !== 'LOCKED' && !memoryModulesOf(recipe).every((module) => module === season.memory)) {
-      errors.push(`${label} : le module mémoire de la semaine est ${season.memory} (R-MM-05).`);
-    }
-    // R-MM-04: from week 4, the skill session's memory block ends with the
-    // recall check, scored as errors out of 33.
-    if (season && season.week >= 4 && session.kind === 'skill_session'
-      && !(memoryBlockOf(recipe)?.drills ?? []).some((item) => item.measure === 'recall_errors')) {
-      errors.push(`${label} : le bloc mémoire se termine par le contrôle de rappel noté sur 33 (R-MM-04).`);
+    // CHANGE_REQUEST_018 — from week 5 memory_modules.md v3 replaces the two
+    // v2 checks below (week 4 keeps its live block and its recall check out of
+    // 33): the block holds the cycle's card, scored by the game; M4 only in
+    // weeks 9 to 11; 4 or 10 min, never above 12.
+    const cycle = memoryCycleOf(weekNumber);
+    if (cycle) {
+      const game = memoryBlockOf(recipe)?.game;
+      const expectedCard = memoryCardFor(weekNumber, session.kind as 'skill_session' | 'chain_session');
+      if (!game || game.card !== expectedCard) {
+        errors.push(`${label} : le bloc mémoire porte la carte ${expectedCard} du cycle (R-MM-03).`);
+      }
+      if (!(memoryBlockOf(recipe)?.drills ?? []).some((item) => item.measure === 'memory_card')) {
+        errors.push(`${label} : le bloc mémoire note le score de sa carte (R-MM-04).`);
+      }
+      if (memoryModulesOf(recipe).includes('M4') !== cycle.m4 || Boolean(game?.m4) !== cycle.m4) {
+        errors.push(`${label} : M4 suit la carte en semaines 9 à 11 seulement (R-MM-06).`);
+      }
+      const minutes = Number(blockOfKind(recipe, 'memory')?.title.match(/(\d+)\s*min/)?.[1] ?? 0);
+      if (minutes !== memoryBlockMinutes(cycle.m4) || minutes > MEMORY_BLOCK_MAX_MIN) {
+        errors.push(`${label} : le bloc mémoire dure ${memoryBlockMinutes(cycle.m4)} min, jamais plus de ${MEMORY_BLOCK_MAX_MIN} (R-MM-01).`);
+      }
+    } else {
+      // R-MM-05 (v2): week 4, both police sessions use the week's module.
+      if (season && season.memory !== 'LOCKED' && !memoryModulesOf(recipe).every((module) => module === season.memory)) {
+        errors.push(`${label} : le module mémoire de la semaine est ${season.memory} (R-MM-05).`);
+      }
+      // R-MM-04 (v2): week 4, the skill session's memory block ends with the
+      // recall check, scored as errors out of 33.
+      if (season && season.week >= 4 && session.kind === 'skill_session'
+        && !(memoryBlockOf(recipe)?.drills ?? []).some((item) => item.measure === 'recall_errors')) {
+        errors.push(`${label} : le bloc mémoire se termine par le contrôle de rappel noté sur 33 (R-MM-04).`);
+      }
     }
     // R-WS-41: the warm-up ends with the power slot exactly when the table
     // gives jumps for the week.

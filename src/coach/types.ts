@@ -1,3 +1,5 @@
+import type { MemoryCard } from './memoryCycle';
+
 // CHANGE_REQUEST_001 — aligned with the 9 September rules (weekly_shape.md v2,
 // TRAINING_ENGINE.md). `police_balance_coordination`, `room_explosive_intervals`
 // and `outdoor_explosive_intervals` are gone from this active union: the
@@ -59,7 +61,10 @@ export type DrillMeasure =
   | 'restarts' | 'cones_touched' | 'swings' | 'round_time_s'
   | 'touchdowns' | 'balance_faults' | 'recall_errors'
   // CHANGE_REQUEST_013 v3 — the best jump of the power EMOM, in cm.
-  | 'best_jump_cm';
+  | 'best_jump_cm'
+  // CHANGE_REQUEST_018 — the score of the memory game card played in the
+  // session's memory block (R-MM-04 v3), replacing `recall_errors` from week 5.
+  | 'memory_card';
 
 // A card of `02_Training_brain/exercise_cards/00_INDEX.md`, referenced by its
 // id. `CardRef` and `DrillRef` are named but not defined by the change
@@ -89,6 +94,11 @@ export interface MemoryBlockSpec {
   // CHANGE_REQUEST_013 v2 — R-MM-04: from week 4 the skill session's memory
   // block ends with the scored recall check.
   drills?: DrillRef[];
+  // CHANGE_REQUEST_018 — from week 5 the block is one game card. `m4` adds the
+  // eyes-closed line (weeks 9 to 11). `video` is never set by the generator:
+  // the reminder belongs to the week's FIRST police session after any day
+  // move, so `withMemoryVideo()` lays it on per session at read time.
+  game?: { card: MemoryCard; m4: boolean; video?: boolean };
 }
 
 // R-WS-37: the same-day clean reference a tail is measured against.
@@ -198,6 +208,12 @@ export interface DrillScore {
   drillId: string;
   measure: DrillMeasure;
   value: number;
+  // CHANGE_REQUEST_018 section C — a `memory_card` score also carries which
+  // card was played and its maximum, so the record reads { card, score, max }
+  // on its own (`value` is the score). Optional: every other measure, and
+  // every record written before CR-018, has neither.
+  card?: MemoryCard;
+  max?: number;
 }
 
 export type PlanPhase =
