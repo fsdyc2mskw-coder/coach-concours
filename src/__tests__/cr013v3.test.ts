@@ -150,17 +150,19 @@ describe('CR-013 v3 — week 5 reproduces WEEK_5_FINAL_2026-10-05.md block for b
     expect(tuesday.cooldown).toBe('10 min facile.');
   });
 
-  it('Wed 7 Oct, SKILL SESSION, skipping: warm-up 8 + 3 jumps · memory M2 6 · skipping 18 · « Quatre coins » 10 · cool-down 5', () => {
+  // CHANGE_REQUEST_018 — the memory block is now the PLAN card, 4 min (it was
+  // M2 for 6 min with the recall check), so the session is 2 min shorter.
+  it('Wed 7 Oct, SKILL SESSION, skipping: warm-up 8 + 3 jumps · memory PLAN 4 · skipping 18 · « Quatre coins » 10 · cool-down 5', () => {
     const skill = recipeOf(week, 'skill_session')!;
     expect(skill.warmup).toBe('8 min : trot facile, chevilles, poignets, épaules ; puis 3 sauts en longueur, réception tenue, retour en marchant.');
     expect(blockSequence(skill)).toEqual(['warmup', 'memory', 'skill_block', 'cardio', 'cooldown']);
-    expect(skill.blocks.map((block) => block.title)).toEqual(['Mémoire, M2 — 6 min', 'Corde à sauter — 18 min', 'Cardio, « Quatre coins » 30/15 — 10 min']);
+    expect(skill.blocks.map((block) => block.title)).toEqual(['Mémoire · PLAN — 4 min', 'Corde à sauter — 18 min', 'Cardio, « Quatre coins » 30/15 — 10 min']);
     expect(skill.cooldown).toBe('5 min : retour au calme, mollets et chevilles.');
-    expect(skill.durationMin).toBe(47);
+    expect(skill.durationMin).toBe(45);
 
-    // 2 MEMORY M2: order + action + done-when, last 2 min recall check /33
-    expect(memoryModulesOf(skill)).toEqual(['M2']);
-    expect(skill.blocks[0]!.faire).toMatch(/^L’ordre, l’action et quand le poste compte comme réussi, à voix haute\. Les 2 dernières minutes : contrôle de rappel, 33 éléments/);
+    // 2 MEMORY: the PLAN card of the memory game (CR-018), no module, no recall check
+    expect(memoryModulesOf(skill)).toEqual([]);
+    expect(skill.blocks[0]!.faire).toBe('PLAN DU PARCOURS · Replace les 11 postes dans la salle.');
 
     // 3 SKILL BLOCK, skipping, 18 min
     const block = skillBlockOf(skill)!;
@@ -186,7 +188,8 @@ describe('CR-013 v3 — week 5 reproduces WEEK_5_FINAL_2026-10-05.md block for b
     expect(skill.blocks[2]!.noter).toContain('jumping jacks par tour, squats faits par tour, erreurs aux cerceaux');
   });
 
-  it('Thu 8 Oct, ENGINE CHAIN: warm-up 9 · fresh 2 · memory M2 4 · power EMOM 6 · chain B 11 · « La montée » 10 · tail B 4 · cool-down 4, about 50 min, hard', () => {
+  // CHANGE_REQUEST_018 — the memory slot is the ORDRE card, still 4 min.
+  it('Thu 8 Oct, ENGINE CHAIN: warm-up 9 · fresh 2 · memory ORDRE 4 · power EMOM 6 · chain B 11 · « La montée » 10 · tail B 4 · cool-down 4, about 50 min, hard', () => {
     const session = sessionOf(week, 'chain_session')!;
     const chain = recipeById[session.recipeId]!;
     expect(session.load).toBe('hard');
@@ -198,7 +201,7 @@ describe('CR-013 v3 — week 5 reproduces WEEK_5_FINAL_2026-10-05.md block for b
     expect(chain.warmup).toMatch(/puis 3 sauts en longueur, réception tenue, retour en marchant\.$/);
     expect(blockSequence(chain)).toEqual(['warmup', 'fresh_reference', 'memory', 'power_emom', 'chain_block', 'cardio', 'tail_b', 'cooldown']);
     expect(chain.blocks.map((block) => block.title)).toEqual([
-      'Référence fraîche — 2 min', 'Mémoire, M2 — 4 min', 'Puissance, EMOM 6 — 6 min',
+      'Référence fraîche — 2 min', 'Mémoire · ORDRE — 4 min', 'Puissance, EMOM 6 — 6 min',
       'Enchaînement B, la fin du test — 11 min', 'Cardio, « La montée », croissant — 10 min', 'Tail B — 4 min'
     ]);
     expect(chain.cooldown).toBe('4 min : marche facile.');
@@ -544,10 +547,13 @@ describe('CR-013 v3 — the racket skill block scores one row per set (6 obstacl
 
 // ---------- 11. memory length ----------
 
-describe('CR-013 v3 — engine chain memory is 4 min in W5-W8 and 6 min in W9-W10', () => {
-  it('the slot, and the session grows by 2 min with it', () => {
+// CHANGE_REQUEST_018 — the slot is the game card: 4 min, or 10 min with M4
+// after the card in weeks 9 and 10 (it was 6 min of M4).
+describe('CR-013 v3 / CR-018 — engine chain memory is 4 min in W5-W8 and 10 min in W9-W10', () => {
+  it('the slot, and the session grows with it', () => {
     for (const n of [5, 6, 7, 8]) expect(blockOfKind(recipeOf(weekNo(n), 'chain_session')!, 'memory')!.title, `week ${n}`).toMatch(/— 4 min$/);
-    for (const n of [9, 10]) expect(blockOfKind(recipeOf(weekNo(n), 'chain_session')!, 'memory')!.title, `week ${n}`).toBe('Mémoire, M4 — 6 min');
+    expect(blockOfKind(recipeOf(weekNo(9), 'chain_session')!, 'memory')!.title).toBe('Mémoire · ORDRE — 10 min');
+    expect(blockOfKind(recipeOf(weekNo(10), 'chain_session')!, 'memory')!.title).toBe('Mémoire · RÈGLES — 10 min');
   });
 });
 

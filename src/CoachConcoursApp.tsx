@@ -36,13 +36,19 @@ import type {
   PlannedSession,
   ResultStatus,
   SessionRecipe,
-  SessionResult
+  SessionResult,
+  TrainingWeek
 } from './coach/types';
+// CHANGE_REQUEST_018 — the memory game: its home, its four cards, the video
+// reminder laid on per session, and the score written into a session's Retour.
+import { MEMORY_CARD_MAX, MEMORY_M4_LINE, MEMORY_VIDEO_LINE, memoryCardOfDrill, type MemoryCard } from './coach/memoryCycle';
+import { featuredCard, withMemoryCardScore, withMemoryVideo } from './coach/memoryGame';
+import { MemoryGameScreen, MemoryHome } from './MemoryGame';
 import { createDriveBackup, syncCoachState } from './infrastructure/coachDrive';
 import { loadCoachState, parseCoachState, saveCoachState } from './infrastructure/coachStorage';
 import { requestGoogleSession, revokeGoogleSession, type GoogleSession } from './infrastructure/googleIdentity';
 
-type Tab = 'week' | 'journey' | 'drive';
+type Tab = 'week' | 'journey' | 'memory' | 'drive';
 
 // CHANGE_REQUEST_010 — the week/session/block drill-down replaces the old
 // expand-in-place session card. Each screen is its own full view, matching
@@ -50,7 +56,11 @@ type Tab = 'week' | 'journey' | 'drive';
 type Drill =
   | { screen: 'list' }
   | { screen: 'session'; sessionId: string; sessionTab: 'prevu' | 'fait' | 'retour'; focusBlock?: number }
-  | { screen: 'block'; sessionId: string; blockIndex: number };
+  | { screen: 'block'; sessionId: string; blockIndex: number }
+  // CHANGE_REQUEST_018 — a game card, opened from the MÉMOIRE home (no
+  // session: free play, nothing recorded, R-MM-07) or from a session's memory
+  // block (its score goes into that session's Retour draft).
+  | { screen: 'game'; card: MemoryCard; sessionId?: string; returnTo: Drill };
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
 const AUTO_SYNC_DEBOUNCE_MS = 4_000;
@@ -177,6 +187,14 @@ export default function CoachConcoursApp() {
   // before the drop.
   const setDayMoves = (dayMoves: DayMove[]) => mutate((current) => ({ ...current, dayMoves, weeks: planWithMoves(current.results, dayMoves) }));
 
+  // CHANGE_REQUEST_018 section C — a game finished from a session writes its
+  // score into that session's Retour draft as the `memory_card` value; the
+  // athlete can still change the number there before validating.
+  const recordMemoryCard = (sessionId: string, card: MemoryCard, score: number) => mutate((current) => {
+    const results = withMemoryCardScore(current.results, sessionId, card, score);
+    return { ...current, results, weeks: planWithMoves(results, current.dayMoves) };
+  });
+
   const connectAndSync = async () => {
     if (!state) return;
     setBusy(true); setNotice('');
@@ -240,7 +258,8 @@ export default function CoachConcoursApp() {
   if (!state) return <main className="shell loading"><p>Chargement du plan…</p>{notice && <p role="alert">{notice}</p>}</main>;
 
   const openSession = (planned: PlannedSession) => setDrill({ screen: 'session', sessionId: planned.id, sessionTab: 'prevu' });
-  const found = drill.screen !== 'list' ? findPlanned(state, drill.sessionId) : null;
+  const found = drill.screen === 'session' || drill.screen === 'block' ? findPlanned(state, drill.sessionId) : null;
+  const openGame = (card: MemoryCard, sessionId: string | undefined, returnTo: Drill) => setDrill({ screen: 'game', card, sessionId, returnTo });
 
   return <main className="shell">
     {needRefresh && <UpdateBanner onReload={() => updateServiceWorker(true)} />}
@@ -250,17 +269,25 @@ export default function CoachConcoursApp() {
     {tab === 'week' && drill.screen === 'session' && found && <SessionScreen state={state} planned={found} sessionTab={drill.sessionTab} focusBlock={drill.focusBlock}
       setTab={(sessionTab) => setDrill({ screen: 'session', sessionId: found.id, sessionTab })}
       openBlock={(blockIndex) => setDrill({ screen: 'block', sessionId: found.id, blockIndex })}
+      openGame={(card) => openGame(card, found.id, { screen: 'session', sessionId: found.id, sessionTab: 'prevu' })}
       back={() => setDrill({ screen: 'list' })}
       save={saveResult} saveDraft={saveDraft} remove={removeResult} />}
-    {tab === 'week' && drill.screen === 'block' && found && <BlockScreen planned={found} blockIndex={drill.blockIndex}
+    {tab === 'week' && drill.screen === 'block' && found && <BlockScreen weeks={state.weeks} planned={found} blockIndex={drill.blockIndex}
       back={() => setDrill({ screen: 'session', sessionId: found.id, sessionTab: 'prevu' })}
+      openGame={(card) => openGame(card, found.id, drill)}
       openRetour={() => setDrill({ screen: 'session', sessionId: found.id, sessionTab: 'retour', focusBlock: drill.blockIndex })} />}
+    {drill.screen === 'game' && <MemoryGameScreen key={`${drill.card}-${drill.sessionId ?? 'free'}`} card={drill.card}
+      onBack={() => setDrill(drill.returnTo)}
+      onFinish={(score) => { if (drill.sessionId) recordMemoryCard(drill.sessionId, drill.card, score); }}
+      note={drill.sessionId ? 'Score noté dans le retour de séance.' : undefined} />}
 
     {tab === 'journey' && drill.screen === 'list' && <JourneyView state={state} />}
+    {tab === 'memory' && drill.screen === 'list' && <MemoryHome weekNumber={currentWeekNumber(state.weeks)} featured={featuredCard(state.weeks, state.results, todayISO())}
+      onPlay={(card) => openGame(card, undefined, { screen: 'list' })} />}
     {tab === 'drive' && drill.screen === 'list' && <DriveView state={state} session={session} busy={busy} sync={connectAndSync} backup={backup} disconnect={disconnect} exportData={exportData} importData={importData} />}
 
     {notice && <button className="notice" onClick={() => setNotice('')} type="button" aria-label="Fermer le message">{notice}<span>×</span></button>}
-    {drill.screen === 'list' && <nav className="tabbar" aria-label="Navigation principale"><button className={tab === 'week' ? 'on' : ''} onClick={() => setTab('week')} aria-label="Semaine">▤</button><button className={tab === 'journey' ? 'on' : ''} onClick={() => setTab('journey')} aria-label="Parcours">↗</button><button className={tab === 'drive' ? 'on' : ''} onClick={() => setTab('drive')} aria-label="Drive">☁</button></nav>}
+    {drill.screen === 'list' && <nav className="tabbar" aria-label="Navigation principale"><button className={tab === 'week' ? 'on' : ''} onClick={() => setTab('week')} aria-label="Semaine">▤</button><button className={tab === 'journey' ? 'on' : ''} onClick={() => setTab('journey')} aria-label="Parcours">↗</button><button className={tab === 'memory' ? 'on' : ''} onClick={() => setTab('memory')} aria-label="Mémoire">◈</button><button className={tab === 'drive' ? 'on' : ''} onClick={() => setTab('drive')} aria-label="Drive">☁</button></nav>}
   </main>;
 }
 
@@ -272,6 +299,13 @@ function UpdateBanner({ onReload }: { onReload: () => void }) {
     <span>Nouvelle version disponible</span>
     <button type="button" className="primary" onClick={onReload}>Recharger</button>
   </div>;
+}
+
+// CHANGE_REQUEST_018 — the MÉMOIRE home's "Semaine n", read off today's week.
+function currentWeekNumber(weeks: readonly TrainingWeek[]): number | null {
+  const today = todayISO();
+  const week = weeks.find((item) => today >= item.startDate && today <= item.endDate);
+  return week ? weekNumberOf(week.startDate) : null;
 }
 
 function findPlanned(state: CoachState, sessionId: string): PlannedSession | null {
@@ -340,8 +374,24 @@ function mmss(min: number): string { return `${String(Math.max(0, Math.round(min
 // trail run uses the same `trail-maintenance-v1` object as every other
 // weekend run), so the baseline block is laid on top per session id here
 // rather than written into the shared object.
-function recipeForSession(planned: PlannedSession): SessionRecipe {
-  return withBaselineBlock(recipeById[planned.recipeId]!, planned.id);
+// CHANGE_REQUEST_018 — same idea for the memory game's video reminder, which
+// belongs to the week's first police session after any day move; it needs the
+// moved weeks, so screens that show a memory block pass them in.
+function recipeForSession(planned: PlannedSession, weeks?: readonly TrainingWeek[]): SessionRecipe {
+  const recipe = withBaselineBlock(recipeById[planned.recipeId]!, planned.id);
+  return weeks ? withMemoryVideo(recipe, planned.id, weeks) : recipe;
+}
+
+// CHANGE_REQUEST_018 section C — the lines a game block shows after the line
+// naming its card: the video reminder, then M4. Nothing else, nothing scored.
+function memoryGameLines(block: ExerciseBlock): string[] {
+  const game = block.spec?.kind === 'memory' ? block.spec.game : undefined;
+  if (!game) return [];
+  return [...(game.video ? [MEMORY_VIDEO_LINE] : []), ...(game.m4 ? [MEMORY_M4_LINE] : [])];
+}
+
+function memoryGameCard(block: ExerciseBlock): MemoryCard | null {
+  return block.spec?.kind === 'memory' ? block.spec.game?.card ?? null : null;
 }
 
 function sessionHint(recipe: SessionRecipe): string {
@@ -559,19 +609,20 @@ function WeekScreen({ state, weekIndex, setWeekIndex, openSession, setDayMoves }
 
 // ---------- C/D/F. Session screen ----------
 
-function SessionScreen({ state, planned, sessionTab, focusBlock, setTab, openBlock, back, save, saveDraft, remove }: {
+function SessionScreen({ state, planned, sessionTab, focusBlock, setTab, openBlock, openGame, back, save, saveDraft, remove }: {
   state: CoachState;
   planned: PlannedSession;
   sessionTab: 'prevu' | 'fait' | 'retour';
   focusBlock?: number;
   setTab: (tab: 'prevu' | 'fait' | 'retour') => void;
   openBlock: (blockIndex: number) => void;
+  openGame: (card: MemoryCard) => void;
   back: () => void;
   save: (planned: PlannedSession, result: Omit<SessionResult, 'sessionId' | 'completedAt'>) => void;
   saveDraft: (planned: PlannedSession, result: Omit<SessionResult, 'sessionId' | 'completedAt'>) => void;
   remove: (planned: PlannedSession) => void;
 }) {
-  const recipe = recipeForSession(planned);
+  const recipe = recipeForSession(planned, state.weeks);
   const result = state.results[planned.id];
   return <>
     <div className="snav"><button className="back" type="button" onClick={back} aria-label="Retour">‹</button><h3>{recipe.title}</h3></div>
@@ -581,13 +632,13 @@ function SessionScreen({ state, planned, sessionTab, focusBlock, setTab, openBlo
       <button className={sessionTab === 'retour' ? 'on' : ''} onClick={() => setTab('retour')} type="button">Retour</button>
     </div>
 
-    {sessionTab === 'prevu' && <PrevuTab planned={planned} recipe={recipe} openBlock={openBlock} openRetour={() => setTab('retour')} />}
+    {sessionTab === 'prevu' && <PrevuTab planned={planned} recipe={recipe} openBlock={openBlock} openGame={openGame} openRetour={() => setTab('retour')} />}
     {sessionTab === 'fait' && <FaitTab planned={planned} result={result} openRetour={() => setTab('retour')} openPrevu={() => setTab('prevu')} />}
     {sessionTab === 'retour' && <RetourTab state={state} planned={planned} recipe={recipe} saved={result} focusBlock={focusBlock} save={save} saveDraft={saveDraft} remove={remove} backToPrevu={() => setTab('prevu')} onValidated={() => setTab('fait')} />}
   </>;
 }
 
-interface StepItem { label: string; minutes: number | null; doText: string; rulePill?: string; blockIndex?: number; }
+interface StepItem { label: string; minutes: number | null; doText: string; rulePill?: string; blockIndex?: number; extraLines?: string[]; game?: MemoryCard | null; }
 
 function sessionSteps(recipe: SessionRecipe): StepItem[] {
   const nodes = flowStrip(recipe);
@@ -600,7 +651,7 @@ function sessionSteps(recipe: SessionRecipe): StepItem[] {
     const block = recipe.blocks[blockCursor]!;
     const blockIndex = blockCursor;
     blockCursor += 1;
-    return { label: block.title, minutes: node.minutes, doText: block.faire, rulePill: block.regle ? shortRule(block.regle) : undefined, blockIndex };
+    return { label: block.title, minutes: node.minutes, doText: block.faire, rulePill: block.regle ? shortRule(block.regle) : undefined, blockIndex, extraLines: memoryGameLines(block), game: memoryGameCard(block) };
   });
 }
 
@@ -609,7 +660,7 @@ function shortRule(regle: string): string {
   return stripped.length > 72 ? `${stripped.slice(0, 69)}…` : stripped;
 }
 
-function PrevuTab({ planned, recipe, openBlock, openRetour }: { planned: PlannedSession; recipe: SessionRecipe; openBlock: (blockIndex: number) => void; openRetour: () => void }) {
+function PrevuTab({ planned, recipe, openBlock, openGame, openRetour }: { planned: PlannedSession; recipe: SessionRecipe; openBlock: (blockIndex: number) => void; openGame: (card: MemoryCard) => void; openRetour: () => void }) {
   const durationLabel = recipe.durationMin ? mmss(recipe.durationMin * planned.volumeFactor) : null;
   const steps = sessionSteps(recipe);
   return <>
@@ -630,6 +681,8 @@ function PrevuTab({ planned, recipe, openBlock, openRetour }: { planned: Planned
             <span className="m">{step.minutes !== null ? `${step.minutes} min` : ''}</span>
             {clickable ? <span className="chev">›</span> : <span />}
             <span className="do">{step.doText}</span>
+            {step.extraLines?.map((line) => <span className="do" key={line}>{line}</span>)}
+            {step.game && <span className="r"><button type="button" className="play" onClick={(event) => { event.stopPropagation(); openGame(step.game!); }}>Jouer</button></span>}
             {step.rulePill && <span className="r"><span className="pill rule">{step.rulePill}</span></span>}
           </li>;
         })}
@@ -868,7 +921,11 @@ function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft,
       const text = drillScores[drill.drillId];
       if (text === undefined || text.trim() === '') return [];
       const value = Number(text);
-      return Number.isFinite(value) ? [{ drillId: drill.drillId, measure: drill.measure, value }] : [];
+      if (!Number.isFinite(value)) return [];
+      // CHANGE_REQUEST_018 — a game score is stored as { card, score, max },
+      // whether the game wrote it or the athlete typed it.
+      const card = drill.measure === 'memory_card' ? memoryCardOfDrill(drill.drillId) : null;
+      return [{ drillId: drill.drillId, measure: drill.measure, value, ...(card ? { card, max: MEMORY_CARD_MAX[card] } : {}) }];
     })
     : [];
 
@@ -1117,8 +1174,8 @@ function GapHistory({ state }: { state: CoachState }) {
   </div>;
 }
 
-function BlockScreen({ planned, blockIndex, back, openRetour }: { planned: PlannedSession; blockIndex: number; back: () => void; openRetour: () => void }) {
-  const recipe = recipeForSession(planned);
+function BlockScreen({ weeks, planned, blockIndex, back, openGame, openRetour }: { weeks: readonly TrainingWeek[]; planned: PlannedSession; blockIndex: number; back: () => void; openGame: (card: MemoryCard) => void; openRetour: () => void }) {
+  const recipe = recipeForSession(planned, weeks);
   const block = recipe.blocks[blockIndex]!;
   const minutes = block.title.match(/(\d+)\s*min/)?.[1];
   const fields = blockFields(recipe.id, blockIndex);
@@ -1126,6 +1183,7 @@ function BlockScreen({ planned, blockIndex, back, openRetour }: { planned: Plann
   // scored drills instead of the Week 1 Friday field map.
   const blockDrills = drillsOfBlock(block);
   const cardio = block.kind === 'cardio' ? (block.spec as CardioBlock) : null;
+  const gameCard = memoryGameCard(block);
   const toRecord = useMemo(() => {
     const items: string[] = [];
     if (fields.includes('memoryErrors')) items.push('Erreurs de mémoire / postes oubliés ou inversés');
@@ -1156,8 +1214,9 @@ function BlockScreen({ planned, blockIndex, back, openRetour }: { planned: Plann
       {block.details && <div className="meta">{block.details}</div>}
       <div className="ex">
         <span className="th">{blockPictogram(block)}</span>
-        <span className="t"><b>{block.title.replace(/\s*—\s*\d+\s*min$/, '')}</b><small>{block.faire}</small></span>
+        <span className="t"><b>{block.title.replace(/\s*—\s*\d+\s*min$/, '')}</b><small>{block.faire}</small>{memoryGameLines(block).map((line) => <small key={line}>{line}</small>)}</span>
       </div>
+      {gameCard && <button type="button" className="primary" onClick={() => openGame(gameCard)}>Jouer</button>}
       {block.regle && <div className="ex rule"><span className="pill rule">{shortRule(block.regle)}</span></div>}
     </div>
     {toRecord.length > 0 && <>
