@@ -10,7 +10,9 @@ import { canReceive, isMovable, planWithMoves, today as todayISO, withMove } fro
 import { checkWeek } from './coach/weekChecker';
 // CHANGE_REQUEST_013 — the two session shapes, their scored drills, and the
 // two derived numbers of section D.
-import { cardioBlockOf, drillsOf, drillsOfBlock, hasHillSprints, isSessionShape, seasonWeek } from './coach/sessionShapes';
+import { cardioBlockOf, drillsOf, drillsOfBlock, hasHillSprints, isPoliceSession, isSessionShape, seasonWeekV4, weekLoadOf } from './coach/sessionShapes';
+// CHANGE_REQUEST_013 v5 — the GAP of the enchaînement, computed, never typed.
+import { enchainementGap, hasGapTests, type GapRow } from './coach/seasonV4';
 import { weekNumberOf } from './coach/planner';
 import { cardioBaseline, freshToFatiguedGap, gapHistory } from './coach/progression';
 // CHANGE_REQUEST_017 — the baseline block is attached to a session id, not to
@@ -332,7 +334,15 @@ const KIND_ICON: Record<PlannedSession['kind'], string> = {
   trail_maintenance: '🏃',
   trail_event: '🏃',
   run_intervals: '🏃',
-  running_intervals_exception: '🏃'
+  running_intervals_exception: '🏃',
+  // CHANGE_REQUEST_013 v5 — the kinds of season_plan.md v4.
+  skill_park: '🎯',
+  enchainement: '🧩',
+  travel_speed: '⚡',
+  travel_mini_ench: '🧩',
+  travel_skill_kit: '🎯',
+  trail_day: '🏃',
+  easy_run: '🏃'
 };
 function kindIcon(kind: PlannedSession['kind']): string { return KIND_ICON[kind]; }
 
@@ -353,14 +363,23 @@ const INTENSITY_WORD: Record<PlannedSession['load'], string> = {
 function intensityWord(load: PlannedSession['load']): string { return INTENSITY_WORD[load]; }
 // CHANGE_REQUEST_013 v3 — the engine chain session (week 5 on) is 'hard' in
 // the data and reads "à bloc" on screen (weekly_shape.md v7, "to the limit").
+// CHANGE_REQUEST_013 v5 — the enchaînement (week 6 on) reads "à bloc" too.
 function sessionIntensityWord(planned: PlannedSession, recipe: SessionRecipe): string {
-  return planned.kind === 'chain_session' && recipe.version >= 3 && planned.load === 'hard' ? 'Intensité : à bloc' : intensityWord(planned.load);
+  const aBloc = (planned.kind === 'chain_session' && recipe.version >= 3) || planned.kind === 'enchainement';
+  return aBloc && planned.load === 'hard' ? 'Intensité : à bloc' : intensityWord(planned.load);
 }
 
 // CHANGE_REQUEST_013 section D — the gap is a difference, so its sign is the
 // information: "+2" means two more drops under fatigue than fresh.
 function round1(value: number): string { return (Math.round(value * 10) / 10).toString().replace('.', ','); }
 function formatGap(value: number): string { return `${value > 0 ? '+' : ''}${round1(value)}`; }
+// CHANGE_REQUEST_013 v5 — one GAP row: after storm 1 and after storm 2.
+function gapText(row: GapRow): string {
+  return [
+    row.gap1 !== undefined ? `tempête 1 ${formatGap(row.gap1)}` : null,
+    row.gap2 !== undefined ? `tempête 2 ${formatGap(row.gap2)}` : null
+  ].filter(Boolean).join(' · ') + ` ${row.unit}`;
+}
 
 function mmss(min: number): string { return `${String(Math.max(0, Math.round(min))).padStart(2, '0')}:00`; }
 
@@ -396,12 +415,22 @@ function memoryGameCard(block: ExerciseBlock): MemoryCard | null {
 
 function sessionHint(recipe: SessionRecipe): string {
   if (recipe.kind === 'crossfit_class') return 'selon le cours';
+  // CHANGE_REQUEST_013 v5 — R-SP-10: the trail day is its label only; a named
+  // gap says so rather than counting its blocks.
+  if (recipe.kind === 'trail_day') return '';
+  if (recipe.blocks.some((block) => block.kind === 'to_build')) return 'contenu à construire';
   if (recipe.kind === 'trail_maintenance' || recipe.kind === 'trail_event') return 'course facile';
   const stations = Array.from(new Set(recipe.blocks.flatMap((block) => block.stationMappings))).sort((a, b) => a - b);
   if (stations.length >= 2 && stations[stations.length - 1]! - stations[0]! === stations.length - 1) return `postes ${stations[0]} à ${stations[stations.length - 1]}`;
   if (stations.length) return `postes ${stations.join(', ')}`;
   if (recipe.blocks.length) return `${recipe.blocks.length} bloc${recipe.blocks.length > 1 ? 's' : ''}`;
   return '';
+}
+
+// CHANGE_REQUEST_013 v5 — an optional session (W7, W8) never counts as
+// missed: it is left out of the week's count unless it was done.
+function countsInWeek(planned: PlannedSession, results: CoachState['results']): boolean {
+  return !recipeById[planned.recipeId]?.optional || results[planned.id]?.status === 'done';
 }
 
 function weeksUntil(fromISO: string, targetISO: string): number {
@@ -500,11 +529,12 @@ function WeekScreen({ state, weekIndex, setWeekIndex, openSession, setDayMoves }
 }) {
   const week = state.weeks[weekIndex]!;
   const completed = week.sessions.filter((planned) => state.results[planned.id]?.status === 'done').length;
+  const counted = week.sessions.filter((planned) => countsInWeek(planned, state.results)).length;
   const days = daysOfWeek(week.startDate, week.endDate);
   const today = todayISO();
   // CHANGE_REQUEST_013 — the week's headline session: the two v4 shapes
   // first, then the v3 police kinds for weeks 1 and 2.
-  const principal = week.sessions.find((planned) => isSessionShape(planned.kind))
+  const principal = week.sessions.find((planned) => isPoliceSession(planned.kind))
     ?? week.sessions.find((planned) => planned.kind.startsWith('police_'))
     ?? week.sessions[0];
   const headline = principal ? recipeById[principal.recipeId]!.title : phaseLabel(week.phase);
@@ -512,7 +542,10 @@ function WeekScreen({ state, weekIndex, setWeekIndex, openSession, setDayMoves }
   const weeksToPolice = weeksUntil(week.startDate, state.planEndDate);
   // CHANGE_REQUEST_013 v2 — the week bar reads the season table's `load`
   // (1 to 5 squares). Weeks 1 and 2 are not in the table and show none.
-  const season = seasonWeek(weekNumberOf(week.startDate));
+  // CHANGE_REQUEST_013 v5 — weeks 6 to 11 read SEASON_PLAN_V4, which also
+  // carries the week's daily line.
+  const load = weekLoadOf(weekNumberOf(week.startDate));
+  const dailyLine = seasonWeekV4(weekNumberOf(week.startDate))?.dailyLine;
 
   // CHANGE_REQUEST_014 — edit mode, the last move (for "Annuler le
   // déplacement") and "Je garde" are all screen state: nothing about a flag
@@ -537,9 +570,10 @@ function WeekScreen({ state, weekIndex, setWeekIndex, openSession, setDayMoves }
       <div className="kicker">{phaseLabel(week.phase)} · semaine {weekIndex + 1} / {state.weeks.length}</div>
       <h2>{headline}</h2>
       <p>{weeksToTrail} semaine{weeksToTrail > 1 ? 's' : ''} avant le trail · {weeksToPolice} avant le test police</p>
-      {season && <div className="weekbar" role="img" aria-label={`Charge de la semaine : ${season.load} sur 5`}>
-        {[1, 2, 3, 4, 5].map((square) => <i key={square} className={square <= season.load ? 'on' : undefined} />)}
+      {load !== null && <div className="weekbar" role="img" aria-label={`Charge de la semaine : ${load} sur 5`}>
+        {[1, 2, 3, 4, 5].map((square) => <i key={square} className={square <= load ? 'on' : undefined} />)}
       </div>}
+      {dailyLine && <p className="daily">Chaque jour · {dailyLine}</p>}
     </section>
     <div className="wtabs">
       <button disabled={weekIndex === 0} onClick={() => setWeekIndex(weekIndex - 1)}>{weekIndex > 0 ? formatRange(state.weeks[weekIndex - 1]!.startDate, state.weeks[weekIndex - 1]!.endDate) : '—'}</button>
@@ -547,10 +581,10 @@ function WeekScreen({ state, weekIndex, setWeekIndex, openSession, setDayMoves }
       <button disabled={weekIndex === state.weeks.length - 1} onClick={() => setWeekIndex(weekIndex + 1)}>{weekIndex < state.weeks.length - 1 ? formatRange(state.weeks[weekIndex + 1]!.startDate, state.weeks[weekIndex + 1]!.endDate) : '—'}</button>
     </div>
     <div className="editRow">
-      <div className="prog"><b>Séances {completed}/{week.sessions.length}</b><span>{formatRange(week.startDate, week.endDate)}</span></div>
+      <div className="prog"><b>Séances {completed}/{counted}</b><span>{formatRange(week.startDate, week.endDate)}</span></div>
       <button className={`ghost${editMode ? ' on' : ''}`} type="button" onClick={() => setEditMode(!editMode)}>{editMode ? 'Terminer' : "Modifier l'ordre"}</button>
     </div>
-    <div className="track"><i style={{ width: `${week.sessions.length ? (completed / week.sessions.length) * 100 : 0}%` }} /></div>
+    <div className="track"><i style={{ width: `${counted ? (completed / counted) * 100 : 0}%` }} /></div>
 
     <div ref={daysRef}>
       {days.map((date) => {
@@ -574,8 +608,11 @@ function WeekScreen({ state, weekIndex, setWeekIndex, openSession, setDayMoves }
                 const recipe = recipeForSession(planned);
                 const result = state.results[planned.id];
                 const bars = loadBars(planned.load);
-                const durationLabel = recipe.durationMin ? mmss(recipe.durationMin * planned.volumeFactor) : recipe.kind === 'crossfit_class' ? '' : '—';
-                const hint = sessionHint(recipe);
+                // CHANGE_REQUEST_013 v5 — no duration dash on a label-only
+                // trail day or a named gap; "optionnel" leads the line.
+                const noDuration = recipe.kind === 'crossfit_class' || recipe.kind === 'trail_day' || recipe.blocks.some((block) => block.kind === 'to_build');
+                const durationLabel = recipe.durationMin ? mmss(recipe.durationMin * planned.volumeFactor) : noDuration ? '' : '—';
+                const hint = [recipe.optional ? 'optionnel' : '', sessionHint(recipe)].filter(Boolean).join(' · ');
                 const movable = editMode && isMovable(planned);
                 const cardClass = ['card', isToday ? 'today' : '', onThisDay.length > 1 ? 'stacked' : '', result?.status === 'done' ? 'done' : '', result?.status === 'draft' ? 'draft' : ''].filter(Boolean).join(' ');
                 return <button key={planned.id} className={cardClass} data-card={planned.id} type="button"
@@ -666,7 +703,9 @@ function PrevuTab({ planned, recipe, openBlock, openGame, openRetour }: { planne
   return <>
     <div className="panel">
       <div className="ph"><h4>Ton programme</h4></div>
+      {recipe.notice && <p className="noticeLine">{recipe.notice}</p>}
       <div className="chips">
+        {recipe.optional && <span className="chip">optionnel</span>}
         {durationLabel && <span className="chip">⏱ {durationLabel}</span>}
         <span className="chip">⚡ {sessionIntensityWord(planned, recipe)}</span>
         {recipe.blocks.length > 0 && <span className="chip">▤ {recipe.blocks.length} bloc{recipe.blocks.length > 1 ? 's' : ''}</span>}
@@ -736,6 +775,8 @@ function FaitTab({ planned, result, openRetour, openPrevu }: { planned: PlannedS
   // CHANGE_REQUEST_013 section D — the fresh-to-fatigued gap is computed from
   // the two scores of this same session, never typed.
   const gap = freshToFatiguedGap(planned.recipeId, result);
+  // CHANGE_REQUEST_013 v5 — the enchaînement's GAP, per skill and per storm.
+  const gapRows = hasGapTests(recipeById[planned.recipeId]!) ? enchainementGap(result?.drillScores) : [];
   if (!result) return <>
     <p className="kvEmpty">Rien d'enregistré.</p>
     <div className="actionsBar">
@@ -753,6 +794,7 @@ function FaitTab({ planned, result, openRetour, openPrevu }: { planned: PlannedS
       {shownKeys.map((key) => <div key={key}><span>{FIELD_LABELS[key]}</span><b>{formatFieldValue(key, (result as unknown as Record<string, unknown>)[key])}</b></div>)}
       {result.cardioValue !== undefined && <div><span>Cardio — fait</span><b>{result.cardioValue}{result.cardioNote ? ` · ${result.cardioNote}` : ''}</b></div>}
       {gap && <div><span>Écart à froid → sous fatigue</span><b>{formatGap(gap.overall)} (à froid {round1(gap.freshMean)} → sous fatigue {round1(gap.tailMean)})</b></div>}
+      {gapRows.map((row) => <div key={row.skill}><span>Écart · {row.label}</span><b>{gapText(row)}</b></div>)}
       <div><span>Enregistrée</span><b>{formatDateTime(result.completedAt)}</b></div>
     </div>
     <p className="syncNote">Synchronisé avec Drive · révision suit l'état de l'app.</p>
@@ -840,7 +882,11 @@ function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft,
   // skill block, a tail or a fresh reference, keyed by the drill's own id;
   // plus the cardio block's one number and its free text (R-WS-31: nothing
   // else, and never a target).
+  // CHANGE_REQUEST_013 v5 — any session whose blocks carry scored drills (the
+  // park sessions, the Tuesday low-lung sprints) gets its drill boxes, stored
+  // in the existing `drillScores`.
   const isSessionShapeSession = isSessionShape(planned.kind);
+  const hasDrillBoxes = isSessionShapeSession || drillsOf(recipe).length > 0;
   const [drillScores, setDrillScores] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     for (const score of saved?.drillScores ?? []) initial[score.drillId] = String(score.value);
@@ -898,7 +944,7 @@ function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft,
         ...textToNumber('repsDone', repsDone)
       } : {}),
       ...(isHillRun ? textToNumber('repsDone', repsDone) : {}),
-      ...(isSessionShapeSession ? {
+      ...(hasDrillBoxes ? {
         ...(collectedDrillScores.length ? { drillScores: collectedDrillScores } : {}),
         ...textToNumber('cardioValue', cardioValue),
         ...(cardioNote.trim() ? { cardioNote } : {})
@@ -916,7 +962,7 @@ function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft,
 
   // Only drills that actually carry a number are stored, so a session scored
   // halfway keeps exactly what was typed and nothing else.
-  const collectedDrillScores: DrillScore[] = isSessionShapeSession
+  const collectedDrillScores: DrillScore[] = hasDrillBoxes
     ? drillsOf(recipe).flatMap((drill) => {
       const text = drillScores[drill.drillId];
       if (text === undefined || text.trim() === '') return [];
@@ -955,6 +1001,13 @@ function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft,
   // R-WS-33 / section D — the previous week's number for the same session
   // shape, read only, beside the cardio block. No target, no prediction.
   const baseline = isSessionShapeSession ? cardioBaseline(state.weeks, state.results, planned.id) : null;
+
+  // CHANGE_REQUEST_013 v5 section D — the GAP, live from the boxes as they
+  // are typed: tired minus fresh, per skill and per storm. Read-only text.
+  const liveGap = hasGapTests(recipe) ? enchainementGap(collectedDrillScores) : [];
+  // Section E — the week 6 scores beside the week 10 rematch boxes.
+  const rematchScores = recipe.rematchOf ? state.results[recipe.rematchOf]?.drillScores ?? [] : [];
+  const rematchValue = (drillId: string) => rematchScores.find((score) => score.drillId === drillId)?.value;
 
   // CHANGE_REQUEST_010 section D — autosave: every field writes to the state
   // on change (debounced), so leaving the tab or closing the app never loses
@@ -1016,14 +1069,41 @@ function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft,
       </>}
     </div>}
 
-    {isSessionShapeSession && recipe.blocks.map((block, index) => {
+    {hasDrillBoxes && recipe.blocks.map((block, index) => {
       if (block.kind === 'baseline') return null; // rendered by its own group above
       const drills = drillsOfBlock(block);
-      const cardio = block.kind === 'cardio' ? cardioBlockOf(recipe) : null;
+      // CHANGE_REQUEST_013 v5 — a WOD cardio block scores its rounds as a
+      // drill, so it has no separate cardio box.
+      const cardio = block.kind === 'cardio' && !(block.spec?.kind === 'cardio' && block.spec.drills?.length) ? cardioBlockOf(recipe) : null;
       if (drills.length === 0 && !cardio) return null;
+      const setScore = (drillId: string, next: string) => setDrillScores((current) => ({ ...current, [drillId]: next }));
       return <div className="grp" key={block.title} ref={(node) => { groupRefs.current[index] = node; }}>
         <div className="gh"><span className="gn">{index + 1}</span>{block.title}</div>
-        {drills.map((drill) => <NumberField key={drill.drillId} label={drill.scoreLabel} value={drillScores[drill.drillId] ?? ''} onChange={(next) => setDrillScores((current) => ({ ...current, [drill.drillId]: next }))} step={1} />)}
+        {drills.map((drill) => {
+          const previous = rematchValue(drill.drillId);
+          const rematchLine = previous !== undefined ? <div className="lab">Semaine 6 : {drill.measure === 'box_jumps_used' ? (previous ? 'oui' : 'non') : previous}</div> : null;
+          if (drill.measure === 'box_jumps_used') {
+            const current = drillScores[drill.drillId];
+            return <div key={drill.drillId}>
+              <div className="lab">{drill.scoreLabel}</div>
+              <div className="qrow small" role="group" aria-label={drill.scoreLabel}>
+                <button type="button" className={current === '1' ? 'on' : ''} onClick={() => setScore(drill.drillId, current === '1' ? '' : '1')}>oui</button>
+                <button type="button" className={current === '0' ? 'on' : ''} onClick={() => setScore(drill.drillId, current === '0' ? '' : '0')}>non</button>
+              </div>
+              {rematchLine}
+            </div>;
+          }
+          return <div key={drill.drillId}>
+            <NumberField label={drill.scoreLabel} value={drillScores[drill.drillId] ?? ''} onChange={(next) => setScore(drill.drillId, next)} step={1} />
+            {rematchLine}
+          </div>;
+        })}
+        {block.spec?.kind === 'skill_test' && block.spec.moment !== 'fresh' && liveGap.length > 0 && <div className="gap" aria-label="Écart calculé">
+          {liveGap.map((row) => {
+            const value = block.spec?.kind === 'skill_test' && block.spec.moment === 'tired1' ? row.gap1 : row.gap2;
+            return value === undefined ? null : <div className="lab" key={row.skill}>Écart · {row.label} : {formatGap(value)} {row.unit} · calculé</div>;
+          })}
+        </div>}
         {cardio && <>
           <div className="lab">{baseline ? `Semaine précédente : ${baseline.value}${baseline.note ? ` · ${baseline.note}` : ''}. Aucune cible.` : 'Pas encore de référence de la semaine précédente. Aucune cible.'}</div>
           <NumberField label={cardio.valueLabel ?? (cardio.format === 'emom' ? 'Minutes tenues' : 'Tours faits')} value={cardioValue} onChange={setCardioValue} step={1} />
@@ -1193,7 +1273,7 @@ function BlockScreen({ weeks, planned, blockIndex, back, openGame, openRetour }:
     if (fields.includes('amrapRounds')) items.push('Tours complets + partiel');
     if (fields.includes('landingQuality')) items.push('Réceptions — propres · mixtes · sales');
     for (const drill of blockDrills) items.push(drill.scoreLabel);
-    if (cardio) items.push(cardio.format === 'emom' ? 'Minutes tenues, et score d’effort' : 'Tours faits, et score d’effort');
+    if (cardio && !cardio.drills?.length) items.push(cardio.format === 'emom' ? 'Minutes tenues, et score d’effort' : 'Tours faits, et score d’effort');
     return items;
   }, [fields, blockDrills, cardio]);
 
@@ -1232,7 +1312,7 @@ function BlockScreen({ weeks, planned, blockIndex, back, openGame, openRetour }:
 
 // ---------- Journey / Drive (CHANGE_REQUEST_010 section G — theme only, content unchanged) ----------
 
-function JourneyView({ state }: { state: CoachState }) { const total = Object.values(state.results).filter((result) => result.status === 'done').length; return <section className="page"><p className="eyebrow">JUSQU’AU 20 NOVEMBRE</p><h1>Ton parcours</h1><p className="lead">{total} séances terminées. Les semaines futures se recalculent à partir de tes retours sans ajouter de sixième jour.</p><div className="timeline">{state.weeks.map((week, index) => { const done = week.sessions.filter((session) => state.results[session.id]?.status === 'done').length; return <div className="timelineRow" key={week.id}><span>{String(index + 1).padStart(2, '0')}</span><div><b>{phaseLabel(week.phase)}</b><p>{formatRange(week.startDate, week.endDate)}</p></div><strong>{done}/{week.sessions.length}</strong></div>; })}</div><ReferenceCard state={state} /><GapHistory state={state} /></section>; }
+function JourneyView({ state }: { state: CoachState }) { const total = Object.values(state.results).filter((result) => result.status === 'done').length; return <section className="page"><p className="eyebrow">JUSQU’AU 20 NOVEMBRE</p><h1>Ton parcours</h1><p className="lead">{total} séances terminées. Les semaines futures se recalculent à partir de tes retours sans ajouter de sixième jour.</p><div className="timeline">{state.weeks.map((week, index) => { const done = week.sessions.filter((session) => state.results[session.id]?.status === 'done').length; const counted = week.sessions.filter((session) => countsInWeek(session, state.results)).length; return <div className="timelineRow" key={week.id}><span>{String(index + 1).padStart(2, '0')}</span><div><b>{phaseLabel(week.phase)}</b><p>{formatRange(week.startDate, week.endDate)}</p></div><strong>{done}/{counted}</strong></div>; })}</div><ReferenceCard state={state} /><GapHistory state={state} /></section>; }
 
 // CHANGE_REQUEST_017 section C — the "Référence" card. Recorded values only:
 // a test with no number simply has no row, and the card itself is absent

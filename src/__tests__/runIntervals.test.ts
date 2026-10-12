@@ -36,8 +36,11 @@ describe('CHANGE_REQUEST_011 — run_intervals generator', () => {
     expect(recipe.blocks[0]!.faire).toContain('4 × 1 min à 5:00 /km');
   });
 
-  it('every week 2-11 keeps the fixed frame: warm-up + exactly one main block + cool-down', () => {
-    for (let weekNumber = 2; weekNumber <= 11; weekNumber += 1) {
+  // CHANGE_REQUEST_013 v5 — from week 6 the Tuesday is in weeks 6, 10 and 11
+  // only, and weeks 6 and 10 add the low-lung sprints as a separate block after
+  // the main set (cr013v5.test.ts). Weeks 2 to 5 are unchanged.
+  it('every week 2-5 keeps the fixed frame: warm-up + exactly one main block + cool-down', () => {
+    for (let weekNumber = 2; weekNumber <= 5; weekNumber += 1) {
       const startDate = weeks[weekNumber - 1]!.startDate;
       const { week, recipe } = runIntervalsSession(startDate);
       expect(recipe.blocks).toHaveLength(1);
@@ -48,8 +51,8 @@ describe('CHANGE_REQUEST_011 — run_intervals generator', () => {
   });
 
   it('the main set never invents a row: it is read verbatim from the progression table (R-WS-20)', () => {
-    for (let weekNumber = 2; weekNumber <= 11; weekNumber += 1) {
-      if (weekNumber === 9) continue; // CR-013 v3: week 9's Tuesday is the hill sprints, no row
+    // CHANGE_REQUEST_013 v5 — weeks 6 to 11 read TUESDAY_SETS_V4 (cr013v5.test.ts).
+    for (let weekNumber = 2; weekNumber <= 5; weekNumber += 1) {
       const startDate = weeks[weekNumber - 1]!.startDate;
       const recipe = runIntervalsSession(startDate).recipe;
       const row = runIntervalsProgression.find((item) => item.week === weekNumber)!;

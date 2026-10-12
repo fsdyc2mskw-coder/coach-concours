@@ -11,7 +11,12 @@
 //
 // CHANGE_REQUEST_013 v2 — Q6 of APP_REPORT_013 answered: a police cardio
 // block is never running intervals (R-WS-08 v6), so the C4 flag is gone.
+// CHANGE_REQUEST_013 v5 — from week 6 (season_plan.md v4) three hard days in
+// a row are accepted as an exception when the week needs it (R-SP-13): still
+// flagged, never blocked, shown amber instead of as the hard rule R-WS-10.
+// The trail day of the v4 weeks is a run like the trail run (C5, C6).
 import { recipeById } from './recipes';
+import { V4_FIRST_WEEK } from './sessionShapes';
 import type { PlannedSession, TrainingWeek } from './types';
 
 export type FlagCode = 'STACK' | 'C1' | 'C2' | 'C3' | 'C5' | 'C6';
@@ -35,7 +40,7 @@ export interface Flag {
 // listed and matched as plain strings, so the checks are already live the day
 // CR-011 lands and stay live for Week 1's documented Tuesday exception.
 const RUN_INTERVAL_KINDS: readonly string[] = ['run_intervals', 'running_intervals_exception'];
-const RUN_KINDS: readonly string[] = [...RUN_INTERVAL_KINDS, 'trail_maintenance', 'trail_event'];
+const RUN_KINDS: readonly string[] = [...RUN_INTERVAL_KINDS, 'trail_maintenance', 'trail_event', 'trail_day'];
 const isHard = (session: PlannedSession) => session.load === 'hard' || session.load === 'event';
 const isRun = (session: PlannedSession) => RUN_KINDS.includes(session.kind);
 const isRunIntervals = (session: PlannedSession) => RUN_INTERVAL_KINDS.includes(session.kind);
@@ -66,13 +71,14 @@ export function checkWeek(week: TrainingWeek): Flag[] {
   // C2 first: when three hard days in a row are flagged, the pair flag inside
   // that window would only repeat it, so those pairs are suppressed.
   const covered = new Set<number>();
+  const v4 = weekNumberOf(week.startDate) >= V4_FIRST_WEEK;
   for (let index = 0; index + 2 < filled.length; index += 1) {
     const window = [filled[index]!, filled[index + 1]!, filled[index + 2]!];
     if (window.every((day) => day.session && isHard(day.session))) {
       flags.push({
-        code: 'C2', hard: true, date: window[2]!.date,
+        code: 'C2', hard: !v4, date: window[2]!.date,
         lead: 'Trois journées fortes d’affilée',
-        text: `(${window.map((day) => label(day.date)).join(', ')}). Règle dure R-WS-10.`
+        text: `(${window.map((day) => label(day.date)).join(', ')}). ${v4 ? 'Acceptées comme exception quand la semaine le demande (R-SP-13).' : 'Règle dure R-WS-10.'}`
       });
       covered.add(index); covered.add(index + 1); covered.add(index + 2);
     }
@@ -122,7 +128,7 @@ export function checkWeek(week: TrainingWeek): Flag[] {
 
   // C6: the trail is no longer on Saturday or Sunday (R-WS-03). The fixed
   // trail_event keeps its own date and is not checked here.
-  const trail = week.sessions.find((session) => session.kind === 'trail_maintenance');
+  const trail = week.sessions.find((session) => session.kind === 'trail_maintenance' || session.kind === 'trail_day');
   if (trail && !['SAM', 'DIM'].includes(dayName(trail.date))) {
     flags.push({
       code: 'C6', hard: false, date: trail.date,
@@ -160,6 +166,12 @@ function dayName(date: string): string {
 // The same label the week screen prints beside each day ("VEN 18").
 function label(date: string): string {
   return `${dayName(date)} ${new Date(`${date}T12:00:00Z`).getUTCDate()}`;
+}
+
+// Same count as `planner.weekNumberOf`, kept local: the planner imports the
+// recipes this file also reads, and the checker stays a leaf module.
+function weekNumberOf(weekStart: string): number {
+  return Math.round((Date.parse(`${weekStart}T12:00:00Z`) - Date.parse('2026-09-07T12:00:00Z')) / 86_400_000 / 7) + 1;
 }
 
 function title(session: PlannedSession): string {

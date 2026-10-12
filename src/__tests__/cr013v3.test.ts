@@ -5,6 +5,13 @@
 // pass" list, in its order. References: `handoffs/rules/season_plan.md` v3,
 // `handoffs/rules/weekly_shape.md` v7, `handoffs/rules/run_intervals_progression.md`
 // v4 and `handoffs/WEEK_5_FINAL_2026-10-05.md` (the week 5 fixture).
+//
+// CHANGE_REQUEST_013 v5 — weeks 6 to 11 are season_plan.md v4 and are tested
+// in `cr013v5.test.ts`. Every assertion here on weeks 3, 4 and 5 stays as
+// written (those weeks must not change). Assertions that only described the
+// v3 content of weeks 6 to 11 (the v3 rows, crossfit_plus, the travel engine
+// chain, the hill-sprint Tuesday, the ghost circuit, the reused blocks) are
+// removed, each with a note where it stood.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
@@ -13,7 +20,6 @@ import { generatePlan, validateV4PoliceSessions, validateWeek } from '../coach/p
 import { recipeById } from '../coach/recipes';
 import {
   MAX_CARDIO_ATOMS,
-  POWER_EMOM_HOTEL_PLACEHOLDER,
   SEASON_PLAN,
   blockOfKind,
   blockSequence,
@@ -25,7 +31,6 @@ import {
   memoryModulesOf,
   powerEmomOf,
   skillBlockOf,
-  skillStationOf,
   tailBOf,
   type SeasonWeek
 } from '../coach/sessionShapes';
@@ -55,29 +60,19 @@ const allTexts = (): string[] => weeks.flatMap((week) => week.sessions.flatMap((
 
 // ---------- 1. the table ----------
 
-describe('CR-013 v3 — SEASON_PLAN reproduces the v3 table cell for cell', () => {
+describe('CR-013 v3 — SEASON_PLAN reproduces the v3 table cell for cell (weeks 3 to 5 since v5)', () => {
   //  wk load phase   focus             cardio power memory chain      tails   run        hill        crossfit+  travel
   const expected: SeasonWeek[] = [
     { week: 3, phase: 'combine', load: 3, focus: 8, cardioMin: 10, powerJumps: 0, memory: 'LOCKED', chain: 'locked', tails: 'racket', runKm: [8, 9], runDay: 'SUN', hillSprints: 0, hillSprintsDay: null, crossfitPlus: null, travel: false, baseline: true, buildWeek: false },
     { week: 4, phase: 'combine', load: 4, focus: 11, cardioMin: 12, powerJumps: 3, memory: 'M1', chain: 'chain_A', tails: 'balance', runKm: [10, 11], runDay: 'SAT', hillSprints: 0, hillSprintsDay: null, crossfitPlus: null, travel: false, baseline: false, buildWeek: true },
     { week: 5, phase: 'trail', load: 2, focus: 10, cardioMin: 10, powerJumps: 3, memory: 'M2', chain: 'chain_B', tails: 'balance', runKm: 'RACE', runDay: 'SUN', hillSprints: 0, hillSprintsDay: null, crossfitPlus: null, travel: false, baseline: false, buildWeek: false },
-    { week: 6, phase: 'reset', load: 3, focus: 8, cardioMin: 12, powerJumps: 3, memory: 'M2', chain: 'chain_B', tails: 'balance', runKm: [7, 7], runDay: 'SUN', hillSprints: 0, hillSprintsDay: null, crossfitPlus: '2026-10-17', travel: false, baseline: false, buildWeek: true },
-    { week: 7, phase: 'travel', load: 3, focus: 10, cardioMin: 13, powerJumps: 5, memory: 'M3', chain: 'travel_T', tails: 'racket', runKm: [7, 8], runDay: 'SAT', hillSprints: 0, hillSprintsDay: null, crossfitPlus: null, travel: true, baseline: false, buildWeek: true },
-    { week: 8, phase: 'travel', load: 4, focus: 'SLALOM_OR_RACKET', cardioMin: 15, powerJumps: 5, memory: 'M3', chain: 'travel_T', tails: 'racket', runKm: [7, 8], runDay: 'SAT', hillSprints: 0, hillSprintsDay: null, crossfitPlus: null, travel: true, baseline: false, buildWeek: true },
-    { week: 9, phase: 'peak', load: 5, focus: 11, cardioMin: 15, powerJumps: 5, memory: 'M4', chain: 'ghost', ghostStations: [1, 11], tails: 'balance', runKm: [7, 8], runDay: 'SUN', hillSprints: 6, hillSprintsDay: 'TUE', crossfitPlus: '2026-11-07', travel: false, baseline: false, buildWeek: true },
-    { week: 10, phase: 'peak', load: 3, focus: 11, cardioMin: 12, powerJumps: 5, memory: 'M4', chain: 'ghost', ghostStations: [1, 11], tails: 'balance', runKm: [7, 7], runDay: 'SAT', hillSprints: 6, hillSprintsDay: 'SAT', crossfitPlus: null, travel: false, baseline: false, buildWeek: false },
-    { week: 11, phase: 'taper', load: 1, focus: 'LIGHT', cardioMin: 6, powerJumps: 0, memory: 'M4', chain: 'ghost_walk', tails: 'none', runKm: null, runDay: 'SAT', hillSprints: 0, hillSprintsDay: null, crossfitPlus: null, travel: false, baseline: false, buildWeek: false }
   ];
 
-  it('has exactly weeks 3 to 11, each equal to its row', () => {
-    expect(Object.keys(SEASON_PLAN).map(Number)).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11]);
+  it('has exactly weeks 3 to 5, each equal to its row (weeks 6 to 11 are SEASON_PLAN_V4)', () => {
+    expect(Object.keys(SEASON_PLAN).map(Number)).toEqual([3, 4, 5]);
     for (const row of expected) expect(SEASON_PLAN[row.week]).toEqual(row);
   });
 
-  it('W8_WORST is gone; the ghost covers stations 1 to 11 in W9-W10 only', () => {
-    expect(Object.values(SEASON_PLAN).some((row) => (row.focus as string) === 'W8_WORST')).toBe(false);
-    expect(Object.values(SEASON_PLAN).filter((row) => row.chain === 'ghost').map((row) => [row.week, row.ghostStations])).toEqual([[9, [1, 11]], [10, [1, 11]]]);
-  });
 });
 
 // ---------- 2. weeks 3 and 4 unchanged ----------
@@ -243,8 +238,9 @@ describe('CR-013 v3 — week 5 reproduces WEEK_5_FINAL_2026-10-05.md block for b
 // ---------- 4. the engine chain shape ----------
 
 describe('CR-013 v3 — the engine chain (W5+): no tail A, a power EMOM that is not the cardio block, one cardio block, tail B last', () => {
-  it('weeks 5 to 10', () => {
-    for (const n of [5, 6, 7, 8, 9, 10]) {
+  // CHANGE_REQUEST_013 v5 — week 5 only: from week 6 the enchaînement replaces it.
+  it('week 5', () => {
+    for (const n of [5]) {
       const chain = recipeOf(weekNo(n), 'chain_session')!;
       const sequence = blockSequence(chain);
       expect(chainBlockOf(chain)?.tailA, `week ${n}`).toBeUndefined();
@@ -293,7 +289,7 @@ describe('CR-013 v3 — the engine chain (W5+): no tail A, a power EMOM that is 
   });
 
   it('the engine chain reads "à bloc" in the data as hard', () => {
-    for (const n of [5, 6, 7, 8, 9, 10]) expect(sessionOf(weekNo(n), 'chain_session')!.load).toBe('hard');
+    for (const n of [5]) expect(sessionOf(weekNo(n), 'chain_session')!.load).toBe('hard');
   });
 });
 
@@ -334,27 +330,21 @@ describe('CR-013 v3 — R-WS-30 allows four atoms; a fifth is flagged; reused ca
     expect(validateV4PoliceSessions(fixture(5, { chain })).some((error) => error.includes('R-WS-30'))).toBe(true);
   });
 
-  it('a reused « Quatre coins » keeps its four atoms in weeks 9 to 11 (no air squats removed)', () => {
-    for (const n of [9, 10, 11]) {
-      const skill = recipeOf(weekNo(n), 'skill_session')!;
-      expect(cardioBlockOf(skill)!.atoms.map((atom) => atom.cardId), `week ${n}`).toEqual(['S08_chain_out', 'S03_ladder_one_hand_object', 'S00_jumping_jacks', 'S00_air_squats']);
-      expect(cardioBlockOf(skill)!.toReplace).toBeUndefined();
-      expect(validateWeek(weekNo(n)), `week ${n}`).toEqual([]);
-    }
-  });
+  // CHANGE_REQUEST_013 v5 — « a reused Quatre coins in weeks 9 to 11 »: gone,
+  // weeks 9 to 11 carry no reused v3 cardio any more.
 });
 
 // ---------- 6. Tuesdays ----------
 
-describe('CR-013 v3 — Tuesday sets W5-W11 equal run_intervals v4', () => {
+// CHANGE_REQUEST_013 v5 — week 6 is 5 × 4 at 5:10, jog 2 (decision D9);
+// weeks 7 to 9 have no Tuesday intervals; weeks 10 and 11 keep their values.
+describe('CR-013 v3 — Tuesday sets W5-W11 equal run_intervals v4 (v5: W6 5:10, no W7-W9)', () => {
   const tuesday = (n: number) => recipeOf(weekNo(n), 'run_intervals')!;
 
   it('each week, from the table', () => {
     const expected: Record<number, string> = {
       5: '3 × 4 min à 5:25 /km, récupération 3 min en trottinant',
-      6: '5 × 4 min à 5:25 /km, récupération 3 min en trottinant',
-      7: '6 × 2 min à 5:05 /km, récupération 2 min en trottinant',
-      8: '3 × 5 min à 5:20 /km, récupération 3 min en trottinant',
+      6: '5 × 4 min à 5:10 /km, récupération 2 min en trottinant',
       10: '4 × 3 min à 5:15 /km, récupération 2 min en trottinant',
       11: '4 × 1 min à 5:00 /km, récupération 2 min en trottinant'
     };
@@ -363,37 +353,20 @@ describe('CR-013 v3 — Tuesday sets W5-W11 equal run_intervals v4', () => {
   });
 
   it('W6 shows 5 × 4: the reset volumeFactor does not touch it (nor the taper one in W11)', () => {
-    expect(tuesday(6).blocks[0]!.title).toBe('5 × 4 min à 5:25 — main set');
+    expect(tuesday(6).blocks[0]!.title).toBe('5 × 4 min à 5:10 — main set');
     expect(sessionOf(weekNo(6), 'run_intervals')!.volumeFactor).toBe(1);
     expect(sessionOf(weekNo(11), 'run_intervals')!.volumeFactor).toBe(1);
   });
 
-  it('W7-W8 run on the treadmill and show the km/h', () => {
-    expect(tuesday(7).blocks[0]!.title).toBe('6 × 2 min à 5:05 (11,8 km/h, sur tapis) — main set');
-    expect(tuesday(8).blocks[0]!.title).toBe('3 × 5 min à 5:20 (11,3 km/h, sur tapis) — main set');
-    for (const n of [7, 8]) {
-      expect(tuesday(n).blocks[0]!.faire).toMatch(/^Sur tapis, pente 1 % : /);
-      expect(tuesday(n).purpose).toContain('Sur tapis, pente 1 %');
-    }
-    for (const n of [5, 6, 10, 11]) expect(textsOf(tuesday(n)).join(' ')).not.toContain('tapis');
-  });
-
-  it('W9 Tuesday is the hill sprints: 6 sprints, walk back, never on a treadmill, no intervals', () => {
-    const session = sessionOf(weekNo(9), 'run_intervals')!;
-    const recipe = recipeById[session.recipeId]!;
-    expect(session.date).toBe('2026-11-03');
-    expect(recipe.blocks.map((block) => [block.kind, block.title])).toEqual([['hill_sprints', 'Côtes : 6 sprints de 8 à 10 s, retour en marchant']]);
-    expect(recipe.blocks[0]!.faire).toContain('Jamais sur un tapis');
-    expect(textsOf(recipe).join(' ')).not.toMatch(/\d+ × \d+ min à/);
-    expect(validateWeek(weekNo(9))).toEqual([]);
-  });
+  // CHANGE_REQUEST_013 v5 — the W7-W8 treadmill rows and the W9 hill-sprint
+  // Tuesday are gone: no Tuesday intervals in weeks 7 to 9 (section C).
 
   it('no text anywhere says « Re-test »', () => {
     for (const text of [...allTexts(), ...runIntervalsProgression.map((row) => row.purpose)]) expect(text).not.toMatch(/re-?test/i);
   });
 
   it('no Tuesday screen or text carries the heat line (answer 7)', () => {
-    for (let n = 3; n <= 11; n += 1) {
+    for (const n of [3, 4, 5, 6, 10, 11]) {
       for (const text of textsOf(tuesday(n))) expect(text, `week ${n}`).not.toMatch(/28 °C|ressenti/);
     }
   });
@@ -401,159 +374,39 @@ describe('CR-013 v3 — Tuesday sets W5-W11 equal run_intervals v4', () => {
 
 // ---------- 7. travel and crossfit_plus ----------
 
-describe('CR-013 v3 — W7 and W8 have no Monday session; W6 and W9 have a Saturday CrossFit day and a Sunday run', () => {
-  it('travel weeks: no Monday, Tuesday treadmill, Wednesday skill, Thursday engine chain, Saturday run', () => {
-    for (const n of [7, 8]) {
-      const week = weekNo(n);
-      expect(week.sessions.some((item) => new Date(`${item.date}T12:00:00Z`).getUTCDay() === 1), `week ${n}`).toBe(false);
-      expect(week.sessions.map((item) => item.kind)).toEqual(['run_intervals', 'skill_session', 'chain_session', 'trail_maintenance']);
-      expect(validateWeek(week)).toEqual([]);
-    }
-    expect(weekNo(7).sessions.map((item) => item.date)).toEqual(['2026-10-20', '2026-10-21', '2026-10-22', '2026-10-24']);
-  });
-
-  it('travel weeks never name the wall bars or the ghost; the hoops travel and stay (answer 4)', () => {
-    for (const n of [7, 8]) {
-      for (const session of weekNo(n).sessions) {
-        const text = textsOf(recipeById[session.recipeId]!).join(' ').toLowerCase();
-        expect(text, `${session.id}`).not.toMatch(/espalier|fantôme|échelle extérieure/);
-        expect(recipeById[session.recipeId]!.equipment.join(' ').toLowerCase()).not.toMatch(/espalier|échelle/);
-      }
-      const skill = recipeOf(weekNo(n), 'skill_session')!;
-      expect(skill.equipment).toContain('cerceaux');
-      expect(cardioBlockOf(skill)!.atoms.map((atom) => atom.cardId)).toContain('S08_chain_out');
-    }
-  });
-
-  it('travel weeks: the reused cardio drops only the wall bars atoms and names that gap only', () => {
-    const skill = recipeOf(weekNo(7), 'skill_session')!;
-    const chain = recipeOf(weekNo(7), 'chain_session')!;
-    expect(cardioBlockOf(skill)!.atoms.map((atom) => atom.cardId)).toEqual(['S08_chain_out', 'S00_jumping_jacks', 'S00_air_squats']);
-    expect(cardioBlockOf(skill)!.toReplace!.map((atom) => atom.cardId)).toEqual(['S03_ladder_one_hand_object']);
-    expect(cardioBlockOf(chain)!.toReplace!.map((atom) => atom.cardId)).toEqual(['S03_ladder_climb_jump_finish']);
-    expect(skill.blocks.find((block) => block.kind === 'cardio')!.regle).toBe('Atomes à remplacer dans Cowork : un atome sans le matériel de l’hôtel.');
-  });
-
-  it('crossfit_plus: Sat 17 Oct and Sat 7 Nov are CrossFit days, hard, external content; the run moves to Sunday', () => {
-    for (const [n, saturday, sunday] of [[6, '2026-10-17', '2026-10-18'], [9, '2026-11-07', '2026-11-08']] as const) {
-      const week = weekNo(n);
-      const crossfit = week.sessions.find((item) => item.date === saturday)!;
-      expect(crossfit).toMatchObject({ kind: 'crossfit_class', load: 'hard', status: 'coached', id: `${saturday}:crossfit_class` });
-      expect(recipeById[crossfit.recipeId]!.blocks).toEqual([]);
-      expect(week.sessions.find((item) => item.kind === 'trail_maintenance')!.date).toBe(sunday);
-      expect(week.sessions).toHaveLength(6);
-      expect(validateWeek(week), `week ${n}`).toEqual([]);
-    }
-  });
-
-  it('week 6 Tuesday 13 Oct shows 5 × 4 min at 5:25, Saturday 17 is CrossFit, the run is Sunday 18', () => {
-    const week = weekNo(6);
-    expect(week.sessions.map((item) => [item.date, item.kind])).toEqual([
-      ['2026-10-12', 'crossfit_class'], ['2026-10-13', 'run_intervals'], ['2026-10-15', 'skill_session'],
-      ['2026-10-16', 'chain_session'], ['2026-10-17', 'crossfit_class'], ['2026-10-18', 'trail_maintenance']
-    ]);
-  });
-});
+// CHANGE_REQUEST_013 v5 — removed: the v3 travel weeks (W7-W8 engine chain on
+// the treadmill) and the crossfit_plus Saturdays of W6 and W9. Weeks 6 to 11
+// follow SEASON_PLAN_V4 (W6 has no Saturday CrossFit; W9 keeps Sat 7 Nov),
+// tested in cr013v5.test.ts.
 
 // ---------- 8. three hard days ----------
 
-describe('CR-013 v3 — three hard days in a row are flagged, a crossfit_plus day counted as hard', () => {
-  it('Fri chain · Sat crossfit_plus (load written moderate) · Sun hard: flagged', () => {
-    const week = structuredClone(weekNo(6));
-    week.sessions.find((item) => item.date === '2026-10-17')!.load = 'moderate';
-    week.sessions.find((item) => item.date === '2026-10-18')!.load = 'hard';
-    expect(validateWeek(week)).toContain('Trois journées explosives consécutives.');
-  });
-
-  it('the same Saturday as an ordinary moderate day breaks the run of three', () => {
-    const week = structuredClone(weekNo(6));
-    const saturday = week.sessions.find((item) => item.date === '2026-10-17')!;
-    saturday.kind = 'skill_session';
-    saturday.load = 'moderate';
-    week.sessions.find((item) => item.date === '2026-10-18')!.load = 'hard';
-    expect(validateWeek(week)).not.toContain('Trois journées explosives consécutives.');
-  });
+describe('CR-013 v3 — three hard days in a row are never a validation error', () => {
+  // CHANGE_REQUEST_013 v5 — the two crossfit_plus fixtures were built on the v3
+  // week 6, which no longer exists. From week 6, three hard days in a row are
+  // flagged and never blocked (R-SP-13), tested in cr013v5.test.ts.
 
   it('the generated weeks never have three hard days in a row', () => {
     for (let n = 3; n <= 11; n += 1) expect(validateWeek(weekNo(n))).not.toContain('Trois journées explosives consécutives.');
   });
 });
 
-// ---------- 9. W8 placeholder, W9-W10 racket ----------
+// ---------- 9 and 10. W8 placeholder, W9-W10 racket, reused blocks ----------
 
-describe('CR-013 v3 — W8 skill block is a placeholder naming both options; W9-W10 skill station = 11, tails = balance', () => {
-  it('week 8', () => {
-    const skill = recipeOf(weekNo(8), 'skill_session')!;
-    const block = blockOfKind(skill, 'skill_block')!;
-    expect(block.placeholder).toBe(true);
-    expect(block.title).toBe('Slalom ou raquette, à confirmer — 18 min');
-    expect(skillStationOf(skill)).toBeNull();
-  });
-
-  it('weeks 9 and 10', () => {
-    for (const n of [9, 10]) {
-      expect(skillStationOf(recipeOf(weekNo(n), 'skill_session')!)).toBe(11);
-      const chain = recipeOf(weekNo(n), 'chain_session')!;
-      expect(tailBOf(chain)!.minutes.every((minute) => minute.drill.cardId === 'S09_balance_ladder')).toBe(true);
-      expect(drillsOfBlock(chain.blocks[0]!).every((drill) => drill.cardId === 'S09_balance_ladder')).toBe(true);
-    }
-  });
-
-  it('week 7 reuses the week 5 skipping block unchanged (R-SP-05)', () => {
-    expect(skillBlockOf(recipeOf(weekNo(7), 'skill_session')!)).toEqual(skillBlockOf(recipeOf(weekNo(5), 'skill_session')!));
-  });
-
-  it('week 6 reuses chain B unchanged; travel and ghost chains are named gaps', () => {
-    expect(chainBlockOf(recipeOf(weekNo(6), 'chain_session')!)).toEqual(chainBlockOf(recipeOf(weekNo(5), 'chain_session')!));
-    expect(blockOfKind(recipeOf(weekNo(7), 'chain_session')!, 'chain_block')!.title).toBe('Enchaînement voyage : à construire — 11 min');
-    expect(blockOfKind(recipeOf(weekNo(9), 'chain_session')!, 'chain_block')!.title).toBe('Circuit fantôme : à venir, postes 1 à 11 — 11 min');
-  });
-
-  it('weeks 6, 9, 10 reuse the week 5 power EMOM unchanged, same best-jump box (answer 3)', () => {
-    const week5 = recipeOf(weekNo(5), 'chain_session')!;
-    for (const n of [6, 9, 10]) {
-      const chain = recipeOf(weekNo(n), 'chain_session')!;
-      expect(powerEmomOf(chain), `week ${n}`).toEqual(powerEmomOf(week5));
-      expect(blockOfKind(chain, 'power_emom')).toEqual(blockOfKind(week5, 'power_emom'));
-      expect(drillsOfBlock(blockOfKind(chain, 'power_emom')!).map((drill) => drill.drillId)).toEqual(['power:best_jump']);
-    }
-  });
-
-  it('weeks 7 and 8: the hotel power block is a named gap until the week 7 build (answer 2)', () => {
-    for (const n of [7, 8]) {
-      const block = blockOfKind(recipeOf(weekNo(n), 'chain_session')!, 'power_emom')!;
-      expect(block.placeholder, `week ${n}`).toBe(true);
-      expect(block.title).toBe(`${POWER_EMOM_HOTEL_PLACEHOLDER} — 6 min`);
-      expect(drillsOfBlock(block)).toEqual([]);
-    }
-  });
-});
-
-// ---------- 10. racket per set ----------
-
-describe('CR-013 v3 — the racket skill block scores one row per set (6 obstacle boxes)', () => {
-  it('weeks 9 and 10', () => {
-    for (const n of [9, 10]) {
-      const block = skillBlockOf(recipeOf(weekNo(n), 'skill_session')!)!;
-      const obstacles = block.drills.filter((drill) => drill.cardId === 'S11_racket_obstacles');
-      expect(obstacles.map((drill) => drill.scoreLabel)).toEqual([
-        'Chutes — obstacles, série 1, à plat 1', 'Chutes — obstacles, série 1, sur les obstacles', 'Chutes — obstacles, série 1, à plat 2',
-        'Chutes — obstacles, série 2, à plat 1', 'Chutes — obstacles, série 2, sur les obstacles', 'Chutes — obstacles, série 2, à plat 2'
-      ]);
-      expect(new Set(block.drills.map((drill) => drill.cardId)).size).toBe(2); // R-WS-25: two cards
-    }
-  });
-});
+// CHANGE_REQUEST_013 v5 — removed: they described the v3 content of weeks 6
+// to 10 (week 8 skill placeholder, racket weeks 9-10, chain B and the power
+// EMOM reused in week 6, the travel and ghost gaps). From week 6 every session
+// without data is « Contenu à construire (semaine n) » (cr013v5.test.ts).
 
 // ---------- 11. memory length ----------
 
 // CHANGE_REQUEST_018 — the slot is the game card: 4 min, or 10 min with M4
 // after the card in weeks 9 and 10 (it was 6 min of M4).
-describe('CR-013 v3 / CR-018 — engine chain memory is 4 min in W5-W8 and 10 min in W9-W10', () => {
-  it('the slot, and the session grows with it', () => {
-    for (const n of [5, 6, 7, 8]) expect(blockOfKind(recipeOf(weekNo(n), 'chain_session')!, 'memory')!.title, `week ${n}`).toMatch(/— 4 min$/);
-    expect(blockOfKind(recipeOf(weekNo(9), 'chain_session')!, 'memory')!.title).toBe('Mémoire · ORDRE — 10 min');
-    expect(blockOfKind(recipeOf(weekNo(10), 'chain_session')!, 'memory')!.title).toBe('Mémoire · RÈGLES — 10 min');
+// CHANGE_REQUEST_013 v5 — week 5 only; the memory slot of weeks 6 to 11 is
+// tested on the v4 police sessions in cr018.test.ts and cr013v5.test.ts.
+describe('CR-013 v3 / CR-018 — engine chain memory is 4 min in W5', () => {
+  it('the slot', () => {
+    for (const n of [5]) expect(blockOfKind(recipeOf(weekNo(n), 'chain_session')!, 'memory')!.title, `week ${n}`).toMatch(/— 4 min$/);
   });
 });
 
@@ -605,11 +458,6 @@ describe('CR-013 v3 — the screens', () => {
     expect(screen.getAllByLabelText(/^Reprises — partie [AB]/)).toHaveLength(10);
   });
 
-  it('Tue 3 Nov (hill sprints) asks for the sprints done, with no pace box', async () => {
-    await openSession('2026-11-02', 'Côtes — sprints en montée');
-    fireEvent.click(screen.getByText('Retour'));
-    expect(await screen.findByLabelText('Sprints faits')).toBeTruthy();
-    expect(screen.queryByLabelText(/^Rép 1/)).toBeNull();
-    expect(screen.queryByLabelText('Répétitions faites')).toBeNull();
-  });
+  // CHANGE_REQUEST_013 v5 — « Tue 3 Nov (hill sprints) »: gone, Tue 3 Nov is
+  // an easy run (season_plan.md v4).
 });

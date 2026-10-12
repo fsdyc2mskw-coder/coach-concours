@@ -6,8 +6,6 @@ import { nextRow, runIntervalsProgression, type RunIntervalsRow } from '../data/
 import {
   buildChainSessionRecipe,
   buildSkillSessionRecipe,
-  buildTaperSessionRecipe,
-  buildTuesdayHillSprintsRecipe,
   buildWeekendRunRecipe,
   blockOfKind,
   blockSequence,
@@ -25,8 +23,11 @@ import {
   powerSlotText,
   seasonWeek,
   skillBlockOf,
-  tailBOf
+  tailBOf,
+  V4_FIRST_WEEK
 } from './sessionShapes';
+// CHANGE_REQUEST_013 v5 — weeks 6 to 11 come from SEASON_PLAN_V4 (season_plan.md v4).
+import { sessionsForV4Week, validateV4Week } from './seasonV4';
 // CHANGE_REQUEST_018 — the memory game cycle, R-MM-01 to R-MM-06 v3.
 import { MEMORY_BLOCK_MAX_MIN, memoryBlockMinutes, memoryCardFor, memoryCycleOf } from './memoryCycle';
 
@@ -91,7 +92,10 @@ function computeRunIntervalsRows(results: Record<string, SessionResult>): Map<nu
   const rows = new Map<number, RunIntervalsRow>();
   let cursor = 0;
   let pendingPaceAdjustSec = 0;
-  for (let weekNumber = 2; weekNumber <= 11; weekNumber += 1) {
+  // CHANGE_REQUEST_013 v5 — weeks 6 to 11 read their Tuesday from
+  // `TUESDAY_SETS_V4` (section C, decision D9), so the table and its repeat
+  // rule only run for weeks 2 to 5, which stay exactly as they were.
+  for (let weekNumber = 2; weekNumber < V4_FIRST_WEEK; weekNumber += 1) {
     if (seasonWeek(weekNumber)?.hillSprintsDay === 'TUE') continue;
     const tableRow = runIntervalsProgression[Math.min(cursor, runIntervalsProgression.length - 1)]!;
     const row: RunIntervalsRow = {
@@ -131,6 +135,9 @@ function computeRunIntervalsRows(results: Record<string, SessionResult>): Map<nu
 // before the fixed police_event (Tuesday's run_intervals stays: R-WS-22,
 // Week 11 is never moved).
 function sessionsForWeek(weekStart: string, weekEnd: string, phase: PlanPhase, weekNumber: number, runIntervalsRow: RunIntervalsRow | undefined): PlannedSession[] {
+  // CHANGE_REQUEST_013 v5 — weeks 6 to 11: one session per cell of
+  // SEASON_PLAN_V4. Everything below this line builds weeks 1 to 5 only.
+  if (weekNumber >= V4_FIRST_WEEK) return sessionsForV4Week(weekNumber, phaseFor);
   const planned: PlannedSession[] = [];
   const add = (dayOffset: number, recipeKey: keyof typeof recipes, load: PlannedSession['load'], status: PlannedSession['status'] = 'proposed') => {
     const date = addDays(new Date(`${weekStart}T12:00:00Z`), dayOffset);
@@ -160,7 +167,7 @@ function sessionsForWeek(weekStart: string, weekEnd: string, phase: PlanPhase, w
   // CHANGE_REQUEST_013 v3 — the Tuesday: the progression row, or in week 9 the
   // hill sprints. The reset and taper volumeFactor never touches it: the main
   // set is the table, as written (R-WS-20), so its factor stays 1.
-  const tuesdayRecipe = buildTuesdayHillSprintsRecipe(weekNumber) ?? (runIntervalsRow ? buildRunIntervalsRecipe(runIntervalsRow) : null);
+  const tuesdayRecipe = runIntervalsRow ? buildRunIntervalsRecipe(runIntervalsRow) : null;
   if (tuesdayRecipe) {
     const date = addDays(new Date(`${weekStart}T12:00:00Z`), 1);
     if (date <= weekEnd && date <= finalDate) {
@@ -184,9 +191,7 @@ function sessionsForWeek(weekStart: string, weekEnd: string, phase: PlanPhase, w
   // CHANGE_REQUEST_013 v3 — week 5 puts the skill session on Wednesday 7 and
   // the engine chain on Thursday 8 (WEEK_5_FINAL wins for week 5); the travel
   // weeks do the same (season_plan.md v3, "Travel weeks").
-  if (weekNumber === 11) {
-    addBuilt(2, buildTaperSessionRecipe(), 'moderate');
-  } else if (isV4Week(weekStart)) {
+  if (isV4Week(weekStart)) {
     const wednesdayThursday = weekNumber === 5 || season?.travel === true;
     addBuilt(wednesdayThursday ? 2 : 3, buildSkillSessionRecipe(weekNumber), weekNumber === 3 ? 'low' : 'moderate');
     addBuilt(wednesdayThursday ? 3 : 4, buildChainSessionRecipe(weekNumber), 'hard');
@@ -208,14 +213,6 @@ function sessionsForWeek(weekStart: string, weekEnd: string, phase: PlanPhase, w
     // R-WS-06: trail_event replaces the weekend run on its fixed date; it
     // never creates a sixth day, so no `trailMaintenance` is added this week.
     add(6, 'trailEvent', 'event', 'fixed_event');
-  } else if (weekStart === '2026-11-16') {
-    return planned
-      .filter((session) => session.kind !== 'police_integration' && session.kind !== 'police_strength_transitions' && session.kind !== 'chain_session')
-      .concat({
-        id: '2026-11-20:police_event', date: '2026-11-20', dayLabel: 'VEN', kind: 'police_event',
-        recipeId: recipes.policeEvent!.id, status: 'fixed_event', phase: 'taper', load: 'event', volumeFactor: 1
-      })
-      .sort((a, b) => a.date.localeCompare(b.date));
   } else {
     // CHANGE_REQUEST_013 v2 — weeks 4 to 10: the distance of the table and,
     // from week 7, the hill sprints. Week 3 and earlier keep the static recipe.
@@ -264,6 +261,9 @@ function week1Override(generated: PlannedSession[]): PlannedSession[] {
 // `room` recipe (police_integration, Friday); from week 3 it is the CHAIN
 // session, which occupies the same Friday slot with the same `hard` load.
 // Both are matched so the adaptation keeps working across the v3/v4 boundary.
+// CHANGE_REQUEST_013 v5 — R-SP-08: from week 6 the hard days are loaded and
+// nothing cuts a dose automatically, so the v4 kinds are deliberately not
+// matched here (an enchaînement keeps volumeFactor 1 whatever Monday was).
 function hardPoliceSession(sessions: PlannedSession[]): PlannedSession | undefined {
   return sessions.find((session) => session.kind === 'chain_session')
     ?? sessions.find((session) => session.recipeId === recipes.room!.id);
@@ -314,6 +314,9 @@ function hiitBlock(recipeId: string) {
 // occurrence. R-WS-16/17/18 (CR-002) are skipped for Week 1 (frozen, R-WS-15)
 // exactly like R-WS-07 above.
 export function validateWeek(week: TrainingWeek): string[] {
+  // CHANGE_REQUEST_013 v5 — weeks 6 to 11 have their own checks (seasonV4.ts).
+  const weekNumber = weekNumberOf(week.startDate);
+  if (weekNumber >= V4_FIRST_WEEK) return validateV4Week(week, weekNumber);
   const errors: string[] = [];
   const isTaperEventWeek = week.startDate === '2026-11-16';
   // R-WS-15: Week 1 is frozen as approved, including its Tuesday interval

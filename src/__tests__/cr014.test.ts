@@ -182,10 +182,17 @@ describe('CR-014 checkWeek', () => {
     // put the extra CrossFit class on the Saturday after the engine chain.
     // Those soft flags are true and stay visible; they are questions in
     // APP_REPORT_013_v3, not something the checker hides.
+    // CHANGE_REQUEST_013 v5 — season_plan.md v4: week 6 has CrossFit on
+    // Thursday before the Friday enchaînement and trains Monday to Saturday;
+    // week 9 has the Saturday CrossFit after the enchaînement and trains
+    // Tuesday to Sunday; week 10 has three hard days in a row (Monday to
+    // Wednesday, R-SP-13: accepted, flagged amber, never blocked) and trains
+    // Monday to Saturday. Questions in APP_REPORT_013_v5.
     const expectedBySeasonPlan: Record<string, string[]> = {
       '2026-10-05': ['C3'],
       '2026-10-12': ['C1', 'C3'],
-      '2026-11-02': ['C1', 'C3']
+      '2026-11-02': ['C1', 'C3'],
+      '2026-11-09': ['C2', 'C3']
     };
     for (const week of generatePlan()) {
       expect(codes(week), `flags on ${week.startDate}`).toEqual(expectedBySeasonPlan[week.startDate] ?? []);
