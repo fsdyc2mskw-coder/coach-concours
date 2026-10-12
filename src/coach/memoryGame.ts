@@ -7,7 +7,9 @@
 import { MEMORY_CARD_MAX, memoryCardDrill, memoryCycleOf, type MemoryCard } from './memoryCycle';
 import { FLOOR_PLAN, GAME_STATIONS, MISSING_ROUNDS, RULES_PICTURES, type StationId } from './memoryGameAssets';
 import { weekNumberOf } from './planner';
-import { isSessionShape } from './sessionShapes';
+// CHANGE_REQUEST_013 v5 — from week 6 the police sessions are the v4 kinds
+// (skill_park, enchainement, travel_mini_ench, travel_skill_kit).
+import { isPoliceSession, memoryShapeOf } from './sessionShapes';
 import type { DrillScore, SessionRecipe, SessionResult, TrainingWeek } from './types';
 
 export const STATION_BY_ID: Readonly<Record<StationId, (typeof GAME_STATIONS)[number]>> =
@@ -155,7 +157,7 @@ export function rulesFeedback(answer: 'correct' | 'faux', truth: 'correct' | 'fa
 export function withMemoryVideo(recipe: SessionRecipe, sessionId: string, weeks: readonly TrainingWeek[]): SessionRecipe {
   const week = weeks.find((item) => item.sessions.some((session) => session.id === sessionId));
   if (!week || !memoryCycleOf(weekNumberOf(week.startDate))?.video) return recipe;
-  const first = week.sessions.find((session) => isSessionShape(session.kind));
+  const first = week.sessions.find((session) => isPoliceSession(session.kind));
   if (first?.id !== sessionId) return recipe;
   if (!recipe.blocks.some((block) => block.spec?.kind === 'memory' && block.spec.game)) return recipe;
   return {
@@ -197,8 +199,9 @@ export function featuredCard(weeks: readonly TrainingWeek[], results: Record<str
   const cycle = week ? memoryCycleOf(weekNumberOf(week.startDate)) : null;
   if (!week || !cycle) return 'plan';
   for (const session of week.sessions) {
-    if (!isSessionShape(session.kind)) continue;
-    const card = session.kind === 'skill_session' ? cycle.skill : cycle.chain;
+    const shape = memoryShapeOf(session.kind);
+    if (!shape) continue;
+    const card = shape === 'skill_session' ? cycle.skill : cycle.chain;
     if (card && !(results[session.id]?.drillScores ?? []).some((item) => item.measure === 'memory_card')) return card;
   }
   return cycle.skill;

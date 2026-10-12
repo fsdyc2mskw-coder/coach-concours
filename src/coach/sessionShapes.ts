@@ -44,6 +44,7 @@ import type {
   MemoryModule,
   MemoryPrompt,
   PowerEmomSpec,
+  SessionKind,
   SessionRecipe,
   SessionShape,
   SkillBlock,
@@ -83,16 +84,13 @@ export interface SeasonWeek {
   buildWeek: boolean;        // R-SP-04
 }
 
+// CHANGE_REQUEST_013 v5 — `SEASON_PLAN` keeps the v3 rows of weeks 3 to 5
+// only: those weeks are past, built by the v3 engine and locked (their results
+// are stored by session id). Weeks 6 to 11 are `SEASON_PLAN_V4` below.
 export const SEASON_PLAN: Readonly<Record<number, SeasonWeek>> = {
   3: { week: 3, phase: 'combine', load: 3, focus: 8, cardioMin: 10, powerJumps: 0, memory: 'LOCKED', chain: 'locked', tails: 'racket', runKm: [8, 9], runDay: 'SUN', hillSprints: 0, hillSprintsDay: null, crossfitPlus: null, travel: false, baseline: true, buildWeek: false },
   4: { week: 4, phase: 'combine', load: 4, focus: 11, cardioMin: 12, powerJumps: 3, memory: 'M1', chain: 'chain_A', tails: 'balance', runKm: [10, 11], runDay: 'SAT', hillSprints: 0, hillSprintsDay: null, crossfitPlus: null, travel: false, baseline: false, buildWeek: true },
   5: { week: 5, phase: 'trail', load: 2, focus: 10, cardioMin: 10, powerJumps: 3, memory: 'M2', chain: 'chain_B', tails: 'balance', runKm: 'RACE', runDay: 'SUN', hillSprints: 0, hillSprintsDay: null, crossfitPlus: null, travel: false, baseline: false, buildWeek: false },
-  6: { week: 6, phase: 'reset', load: 3, focus: 8, cardioMin: 12, powerJumps: 3, memory: 'M2', chain: 'chain_B', tails: 'balance', runKm: [7, 7], runDay: 'SUN', hillSprints: 0, hillSprintsDay: null, crossfitPlus: '2026-10-17', travel: false, baseline: false, buildWeek: true },
-  7: { week: 7, phase: 'travel', load: 3, focus: 10, cardioMin: 13, powerJumps: 5, memory: 'M3', chain: 'travel_T', tails: 'racket', runKm: [7, 8], runDay: 'SAT', hillSprints: 0, hillSprintsDay: null, crossfitPlus: null, travel: true, baseline: false, buildWeek: true },
-  8: { week: 8, phase: 'travel', load: 4, focus: 'SLALOM_OR_RACKET', cardioMin: 15, powerJumps: 5, memory: 'M3', chain: 'travel_T', tails: 'racket', runKm: [7, 8], runDay: 'SAT', hillSprints: 0, hillSprintsDay: null, crossfitPlus: null, travel: true, baseline: false, buildWeek: true },
-  9: { week: 9, phase: 'peak', load: 5, focus: 11, cardioMin: 15, powerJumps: 5, memory: 'M4', chain: 'ghost', ghostStations: [1, 11], tails: 'balance', runKm: [7, 8], runDay: 'SUN', hillSprints: 6, hillSprintsDay: 'TUE', crossfitPlus: '2026-11-07', travel: false, baseline: false, buildWeek: true },
-  10: { week: 10, phase: 'peak', load: 3, focus: 11, cardioMin: 12, powerJumps: 5, memory: 'M4', chain: 'ghost', ghostStations: [1, 11], tails: 'balance', runKm: [7, 7], runDay: 'SAT', hillSprints: 6, hillSprintsDay: 'SAT', crossfitPlus: null, travel: false, baseline: false, buildWeek: false },
-  11: { week: 11, phase: 'taper', load: 1, focus: 'LIGHT', cardioMin: 6, powerJumps: 0, memory: 'M4', chain: 'ghost_walk', tails: 'none', runKm: null, runDay: 'SAT', hillSprints: 0, hillSprintsDay: null, crossfitPlus: null, travel: false, baseline: false, buildWeek: false }
 };
 
 // The week from which the chain session is the ENGINE chain (weekly_shape.md
@@ -104,9 +102,102 @@ export const ENGINE_CHAIN_FROM_WEEK = 5;
 // week 5 exception list).
 export const MAX_CARDIO_ATOMS = 4;
 
-/** The table row of a week, or null for weeks 1 and 2, which the table does not cover. */
+/**
+ * The v3 table row of a week, or null for weeks 1 and 2 (not in the table) and
+ * for weeks 6 to 11 (`seasonWeekV4`).
+ */
 export function seasonWeek(weekNumber: number): SeasonWeek | null {
   return SEASON_PLAN[weekNumber] ?? null;
+}
+
+// ---------- A v4. the season table, weeks 6 to 11 ----------
+
+// CHANGE_REQUEST_013 v5 — `season_plan.md` v4 (12 October 2026), as the change
+// request's section A writes it: one cell per day. Nothing here moves a day in
+// code: the athlete may drag any session to any day of its week (CR-014).
+export const V4_FIRST_WEEK = 6;
+
+export type V4SessionKind = Extract<SessionKind,
+  | 'crossfit_class' | 'run_intervals' | 'police_event'
+  | 'skill_park' | 'enchainement' | 'travel_speed' | 'travel_mini_ench' | 'travel_skill_kit' | 'trail_day' | 'easy_run'>;
+export type WeekDay = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
+export const WEEK_DAYS: readonly WeekDay[] = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+
+export interface V4Slot {
+  kind: V4SessionKind;
+  optional?: true;  // "optional" / "opt": shows "optionnel", never counts as missed
+  lowLung?: true;   // the Tuesday low-lung sprints after the main set (section C)
+  offload?: true;   // week 11
+}
+
+export interface SeasonWeekV4 {
+  week: number;
+  startDate: string;
+  endDate: string;
+  load: 1 | 2 | 3 | 4 | 5;
+  days: Partial<Record<WeekDay, V4Slot>>;
+  dailyLine?: string; // the line on the week card (week 6, section B)
+}
+
+export const DAILY_BALANCE_LINE = '2 min d\'équilibre sur une jambe pendant le brossage des dents';
+
+export const SEASON_PLAN_V4: Readonly<Record<number, SeasonWeekV4>> = {
+  6: {
+    week: 6, startDate: '2026-10-12', endDate: '2026-10-18', load: 4, dailyLine: DAILY_BALANCE_LINE,
+    days: { MON: { kind: 'crossfit_class' }, TUE: { kind: 'run_intervals', lowLung: true }, WED: { kind: 'skill_park' }, THU: { kind: 'crossfit_class' }, FRI: { kind: 'enchainement' }, SAT: { kind: 'trail_day' } }
+  },
+  7: {
+    week: 7, startDate: '2026-10-19', endDate: '2026-10-25', load: 2,
+    days: { TUE: { kind: 'travel_speed' }, THU: { kind: 'travel_mini_ench' }, SAT: { kind: 'travel_skill_kit' }, SUN: { kind: 'trail_day', optional: true } }
+  },
+  8: {
+    week: 8, startDate: '2026-10-26', endDate: '2026-11-01', load: 2,
+    days: { TUE: { kind: 'travel_speed', optional: true }, THU: { kind: 'travel_mini_ench' }, SAT: { kind: 'travel_skill_kit' } }
+  },
+  9: {
+    week: 9, startDate: '2026-11-02', endDate: '2026-11-08', load: 3,
+    days: { TUE: { kind: 'easy_run' }, WED: { kind: 'easy_run' }, THU: { kind: 'skill_park' }, FRI: { kind: 'enchainement' }, SAT: { kind: 'crossfit_class' }, SUN: { kind: 'easy_run' } }
+  },
+  10: {
+    week: 10, startDate: '2026-11-09', endDate: '2026-11-15', load: 5,
+    days: { MON: { kind: 'crossfit_class' }, TUE: { kind: 'run_intervals', lowLung: true }, WED: { kind: 'enchainement' }, THU: { kind: 'skill_park' }, FRI: { kind: 'enchainement' }, SAT: { kind: 'trail_day' } }
+  },
+  11: {
+    week: 11, startDate: '2026-11-16', endDate: '2026-11-20', load: 1,
+    days: { MON: { kind: 'crossfit_class' }, TUE: { kind: 'run_intervals' }, WED: { kind: 'skill_park', offload: true }, FRI: { kind: 'police_event' } }
+  }
+};
+
+export function seasonWeekV4(weekNumber: number): SeasonWeekV4 | null {
+  return SEASON_PLAN_V4[weekNumber] ?? null;
+}
+
+/** The week bar (1 to 5 squares), from whichever table holds the week. */
+export function weekLoadOf(weekNumber: number): number | null {
+  return seasonWeekV4(weekNumber)?.load ?? seasonWeek(weekNumber)?.load ?? null;
+}
+
+// CHANGE_REQUEST_013 v5 — the police sessions of the v4 weeks, and which side
+// of the CR-018 memory cycle each one takes (KEEP, section A): the learning
+// sessions take the cycle's skill card, the enchaînements its chain card.
+export const V4_POLICE_KINDS = ['skill_park', 'enchainement', 'travel_mini_ench', 'travel_skill_kit'] as const;
+export type V4PoliceKind = (typeof V4_POLICE_KINDS)[number];
+
+export function isV4PoliceKind(kind: string): kind is V4PoliceKind {
+  return (V4_POLICE_KINDS as readonly string[]).includes(kind);
+}
+
+/** A police session of any week from 3: the two v4-rule shapes, and the four v4-table kinds. */
+export function isPoliceSession(kind: string): boolean {
+  return isSessionShape(kind) || isV4PoliceKind(kind);
+}
+
+/** The memory-cycle side of a police session (skill or chain), or null. */
+export function memoryShapeOf(kind: string): SessionShape | null {
+  if (isSessionShape(kind)) return kind;
+  if (kind === 'skill_park' || kind === 'travel_skill_kit') return 'skill_session';
+  if (kind === 'enchainement' || kind === 'travel_mini_ench') return 'chain_session';
+  return null;
 }
 
 /**
@@ -615,7 +706,7 @@ function isMemoryGameWeek(weekNumber: number): boolean {
   return weekNumber >= MEMORY_GAME_FROM_WEEK && memoryCycleOf(weekNumber) !== null;
 }
 
-function memoryGameBlock(weekNumber: number, shape: SessionShape): ExerciseBlock {
+export function memoryGameBlock(weekNumber: number, shape: SessionShape): ExerciseBlock {
   const cycle = memoryCycleOf(weekNumber)!;
   const card = memoryCardFor(weekNumber, shape)!;
   const spec: MemoryBlockSpec = { kind: 'memory', modules: cycle.m4 ? ['M4'] : [], drills: [memoryCardDrill(card)], game: { card, m4: cycle.m4 } };
@@ -731,8 +822,6 @@ export function buildSkillSessionRecipe(weekNumber: number): SessionRecipe {
       }
     };
   }
-  if (season.week === 11) return buildTaperSessionRecipe();
-
   const module = season.memory as Exclude<MemoryModule, 'M5'>;
   const warmup = warmupFor(season, SKILL_WARMUP_BASE);
   const game = isMemoryGameWeek(season.week);
@@ -752,30 +841,6 @@ export function buildSkillSessionRecipe(weekNumber: number): SessionRecipe {
     // CHANGE_REQUEST_018 — M1 to M3 are retired as session content from week 5
     // (memory_modules.md v3): a game week carries no recited prompt.
     ...(game ? {} : { memory: memoryPrompt('skill_session', module) })
-  };
-}
-
-// Week 11: no chain session. The skill session moves to Wednesday 18 November
-// and becomes the taper session (season_plan.md, "Week 11"): memory M4 ·
-// placeholder "Passage fantôme au pas" 15 min · cardio 6 · no tails.
-// CHANGE_REQUEST_018 — its memory block is the PLAN card followed by M4.
-export function buildTaperSessionRecipe(): SessionRecipe {
-  const season = SEASON_PLAN[11]!;
-  const warmup = warmupFor(season, SKILL_WARMUP_BASE);
-  const blocks = [
-    memoryGameBlock(11, 'skill_session'),
-    placeholderBlock('skill_block', 'Passage fantôme au pas', 15),
-    cardioBlock(11, 'skill', season.cardioMin)
-  ];
-  return {
-    id: 'taper-session-v2-week-11', version: 2, kind: 'skill_session',
-    title: 'Séance d’affûtage',
-    purpose: 'Jambes fraîches, technique nette, mémoire répétée. Le test est vendredi.',
-    durationMin: sessionMinutes(warmup.text, blocks, COOLDOWN),
-    equipment: unique(cardioEquipment(11, 'skill')),
-    warmup: warmup.text,
-    blocks,
-    cooldown: COOLDOWN
   };
 }
 
@@ -994,28 +1059,6 @@ function hillSprintsBlock(count: number, endOfRun: boolean): ExerciseBlock {
   };
 }
 
-/**
- * CHANGE_REQUEST_013 v3 — week 9: the Tuesday session is the hill sprints in
- * place of the run intervals (season_plan.md v3, note i; R-WS-43), inside the
- * fixed Tuesday frame (R-WS-19). It keeps the Tuesday run slot, so it still
- * counts as the week's first run (R-WS-03). Null when the table puts no
- * sprints on Tuesday.
- */
-export function buildTuesdayHillSprintsRecipe(weekNumber: number): SessionRecipe | null {
-  const season = seasonWeek(weekNumber);
-  if (!season || season.hillSprintsDay !== 'TUE' || season.hillSprints === 0) return null;
-  return {
-    id: `hill-sprints-v1-week-${season.week}`, version: 1, kind: 'run_intervals',
-    title: 'Côtes — sprints en montée',
-    purpose: `Semaine ${season.week} : ${season.hillSprints} sprints en côte à la place des intervalles (carte S01_hill_sprints). Pas d’intervalles cette semaine.`,
-    durationMin: null,
-    equipment: ['Chaussures de course', 'une courte pente'],
-    warmup: '15 min facile, puis 3 × 20 s d’accélérations progressives.',
-    blocks: [hillSprintsBlock(season.hillSprints, false)],
-    cooldown: '10 min facile.'
-  };
-}
-
 export function hasHillSprints(recipe: SessionRecipe): boolean {
   return recipe.blocks.some((block) => block.kind === 'hill_sprints');
 }
@@ -1098,6 +1141,10 @@ export function drillsOfBlock(block: ExerciseBlock): DrillRef[] {
   if (spec.kind === 'power_emom') return spec.drills;
   if (spec.kind === 'chain_block') return spec.tailA ? [...spec.roundScores, spec.tailA] : spec.roundScores;
   if (spec.kind === 'tail_b') return spec.minutes.map((minute) => minute.drill);
+  // CHANGE_REQUEST_013 v5 — the park weeks' tests, storms, low-lung sprints
+  // and a WOD cardio block scored as a drill.
+  if (spec.kind === 'skill_test' || spec.kind === 'storm' || spec.kind === 'low_lung') return spec.drills;
+  if (spec.kind === 'cardio') return spec.drills ?? [];
   return [];
 }
 

@@ -29,7 +29,19 @@ export type SessionKind =
   | 'trail_event'
   | 'run_intervals'
   | 'running_intervals_exception'
-  | 'police_event';
+  | 'police_event'
+  // CHANGE_REQUEST_013 v5 — the session kinds of season_plan.md v4 (weeks 6
+  // to 11). `skill_park` (learn, Wednesday) and `enchainement` (fresh test →
+  // storm → tired test, Friday) are the two park sessions; the three travel
+  // kinds are the travel kit T1, T2, T3; `trail_day` is a label only
+  // (R-SP-10); `easy_run` is the jet-lag run of week 9.
+  | 'skill_park'
+  | 'enchainement'
+  | 'travel_speed'
+  | 'travel_mini_ench'
+  | 'travel_skill_kit'
+  | 'trail_day'
+  | 'easy_run';
 
 // CHANGE_REQUEST_013 section A. `warmup` and `cooldown` are listed here
 // exactly as the change request writes them, but they are not
@@ -46,9 +58,14 @@ export type SessionKind =
 // CHANGE_REQUEST_013 v3 — `power_emom` added: the POWER EMOM of the engine
 // chain session (weekly_shape.md v7). Its own kind, so it can never satisfy
 // "one cardio block per police session" (R-WS-16).
+// CHANGE_REQUEST_013 v5 — `setup` (the park set-up), `skill_test` (the fresh
+// and tired tests of the enchaînement), `storm` (its two 7 min storms),
+// `rest`, `low_lung` (the Tuesday low-lung sprints, after the main set) and
+// `to_build` (the named gap "Contenu à construire (semaine n)", R-SP-03).
 export type BlockKind =
   | 'warmup' | 'memory' | 'fresh_reference'
-  | 'skill_block' | 'chain_block' | 'power_emom' | 'cardio' | 'tail_b' | 'baseline' | 'hill_sprints' | 'cooldown';
+  | 'skill_block' | 'chain_block' | 'power_emom' | 'cardio' | 'tail_b' | 'baseline' | 'hill_sprints' | 'cooldown'
+  | 'setup' | 'skill_test' | 'storm' | 'rest' | 'low_lung' | 'to_build';
 
 export type CardioFormat = 'emom' | 'amrap' | 'for_time';
 
@@ -64,7 +81,15 @@ export type DrillMeasure =
   | 'best_jump_cm'
   // CHANGE_REQUEST_018 — the score of the memory game card played in the
   // session's memory block (R-MM-04 v3), replacing `recall_errors` from week 5.
-  | 'memory_card';
+  | 'memory_card'
+  // CHANGE_REQUEST_013 v5 — the scores of the park weeks, all stored in the
+  // existing `drillScores` (no new stored field): official rounds done and
+  // hesitations at the obstacle, the hoops errors of a test pass, the WILL 10
+  // rounds, the storm scores, the box jumps used (1 yes, 0 no) and the
+  // metres held on a low-lung sprint.
+  | 'rounds_done' | 'hesitations' | 'errors' | 'rounds'
+  | 'last_lap' | 'burpees_in_lap' | 'highest_minute' | 'box_jumps_used'
+  | 'metres_held';
 
 // A card of `02_Training_brain/exercise_cards/00_INDEX.md`, referenced by its
 // id. `CardRef` and `DrillRef` are named but not defined by the change
@@ -154,6 +179,39 @@ export interface CardioBlock {
   // CHANGE_REQUEST_013 v3 — the label of the Retour box when "Tours faits" or
   // "Minutes tenues" does not describe what the block records.
   valueLabel?: string;
+  // CHANGE_REQUEST_013 v5 — a cardio block that is a whole Cross Ops WOD
+  // (WILL 10) scores its rounds as a drill, in `drillScores`, instead of the
+  // `cardioValue` box.
+  drills?: DrillRef[];
+}
+
+// CHANGE_REQUEST_013 v5 — the test of the enchaînement (R-SP-11): the same two
+// skills (hoops, balance on bench with ball) fresh, after storm 1 and after
+// storm 2. The GAP is tired minus fresh, computed, never typed.
+export type TestMoment = 'fresh' | 'tired1' | 'tired2';
+export interface SkillTestSpec {
+  kind: 'skill_test';
+  moment: TestMoment;
+  drills: DrillRef[];
+}
+
+// CHANGE_REQUEST_013 v5 — a storm of the enchaînement: one block card
+// (BLK_acheron_park, BLK_death_by_obstacle), 3 or 4 atoms (R-TL-11), 7 min.
+export interface StormSpec {
+  kind: 'storm';
+  storm: 1 | 2;
+  card: CardRef;
+  atoms: CardRef[];
+  durationMin: number;
+  drills: DrillRef[];
+}
+
+// CHANGE_REQUEST_013 v5 — the low-lung sprints after the Tuesday main set.
+export interface LowLungSpec {
+  kind: 'low_lung';
+  reps: number;
+  metres: number;
+  drills: DrillRef[];
 }
 
 // CHANGE_REQUEST_013 v3 — the POWER EMOM of the engine chain session: hard,
@@ -199,7 +257,10 @@ export type BlockSpec =
   | CardioBlock
   | TailB
   | PowerEmomSpec
-  | BaselineBlockSpec;
+  | BaselineBlockSpec
+  | SkillTestSpec
+  | StormSpec
+  | LowLungSpec;
 
 // CHANGE_REQUEST_013 section C — one numeric score per drill, stored per
 // session id. The fresh-to-fatigued gap is NOT here: it is computed from
@@ -291,6 +352,14 @@ export interface SessionRecipe {
   blocks: ExerciseBlock[];
   cooldown: string | null;
   memory?: MemoryPrompt;
+  // CHANGE_REQUEST_013 v5 — screen-only fields of the v4 weeks. None of them
+  // is stored: recipes are rebuilt at every start, never written to the state.
+  // `optional`: shows "optionnel" and never counts as missed (W7, W8).
+  // `notice`: one line shown above the steps (the W10 rematch line).
+  // `rematchOf`: the session id whose scores are shown beside the boxes.
+  optional?: boolean;
+  notice?: string;
+  rematchOf?: string;
 }
 
 export interface PlannedSession {

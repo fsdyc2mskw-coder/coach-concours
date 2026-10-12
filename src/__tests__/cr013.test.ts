@@ -517,10 +517,12 @@ describe('CR-013 section E — the week 3 fixtures reproduce the two locked Driv
     expect(validateWeek(week4)).toHaveLength(0);
   });
 
-  it('every week from 3 to the taper carries the two shapes and validates clean', () => {
+  // CHANGE_REQUEST_013 v5 — from week 6 the police sessions are the kinds of
+  // season_plan.md v4 (cr013v5.test.ts); weeks 3 to 5 keep the two shapes.
+  it('every week from 3 to the taper validates clean; weeks 3 to 5 carry the two shapes', () => {
     for (const week of v4Weeks) {
       expect(validateWeek(week)).toEqual([]);
-      if (week.startDate === '2026-11-16') continue; // taper week: the chain session is dropped before the event
+      if (week.startDate >= '2026-10-12') continue;
       expect(week.sessions.some((session) => session.kind === 'skill_session')).toBe(true);
       expect(week.sessions.some((session) => session.kind === 'chain_session')).toBe(true);
     }

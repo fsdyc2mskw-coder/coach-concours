@@ -1,4 +1,4 @@
-import type { SessionRecipe } from './types';
+import type { ExerciseBlock, SessionRecipe } from './types';
 import { treadmillKmh, type RunIntervalsRow } from '../data/runIntervalsProgression';
 
 export const recipes: Record<string, SessionRecipe> = {
@@ -251,26 +251,31 @@ export function buildRunIntervalsRecipe(row: RunIntervalsRow): SessionRecipe {
     durationMin: runIntervalsDurationMin(row),
     equipment: treadmill ? ['Chaussures de course', 'tapis de course'] : ['Chaussures de course', 'chronomètre ou montre avec tour auto 1 km'],
     warmup: '15 min facile, puis 3 × 20 s d’accélérations progressives.',
-    blocks: [
-      {
-        title: `${row.reps} × ${row.minutes} min à ${paceText(row.paceSec)}${treadmill ? ` (${kmhText(row.paceSec)}, sur tapis)` : ''} — main set`,
-        short: 'intervalles',
-        faire: treadmill
-          ? `Sur tapis, pente 1 % : ${runIntervalsFaire(row)} (${kmhText(row.paceSec)}).`
-          : runIntervalsFaire(row),
-        details: treadmill ? `${row.purpose}, vitesse lue sur le tapis.` : `${row.purpose}, allure lue au tour auto 1 km.`,
-        stationMappings: [],
-        // R-WS-22's second group (week 9) has no jog value in the source
-        // table for its own recovery; a value is assumed here (documented in
-        // APP_REPORT_011.md as an open question, not a silent decision).
-        approximation: Boolean(row.second)
-      }
-    ],
+    blocks: [runIntervalsMainBlock(row)],
     cooldown: '10 min facile.'
   };
   recipeById[recipe.id] = recipe;
   runIntervalsRepsById[recipe.id] = row.reps + (row.second?.reps ?? 0);
   return recipe;
+}
+
+// CHANGE_REQUEST_013 v5 — the main-set block on its own, so the v4 Tuesdays
+// (weeks 6, 10, 11) write it exactly as every earlier Tuesday did.
+export function runIntervalsMainBlock(row: RunIntervalsRow): ExerciseBlock {
+  const treadmill = row.treadmill === true;
+  return {
+    title: `${row.reps} × ${row.minutes} min à ${paceText(row.paceSec)}${treadmill ? ` (${kmhText(row.paceSec)}, sur tapis)` : ''} — main set`,
+    short: 'intervalles',
+    faire: treadmill
+      ? `Sur tapis, pente 1 % : ${runIntervalsFaire(row)} (${kmhText(row.paceSec)}).`
+      : runIntervalsFaire(row),
+    details: treadmill ? `${row.purpose}, vitesse lue sur le tapis.` : `${row.purpose}, allure lue au tour auto 1 km.`,
+    stationMappings: [],
+    // R-WS-22's second group (week 9) has no jog value in the source
+    // table for its own recovery; a value is assumed here (documented in
+    // APP_REPORT_011.md as an open question, not a silent decision).
+    approximation: Boolean(row.second)
+  };
 }
 
 // CHANGE_REQUEST_002 — a memory block never carries an "explain" prompt: only

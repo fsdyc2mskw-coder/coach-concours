@@ -65,6 +65,11 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 .heroHead .weekbar { display: flex; gap: 4px; margin-top: 10px; }
 .heroHead .weekbar i { width: 16px; height: 6px; border-radius: 2px; background: var(--line); display: block; }
 .heroHead .weekbar i.on { background: var(--accent); }
+/* CHANGE_REQUEST_013 v5 — the week's daily line, the rematch line, the GAP. */
+.heroHead p.daily { margin-top: 10px; color: var(--accent); font-size: 13.5px; font-family: var(--display); font-weight: 700; }
+.noticeLine { margin: 4px 0 0; color: var(--accent); font-family: var(--display); font-weight: 700; font-size: 15px; }
+.gap { margin: 4px 0 10px; }
+.gap .lab { color: var(--accent); }
 
 .wtabs { display: flex; gap: 22px; padding: 14px 0 0; border-bottom: 1px solid var(--line); font-family: var(--display); font-weight: 600; font-size: 15px; color: var(--mute); }
 .wtabs button { background: none; border: 0; color: inherit; font: inherit; padding: 0 0 10px; border-bottom: 2px solid transparent; }

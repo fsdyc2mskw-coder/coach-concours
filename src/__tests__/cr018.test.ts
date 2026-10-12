@@ -51,9 +51,9 @@ import {
   TRAY_ORDER,
   type StationId
 } from '../coach/memoryGameAssets';
-import { generatePlan, validateV4PoliceSessions, validateWeek } from '../coach/planner';
+import { generatePlan, validateWeek } from '../coach/planner';
 import { recipeById } from '../coach/recipes';
-import { blockOfKind, isSessionShape, memoryBlockOf, memoryModulesOf } from '../coach/sessionShapes';
+import { blockOfKind, isPoliceSession, memoryBlockOf, memoryModulesOf, memoryShapeOf } from '../coach/sessionShapes';
 import type { ExerciseBlock, SessionRecipe, TrainingWeek } from '../coach/types';
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
@@ -67,7 +67,11 @@ const WEEK_STARTS: Record<number, string> = {
 };
 const weekIn = (list: readonly TrainingWeek[], n: number): TrainingWeek => list.find((week) => week.startDate === WEEK_STARTS[n])!;
 const weekNo = (n: number): TrainingWeek => weekIn(weeks, n);
-const policeOf = (week: TrainingWeek) => week.sessions.filter((session) => isSessionShape(session.kind));
+// CHANGE_REQUEST_013 v5 — from week 6 the police sessions are the v4 kinds
+// (skill_park, enchainement, travel_mini_ench, travel_skill_kit): the cycle is
+// kept (KEEP, section A), the learning sessions take its skill card and the
+// enchaînements its chain card.
+const policeOf = (week: TrainingWeek) => week.sessions.filter((session) => isPoliceSession(session.kind));
 const recipeOf = (week: TrainingWeek, kind: string): SessionRecipe | undefined => {
   const session = week.sessions.find((item) => item.kind === kind);
   return session ? recipeById[session.recipeId] : undefined;
@@ -210,31 +214,38 @@ describe('CR-018 — MEMORY_CYCLE reproduces the table cell for cell', () => {
 // ---------- 2. which card in which session ----------
 
 describe('CR-018 — weeks 5-10 carry one memory block per police session with the right card; week 11 PLAN; weeks 3-4 unchanged', () => {
-  it('weeks 5 to 10: the skill and the chain session each carry exactly one memory block, the cycle’s card', () => {
+  it('weeks 5 to 10: every police session carries exactly one memory block, the cycle’s card for its side', () => {
     for (let n = 5; n <= 10; n += 1) {
-      for (const [kind, card] of [['skill_session', MEMORY_CYCLE[n]!.skill], ['chain_session', MEMORY_CYCLE[n]!.chain]] as const) {
-        const recipe = recipeOf(weekNo(n), kind)!;
-        expect(memoryBlocks(recipe), `week ${n} ${kind}`).toHaveLength(1);
-        expect(memoryBlockOf(recipe)!.game!.card, `week ${n} ${kind}`).toBe(card);
-        expect(memoryBlockOf(recipe)!.drills!.map((drill) => [drill.measure, drill.drillId]), `week ${n} ${kind}`).toEqual([['memory_card', `memory:${card}`]]);
+      const sides = new Set<string>();
+      for (const session of policeOf(weekNo(n))) {
+        const shape = memoryShapeOf(session.kind)!;
+        sides.add(shape);
+        const card = shape === 'skill_session' ? MEMORY_CYCLE[n]!.skill : MEMORY_CYCLE[n]!.chain;
+        const recipe = recipeById[session.recipeId]!;
+        expect(memoryBlocks(recipe), `week ${n} ${session.id}`).toHaveLength(1);
+        expect(memoryBlockOf(recipe)!.game!.card, `week ${n} ${session.id}`).toBe(card);
+        expect(memoryBlockOf(recipe)!.drills!.map((drill) => [drill.measure, drill.drillId]), `week ${n} ${session.id}`).toEqual([['memory_card', `memory:${card}`]]);
       }
+      expect([...sides].sort(), `week ${n}`).toEqual(['chain_session', 'skill_session']);
     }
   });
 
-  it('week 11: the taper session carries PLAN, and there is no chain session', () => {
+  // CHANGE_REQUEST_013 v5 — week 11's one police session is « Compétences au
+  // parc » (offload, to build), Wednesday 18 November.
+  it('week 11: the skill_park carries PLAN, and there is no enchaînement', () => {
     const week = weekNo(11);
-    expect(policeOf(week).map((session) => session.kind)).toEqual(['skill_session']);
-    const taper = recipeOf(week, 'skill_session')!;
+    expect(policeOf(week).map((session) => session.kind)).toEqual(['skill_park']);
+    const taper = recipeOf(week, 'skill_park')!;
     expect(memoryBlocks(taper)).toHaveLength(1);
     expect(memoryBlockOf(taper)!.game!.card).toBe('plan');
   });
 
   it('the block reads "Mémoire · <card>" and names the card in one line', () => {
-    const skill = recipeOf(weekNo(6), 'skill_session')!;
+    const skill = recipeOf(weekNo(6), 'skill_park')!;
     const block = blockOfKind(skill, 'memory')!;
     expect(block.title).toBe('Mémoire · QUI MANQUE ? — 4 min');
     expect(block.faire).toBe('QUI MANQUE ? · 10 postes affichés, trouve l’absent.');
-    expect(blockOfKind(recipeOf(weekNo(6), 'chain_session')!, 'memory')!.title).toBe('Mémoire · RÈGLES — 4 min');
+    expect(blockOfKind(recipeOf(weekNo(6), 'enchainement')!, 'memory')!.title).toBe('Mémoire · RÈGLES — 4 min');
   });
 
   it('weeks 3 and 4 are unchanged: their live memory blocks and the week 4 recall check', () => {
@@ -249,11 +260,11 @@ describe('CR-018 — weeks 5-10 carry one memory block per police session with t
 
   it('every generated week still validates, and a wrong card is flagged (R-MM-03)', () => {
     for (let n = 3; n <= 11; n += 1) expect(validateWeek(weekNo(n)), `week ${n}`).toEqual([]);
-    const recipe = recipeOf(weekNo(6), 'chain_session')!;
+    const recipe = recipeOf(weekNo(6), 'enchainement')!;
     const original = recipe.blocks;
     try {
       recipe.blocks = original.map((block) => (block.spec?.kind === 'memory' ? { ...block, spec: { ...block.spec, game: { card: 'plan' as const, m4: false } } } : block));
-      expect(validateV4PoliceSessions(weekNo(6)).some((error) => error.includes('R-MM-03'))).toBe(true);
+      expect(validateWeek(weekNo(6)).some((error) => error.includes('R-MM-03'))).toBe(true);
     } finally {
       recipe.blocks = original;
     }
@@ -317,7 +328,9 @@ describe('CR-018 — the M4 line in weeks 9-11 only; the block lasts 4 or 10 min
     vi.setSystemTime(new Date('2026-11-04T12:00:00Z'));
     render(createElement(CoachConcoursApp));
     await screen.findByText(/Séances/);
-    const card = (await screen.findAllByText('Séance compétence')).map((node) => node.closest('button.card')).find(Boolean) as HTMLButtonElement;
+    // CHANGE_REQUEST_013 v5 — week 9's first police session is « Compétences
+    // au parc », Thursday 5 November (a named gap that keeps its card).
+    const card = (await screen.findAllByText('Compétences au parc')).map((node) => node.closest('button.card')).find(Boolean) as HTMLButtonElement;
     fireEvent.click(card);
     await screen.findByText('Ton programme');
     const step = Array.from(document.querySelectorAll('.steps li')).find((li) => li.textContent?.includes('Mémoire · PLAN — 10 min'))!;
