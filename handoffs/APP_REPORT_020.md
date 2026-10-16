@@ -38,3 +38,4 @@ Close the app fully and reopen it (the PWA can serve old cached code after a dep
 - Untracked files in the repo root (`NOTE_no_terminal_git_workarounds.md`, `tsconfig.app.tsbuildinfo`) were left alone.
 
 Commit: see the last line.
+Commit hash: 930dc92
