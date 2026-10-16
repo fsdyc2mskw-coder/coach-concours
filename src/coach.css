@@ -42,7 +42,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 .lead { font-size: 14px; color: var(--sub); max-width: 420px; margin: 8px 0 0; }
 .fieldError { color: var(--high); font-size: 12px; margin: 4px 0 0; }
 
-.shell { max-width: 460px; min-height: 100vh; margin: auto; background: var(--bg); padding: 20px 16px 110px; position: relative; }
+.shell { max-width: 460px; min-height: 100vh; margin: auto; background: var(--bg); padding: calc(max(12px, env(safe-area-inset-top)) + 8px) max(16px, env(safe-area-inset-right)) 110px max(16px, env(safe-area-inset-left)); position: relative; }
 .loading { display: grid; place-items: center; min-height: 100vh; }
 
 /* Top bar: brand mark + sync status, shown only on the three main tabs (not
@@ -138,7 +138,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 .banner .acts button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .okline { margin-top: 22px; color: var(--accent); font-size: 13.5px; font-family: var(--display); font-weight: 700; background: var(--accent-dim); border-radius: 14px; padding: 12px 14px; }
 
-.tabbar { position: fixed; z-index: 3; left: 50%; bottom: 18px; transform: translateX(-50%); width: calc(100% - 32px); max-width: 428px; height: 64px; border-radius: 32px; background: rgba(21, 23, 28, .92); backdrop-filter: blur(12px); border: 1px solid var(--line); display: flex; justify-content: space-around; align-items: center; font-size: 20px; color: var(--sub); padding-bottom: env(safe-area-inset-bottom); }
+.tabbar { position: fixed; z-index: 3; left: 50%; bottom: max(18px, calc(env(safe-area-inset-bottom) + 12px)); transform: translateX(-50%); width: calc(100% - 32px); max-width: 428px; height: 64px; border-radius: 32px; background: rgba(21, 23, 28, .92); backdrop-filter: blur(12px); border: 1px solid var(--line); display: flex; justify-content: space-around; align-items: center; font-size: 20px; color: var(--sub); }
 .tabbar button { border: 0; background: none; color: inherit; font: inherit; display: grid; place-items: center; }
 .tabbar button.on { background: var(--card2); color: var(--accent); width: 56px; height: 44px; border-radius: 22px; }
 
@@ -173,8 +173,8 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 
 .h5 { font-family: var(--display); font-size: 24px; font-weight: 800; letter-spacing: -.02em; margin: 0 0 12px; }
 
-.actionsBar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; width: 100%; max-width: 460px; padding: 16px 26px calc(26px + env(safe-area-inset-bottom)); background: linear-gradient(to top, var(--bg) 60%, transparent); display: flex; justify-content: space-around; align-items: flex-start; z-index: 3; }
-.act { display: flex; flex-direction: column; align-items: center; gap: 10px; font-family: var(--display); font-weight: 600; font-size: 15px; color: var(--text); background: none; border: 0; cursor: pointer; width: 130px; text-align: center; line-height: 1.2; }
+.actionsBar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; width: 100%; max-width: 460px; padding: 16px max(26px, env(safe-area-inset-right)) max(26px, calc(env(safe-area-inset-bottom) + 12px)) max(26px, env(safe-area-inset-left)); background: linear-gradient(to top, var(--bg) 60%, transparent); display: flex; justify-content: space-around; align-items: flex-start; z-index: 3; }
+.act { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; font-family: var(--display); font-weight: 600; font-size: 15px; color: var(--text); background: none; border: 0; cursor: pointer; width: 130px; text-align: center; line-height: 1.2; }
 .act i { width: 64px; height: 64px; border-radius: 20px; background: var(--accent-dim); color: var(--accent); display: grid; place-items: center; font-style: normal; font-size: 26px; }
 .act.primary i { background: var(--accent); color: var(--accent-ink); }
 
@@ -282,7 +282,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 .gArea { touch-action: none; user-select: none; -webkit-user-select: none; }
 .picto { flex: none; display: block; }
 .gNote { color: var(--accent); font-size: 13.5px; margin: 12px 0 0; text-align: center; }
-.gameBar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; width: 100%; max-width: 460px; padding: 12px 16px calc(14px + env(safe-area-inset-bottom)); background: linear-gradient(to top, var(--bg) 70%, transparent); display: flex; align-items: center; gap: 10px; z-index: 3; }
+.gameBar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; width: 100%; max-width: 460px; padding: 12px max(16px, env(safe-area-inset-right)) max(14px, calc(env(safe-area-inset-bottom) + 12px)) max(16px, env(safe-area-inset-left)); background: linear-gradient(to top, var(--bg) 70%, transparent); display: flex; align-items: center; gap: 10px; z-index: 3; }
 .gameBar .count { flex: 1; font-family: var(--display); font-weight: 800; font-size: 17px; color: var(--sub); white-space: nowrap; }
 .gameBar .count b { color: var(--sub); }
 .gBtn { border: 0; border-radius: 18px; min-height: 48px; padding: 0 18px; background: var(--card2); color: var(--text); font-family: var(--display); font-weight: 800; font-size: 15px; }
