@@ -137,7 +137,13 @@ export interface SeasonWeekV4 {
   load: 1 | 2 | 3 | 4 | 5;
   days: Partial<Record<WeekDay, V4Slot>>;
   dailyLine?: string; // the line on the week card (week 6, section B)
+  // CHANGE_REQUEST_013 v6 — a note on a day with no session (week 7 Sunday:
+  // the flight). Screen text only, never a session, never counted.
+  dayNotes?: Partial<Record<WeekDay, string>>;
 }
+
+// CHANGE_REQUEST_013 v6 — section A, MUST: Sunday 25 October shows this line only.
+export const WEEK7_SUNDAY_NOTE = 'Vol vers Kingston · repos';
 
 export const DAILY_BALANCE_LINE = '2 min d\'équilibre sur une jambe pendant le brossage des dents';
 
@@ -146,9 +152,13 @@ export const SEASON_PLAN_V4: Readonly<Record<number, SeasonWeekV4>> = {
     week: 6, startDate: '2026-10-12', endDate: '2026-10-18', load: 4, dailyLine: DAILY_BALANCE_LINE,
     days: { MON: { kind: 'crossfit_class' }, TUE: { kind: 'run_intervals', lowLung: true }, WED: { kind: 'skill_park' }, THU: { kind: 'crossfit_class' }, FRI: { kind: 'enchainement' }, SAT: { kind: 'trail_day' } }
   },
+  // CHANGE_REQUEST_013 v6 — week 7 from season_plan v5 and WEEK_7_FINAL v3
+  // (Bordeaux): the travel placeholders are gone from this week only; Saturday
+  // is rest and Sunday carries the flight note, no session. Load ■■■ (v5).
   7: {
-    week: 7, startDate: '2026-10-19', endDate: '2026-10-25', load: 2,
-    days: { TUE: { kind: 'travel_speed' }, THU: { kind: 'travel_mini_ench' }, SAT: { kind: 'travel_skill_kit' }, SUN: { kind: 'trail_day', optional: true } }
+    week: 7, startDate: '2026-10-19', endDate: '2026-10-25', load: 3, dailyLine: DAILY_BALANCE_LINE,
+    days: { MON: { kind: 'crossfit_class' }, TUE: { kind: 'skill_park' }, WED: { kind: 'run_intervals' }, THU: { kind: 'enchainement' }, FRI: { kind: 'skill_park' } },
+    dayNotes: { SUN: WEEK7_SUNDAY_NOTE }
   },
   8: {
     week: 8, startDate: '2026-10-26', endDate: '2026-11-01', load: 2,
@@ -1144,6 +1154,8 @@ export function drillsOfBlock(block: ExerciseBlock): DrillRef[] {
   // CHANGE_REQUEST_013 v5 — the park weeks' tests, storms, low-lung sprints
   // and a WOD cardio block scored as a drill.
   if (spec.kind === 'skill_test' || spec.kind === 'storm' || spec.kind === 'low_lung') return spec.drills;
+  // CHANGE_REQUEST_013 v6 — the week 7 circuit and the Luc Léger test.
+  if (spec.kind === 'circuit' || spec.kind === 'luc_leger') return spec.drills;
   if (spec.kind === 'cardio') return spec.drills ?? [];
   return [];
 }

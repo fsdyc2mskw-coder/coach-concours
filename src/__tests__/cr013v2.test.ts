@@ -331,9 +331,11 @@ describe('CR-013 v2 — every placeholder has no score box and no week 3 text (R
   // v3 shapes: from week 7 the named gaps sit in the v4 kinds.
   const placeholders = [4, 5, 6, 7, 8, 9, 10, 11].flatMap((n) => weekNo(n).sessions.flatMap((session) => recipeById[session.recipeId]!.blocks.filter((block) => block.placeholder)));
 
-  it('there are placeholders to check: « Contenu à construire (semaine n) », weeks 7 to 11 (v5)', () => {
+  // CHANGE_REQUEST_013 v6 — week 7 has its content: no placeholder left there.
+  it('there are placeholders to check: « Contenu à construire (semaine n) », weeks 8 to 11 (v6)', () => {
     const titles = new Set(placeholders.map((block) => block.title));
-    for (const n of [7, 8, 9, 10, 11]) expect(titles).toContain(`Contenu à construire (semaine ${n})`);
+    for (const n of [8, 9, 10, 11]) expect(titles).toContain(`Contenu à construire (semaine ${n})`);
+    expect(titles).not.toContain('Contenu à construire (semaine 7)');
   });
 
   it('each one: no spec, no drill, only "À construire dans Cowork", nothing from week 3', () => {

@@ -188,7 +188,11 @@ describe('CR-014 checkWeek', () => {
     // Tuesday to Sunday; week 10 has three hard days in a row (Monday to
     // Wednesday, R-SP-13: accepted, flagged amber, never blocked) and trains
     // Monday to Saturday. Questions in APP_REPORT_013_v5.
+    // CHANGE_REQUEST_013 v6 — week 7 (WEEK_7_FINAL v3): Wednesday and
+    // Thursday are two hard days in a row (flagged, she keeps them, R-SP-13)
+    // and the week trains Monday to Friday.
     const expectedBySeasonPlan: Record<string, string[]> = {
+      '2026-10-19': ['C1', 'C3'],
       '2026-10-05': ['C3'],
       '2026-10-12': ['C1', 'C3'],
       '2026-11-02': ['C1', 'C3'],

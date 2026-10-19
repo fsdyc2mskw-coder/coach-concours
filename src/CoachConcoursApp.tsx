@@ -12,7 +12,18 @@ import { checkWeek } from './coach/weekChecker';
 // two derived numbers of section D.
 import { cardioBlockOf, drillsOf, drillsOfBlock, hasHillSprints, isPoliceSession, isSessionShape, seasonWeekV4, weekLoadOf } from './coach/sessionShapes';
 // CHANGE_REQUEST_013 v5 — the GAP of the enchaînement, computed, never typed.
-import { enchainementGap, hasGapTests, type GapRow } from './coach/seasonV4';
+import {
+  BACKUP_LETTERS,
+  CIRCUIT_STATION_DRILL,
+  CIRCUIT_TIME_DRILL,
+  WEEK7_INTERVALS,
+  enchainementGap,
+  hasGapTests,
+  isCircuitEnchainement,
+  isWeek7Wednesday,
+  lucLegerVmaOf,
+  type GapRow
+} from './coach/seasonV4';
 import { weekNumberOf } from './coach/planner';
 import { cardioBaseline, freshToFatiguedGap, gapHistory } from './coach/progression';
 // CHANGE_REQUEST_017 — the baseline block is attached to a session id, not to
@@ -373,8 +384,17 @@ function sessionIntensityWord(planned: PlannedSession, recipe: SessionRecipe): s
 // information: "+2" means two more drops under fatigue than fresh.
 function round1(value: number): string { return (Math.round(value * 10) / 10).toString().replace('.', ','); }
 function formatGap(value: number): string { return `${value > 0 ? '+' : ''}${round1(value)}`; }
+// CHANGE_REQUEST_013 v6 — the computed VMA of the Luc Léger test (R-TB-03),
+// with the stage and leg it comes from. No target, no comparison (R-TB-04).
+function lucLegerText(result: { vma: number; stage: number; leg?: number }): string {
+  return `VMA : ${result.vma.toFixed(1).replace('.', ',')} km/h · calculée (palier ${result.stage}${result.leg !== undefined ? `, navette ${result.leg}` : ''})`;
+}
+// The scores typed as a time (the circuit, ROUMI): m:ss in, seconds stored.
+function secToClock(sec: number): string { return `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`; }
 // CHANGE_REQUEST_013 v5 — one GAP row: after storm 1 and after storm 2.
-function gapText(row: GapRow): string {
+// CHANGE_REQUEST_013 v6 — after the one circuit, from week 7.
+function gapText(row: GapRow, circuit = false): string {
+  if (circuit) return row.gap1 !== undefined ? `après le circuit ${formatGap(row.gap1)} ${row.unit}` : '';
   return [
     row.gap1 !== undefined ? `tempête 1 ${formatGap(row.gap1)}` : null,
     row.gap2 !== undefined ? `tempête 2 ${formatGap(row.gap2)}` : null
@@ -546,6 +566,9 @@ function WeekScreen({ state, weekIndex, setWeekIndex, openSession, setDayMoves }
   // carries the week's daily line.
   const load = weekLoadOf(weekNumberOf(week.startDate));
   const dailyLine = seasonWeekV4(weekNumberOf(week.startDate))?.dailyLine;
+  // CHANGE_REQUEST_013 v6 — a note on a day with no session (week 7 Sunday).
+  const dayNotes = seasonWeekV4(weekNumberOf(week.startDate))?.dayNotes;
+  const dayNoteOn = (date: string) => dayNotes?.[(['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'] as const)[new Date(`${date}T12:00:00Z`).getUTCDay()]!];
 
   // CHANGE_REQUEST_014 — edit mode, the last move (for "Annuler le
   // déplacement") and "Je garde" are all screen state: nothing about a flag
@@ -603,7 +626,7 @@ function WeekScreen({ state, weekIndex, setWeekIndex, openSession, setDayMoves }
           </div>
           <div className={`slot${blocked ? ' blocked' : ''}`} data-slot={date}>
             {onThisDay.length === 0
-              ? (editMode ? <div className="free">Libre · dépose ici</div> : <div className="rest">Repos</div>)
+              ? (editMode ? <div className="free">Libre · dépose ici</div> : <div className="rest">{dayNoteOn(date) ?? 'Repos'}</div>)
               : onThisDay.map((planned) => {
                 const recipe = recipeForSession(planned);
                 const result = state.results[planned.id];
@@ -777,6 +800,9 @@ function FaitTab({ planned, result, openRetour, openPrevu }: { planned: PlannedS
   const gap = freshToFatiguedGap(planned.recipeId, result);
   // CHANGE_REQUEST_013 v5 — the enchaînement's GAP, per skill and per storm.
   const gapRows = hasGapTests(recipeById[planned.recipeId]!) ? enchainementGap(result?.drillScores) : [];
+  const circuit = isCircuitEnchainement(recipeById[planned.recipeId]!);
+  // CHANGE_REQUEST_013 v6 — the Luc Léger VMA, computed from the stored stage.
+  const lucLeger = isWeek7Wednesday(recipeById[planned.recipeId]!) ? lucLegerVmaOf(result?.drillScores) : null;
   if (!result) return <>
     <p className="kvEmpty">Rien d'enregistré.</p>
     <div className="actionsBar">
@@ -794,7 +820,8 @@ function FaitTab({ planned, result, openRetour, openPrevu }: { planned: PlannedS
       {shownKeys.map((key) => <div key={key}><span>{FIELD_LABELS[key]}</span><b>{formatFieldValue(key, (result as unknown as Record<string, unknown>)[key])}</b></div>)}
       {result.cardioValue !== undefined && <div><span>Cardio — fait</span><b>{result.cardioValue}{result.cardioNote ? ` · ${result.cardioNote}` : ''}</b></div>}
       {gap && <div><span>Écart à froid → sous fatigue</span><b>{formatGap(gap.overall)} (à froid {round1(gap.freshMean)} → sous fatigue {round1(gap.tailMean)})</b></div>}
-      {gapRows.map((row) => <div key={row.skill}><span>Écart · {row.label}</span><b>{gapText(row)}</b></div>)}
+      {gapRows.map((row) => <div key={row.skill}><span>Écart · {row.label}</span><b>{gapText(row, circuit)}</b></div>)}
+      {lucLeger && <div><span>Test Luc Léger</span><b>{lucLegerText(lucLeger)}</b></div>}
       <div><span>Enregistrée</span><b>{formatDateTime(result.completedAt)}</b></div>
     </div>
     <p className="syncNote">Synchronisé avec Drive · révision suit l'état de l'app.</p>
@@ -889,7 +916,7 @@ function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft,
   const hasDrillBoxes = isSessionShapeSession || drillsOf(recipe).length > 0;
   const [drillScores, setDrillScores] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
-    for (const score of saved?.drillScores ?? []) initial[score.drillId] = String(score.value);
+    for (const score of saved?.drillScores ?? []) initial[score.drillId] = score.measure === 'time_s' ? secToClock(score.value) : String(score.value);
     return initial;
   });
   const [cardioValue, setCardioValue] = useState(numberToText(saved?.cardioValue));
@@ -966,7 +993,8 @@ function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft,
     ? drillsOf(recipe).flatMap((drill) => {
       const text = drillScores[drill.drillId];
       if (text === undefined || text.trim() === '') return [];
-      const value = Number(text);
+      // CHANGE_REQUEST_013 v6 — a time is typed m:ss and stored in seconds.
+      const value = drill.measure === 'time_s' ? (parsePaceToSec(text) ?? Number.NaN) : Number(text);
       if (!Number.isFinite(value)) return [];
       // CHANGE_REQUEST_018 — a game score is stored as { card, score, max },
       // whether the game wrote it or the athlete typed it.
@@ -1005,6 +1033,8 @@ function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft,
   // CHANGE_REQUEST_013 v5 section D — the GAP, live from the boxes as they
   // are typed: tired minus fresh, per skill and per storm. Read-only text.
   const liveGap = hasGapTests(recipe) ? enchainementGap(collectedDrillScores) : [];
+  // CHANGE_REQUEST_013 v6 — the Luc Léger VMA, live, read-only (R-TB-03).
+  const liveLucLeger = isWeek7Wednesday(recipe) ? lucLegerVmaOf(collectedDrillScores) : null;
   // Section E — the week 6 scores beside the week 10 rematch boxes.
   const rematchScores = recipe.rematchOf ? state.results[recipe.rematchOf]?.drillScores ?? [] : [];
   const rematchValue = (drillId: string) => rematchScores.find((score) => score.drillId === drillId)?.value;
@@ -1076,13 +1106,39 @@ function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft,
       // drill, so it has no separate cardio box.
       const cardio = block.kind === 'cardio' && !(block.spec?.kind === 'cardio' && block.spec.drills?.length) ? cardioBlockOf(recipe) : null;
       if (drills.length === 0 && !cardio) return null;
-      const setScore = (drillId: string, next: string) => setDrillScores((current) => ({ ...current, [drillId]: next }));
+      // CHANGE_REQUEST_013 v6 section C — the circuit score is a total time OR
+      // the station reached at the cap, never both: typing one clears the other.
+      const setScore = (drillId: string, next: string) => setDrillScores((current) => {
+        const other = drillId === CIRCUIT_TIME_DRILL ? CIRCUIT_STATION_DRILL : drillId === CIRCUIT_STATION_DRILL ? CIRCUIT_TIME_DRILL : null;
+        return { ...current, [drillId]: next, ...(other && next.trim() !== '' ? { [other]: '' } : {}) };
+      });
       return <div className="grp" key={block.title} ref={(node) => { groupRefs.current[index] = node; }}>
         <div className="gh"><span className="gn">{index + 1}</span>{block.title}</div>
         {drills.map((drill) => {
           const previous = rematchValue(drill.drillId);
           const rematchLine = previous !== undefined ? <div className="lab">Semaine 6 : {drill.measure === 'box_jumps_used' ? (previous ? 'oui' : 'non') : previous}</div> : null;
-          if (drill.measure === 'box_jumps_used') {
+          // CHANGE_REQUEST_013 v6 — the backup used, A, B or C (stored 1, 2, 3).
+          if (drill.measure === 'backup') {
+            const current = drillScores[drill.drillId];
+            return <div key={drill.drillId}>
+              <div className="lab">{drill.scoreLabel}</div>
+              <div className="qrow small" role="group" aria-label={drill.scoreLabel}>
+                {BACKUP_LETTERS.map((letter, letterIndex) => {
+                  const value = String(letterIndex + 1);
+                  return <button type="button" key={letter} className={current === value ? 'on' : ''} onClick={() => setScore(drill.drillId, current === value ? '' : value)}>{letter}</button>;
+                })}
+              </div>
+            </div>;
+          }
+          if (drill.measure === 'time_s') {
+            return <div key={drill.drillId}>
+              <label className="field">
+                <span>{drill.scoreLabel}</span>
+                <input type="text" inputMode="decimal" value={drillScores[drill.drillId] ?? ''} onChange={(event) => setScore(drill.drillId, event.target.value)} placeholder="m:ss, ex. 9:30" />
+              </label>
+            </div>;
+          }
+          if (drill.measure === 'box_jumps_used' || drill.measure === 'turn_done') {
             const current = drillScores[drill.drillId];
             return <div key={drill.drillId}>
               <div className="lab">{drill.scoreLabel}</div>
@@ -1098,6 +1154,7 @@ function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft,
             {rematchLine}
           </div>;
         })}
+        {block.spec?.kind === 'luc_leger' && <div className="lab" aria-label="VMA calculée">{liveLucLeger ? lucLegerText(liveLucLeger) : 'La VMA est calculée à partir du palier.'}</div>}
         {block.spec?.kind === 'skill_test' && block.spec.moment !== 'fresh' && liveGap.length > 0 && <div className="gap" aria-label="Écart calculé">
           {liveGap.map((row) => {
             const value = block.spec?.kind === 'skill_test' && block.spec.moment === 'tired1' ? row.gap1 : row.gap2;
@@ -1136,7 +1193,7 @@ function RetourTab({ state, planned, recipe, saved, focusBlock, save, saveDraft,
 
     {isRunIntervals && !isHillRun && <div className="grp">
       <div className="gh">Intervalles</div>
-      {repPaces.map((value, index) => <PaceField key={index} label={`Rép ${index + 1}`} value={value} onChange={(next) => setRepPaces((paces) => paces.map((pace, paceIndex) => paceIndex === index ? next : pace))} />)}
+      {repPaces.map((value, index) => <PaceField key={index} label={`Rép ${index + 1}${isWeek7Wednesday(recipe) && index >= WEEK7_INTERVALS.reps ? ' · optionnelle' : ''}`} value={value} onChange={(next) => setRepPaces((paces) => paces.map((pace, paceIndex) => paceIndex === index ? next : pace))} />)}
       <NumberField label="Répétitions faites" value={repsDone} onChange={setRepsDone} step={1} />
     </div>}
 

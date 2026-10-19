@@ -214,8 +214,12 @@ describe('CR-018 — MEMORY_CYCLE reproduces the table cell for cell', () => {
 // ---------- 2. which card in which session ----------
 
 describe('CR-018 — weeks 5-10 carry one memory block per police session with the right card; week 11 PLAN; weeks 3-4 unchanged', () => {
-  it('weeks 5 to 10: every police session carries exactly one memory block, the cycle’s card for its side', () => {
+  // CHANGE_REQUEST_013 v6 — week 7 (WEEK_7_FINAL v3) has no memory slot and
+  // none is invented (section A, KEEP); the cycle itself is unchanged.
+  it('weeks 5 to 10 except 7: every police session carries exactly one memory block, the cycle’s card for its side', () => {
+    for (const session of policeOf(weekNo(7))) expect(memoryBlocks(recipeById[session.recipeId]!), `week 7 ${session.id}`).toHaveLength(0);
     for (let n = 5; n <= 10; n += 1) {
+      if (n === 7) continue;
       const sides = new Set<string>();
       for (const session of policeOf(weekNo(n))) {
         const shape = memoryShapeOf(session.kind)!;
@@ -279,7 +283,8 @@ describe('CR-018 — the video line: first police session of weeks 5, 7, 9, 11 o
       const week = weekNo(n);
       policeOf(week).forEach((session, index) => {
         const recipe = withMemoryVideo(recipeById[session.recipeId]!, session.id, weeks);
-        expect(hasVideo(recipe), `week ${n} ${session.kind}`).toBe([5, 7, 9, 11].includes(n) && index === 0);
+        // CHANGE_REQUEST_013 v6 — week 7 has no memory block to carry the line.
+        expect(hasVideo(recipe), `week ${n} ${session.kind}`).toBe([5, 9, 11].includes(n) && index === 0);
       });
     }
   });
@@ -311,6 +316,7 @@ describe('CR-018 — the video line: first police session of weeks 5, 7, 9, 11 o
 describe('CR-018 — the M4 line in weeks 9-11 only; the block lasts 4 or 10 min, never above 12', () => {
   it('M4 rides with the card in weeks 9 to 11, and only there', () => {
     for (let n = 5; n <= 11; n += 1) {
+      if (n === 7) continue; // CHANGE_REQUEST_013 v6 — no memory block in week 7.
       for (const session of policeOf(weekNo(n))) {
         const recipe = recipeById[session.recipeId]!;
         const m4 = n >= 9;

@@ -65,7 +65,11 @@ export type SessionKind =
 export type BlockKind =
   | 'warmup' | 'memory' | 'fresh_reference'
   | 'skill_block' | 'chain_block' | 'power_emom' | 'cardio' | 'tail_b' | 'baseline' | 'hill_sprints' | 'cooldown'
-  | 'setup' | 'skill_test' | 'storm' | 'rest' | 'low_lung' | 'to_build';
+  | 'setup' | 'skill_test' | 'storm' | 'rest' | 'low_lung' | 'to_build'
+  // CHANGE_REQUEST_013 v6 — `circuit` (the one 8-10 min circuit of the
+  // enchaînement from week 7, R-SP-15) and `luc_leger` (the test block of
+  // the week 7 Wednesday, test_battery.md v3, before the interval set).
+  | 'circuit' | 'luc_leger';
 
 export type CardioFormat = 'emom' | 'amrap' | 'for_time';
 
@@ -89,7 +93,12 @@ export type DrillMeasure =
   // metres held on a low-lung sprint.
   | 'rounds_done' | 'hesitations' | 'errors' | 'rounds'
   | 'last_lap' | 'burpees_in_lap' | 'highest_minute' | 'box_jumps_used'
-  | 'metres_held';
+  | 'metres_held'
+  // CHANGE_REQUEST_013 v6 — week 7, still in `drillScores` (no new stored
+  // field): the Luc Léger stage and leg, a time in seconds (the circuit, ROUMI),
+  // the circuit station reached at the cap, the backup used (A 1, B 2, C 3),
+  // a turn done on the bench (1 yes, 0 no) and the clean minutes of an EMOM.
+  | 'stage' | 'leg' | 'time_s' | 'station_at_cap' | 'backup' | 'turn_done' | 'clean_minutes';
 
 // A card of `02_Training_brain/exercise_cards/00_INDEX.md`, referenced by its
 // id. `CardRef` and `DrillRef` are named but not defined by the change
@@ -206,6 +215,26 @@ export interface StormSpec {
   drills: DrillRef[];
 }
 
+// CHANGE_REQUEST_013 v6 — the one circuit of the enchaînement from week 7
+// (R-SP-15): one block card, its stations in order, laps for time under a cap.
+// Scored by the total time OR the station reached at the cap, never both.
+export interface CircuitSpec {
+  kind: 'circuit';
+  card: CardRef;
+  atoms: CardRef[];
+  laps: number;
+  capMin: number;
+  drills: DrillRef[];
+}
+
+// CHANGE_REQUEST_013 v6 — the Luc Léger test (test_battery.md v3): stage and
+// leg recorded, the VMA computed, never typed (R-TB-03).
+export interface LucLegerSpec {
+  kind: 'luc_leger';
+  card: CardRef;
+  drills: DrillRef[];
+}
+
 // CHANGE_REQUEST_013 v5 — the low-lung sprints after the Tuesday main set.
 export interface LowLungSpec {
   kind: 'low_lung';
@@ -260,7 +289,9 @@ export type BlockSpec =
   | BaselineBlockSpec
   | SkillTestSpec
   | StormSpec
-  | LowLungSpec;
+  | LowLungSpec
+  | CircuitSpec
+  | LucLegerSpec;
 
 // CHANGE_REQUEST_013 section C — one numeric score per drill, stored per
 // session id. The fresh-to-fatigued gap is NOT here: it is computed from
