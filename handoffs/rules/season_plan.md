@@ -1,82 +1,104 @@
 # Rules: season plan, weeks 6 to 11
 
-version: 4 (12 October 2026), decided by the athlete in the Cowork chat (11-12 Oct). v3 (2 Oct)
-archived. Detailed decisions: `04_App_handoffs/DECISIONS_SEASON_RESHAPE_2026-10-12_v3.md`.
-Weeks 3-5 are history (see v3 in the archive). The app still runs the v3 table until a data drop
-(CR-013 v5) carries this version.
+version: 5 (18 October 2026), decided by the athlete in the Cowork chat (18 Oct). v4 (12 Oct)
+archived. Week builds follow the project doc `claude/week-build-standard.md` (steps 0-7, the
+rules list), which wins over this file for HOW a week is built; this file wins for WHAT each week is.
 
-## What changed in v4 (why)
+## What changed in v5 (why)
 
 ```
- a new outdoor PARK (11 Oct): a wall about the exam height, a low wall for the bench, poles, bars,
-   low stumps → stations 2 (obstacle) and 9 (bench) are trainable for the first time
- travel: W7 Bordeaux (family place, no gym), W8 Jamaica (work); back Tue 3 Nov; travel weeks
-   mean LESS training (jet lag, travel, work): maintenance only
- breathlessness on bursts (11 Oct) → priming before hard work, low-lung sprints on Tuesday,
-   ambush bursts
- the old chain session is replaced by the ENCHAÎNEMENT (storms + tired tests)
+ week 6 done      notes in 03/WEEK_6_NOTES.md (v2): intervals 5:01-5:14 at effort 5, low-lung
+                  held about 42 m, ACHERON PARK lap 5, DEATH BY OBSTACLE minute 5, hoops 0 errors
+                  fresh and tired, bench with ball 2 to 3 falls fresh AND tired (no turn on the
+                  round park wall), trail 20 km / 628 m D+ at effort 5
+ her weaknesses   1 the obstacle drains her energy · 2 balance with the tennis ball (18 Oct)
+ the enchaînement from W7 = ONE 8-10 min high-speed circuit of 5-6 stations or atoms that matches
+                  the breath and speed of the real test, then the fatigue test right after
+                  (R-SP-15). Replaces the 2 × 7 min storms of R-SP-11, EXCEPT the W10 Friday
+                  rematch of the W6 storms, kept as the one exception (her OK, 18 Oct)
+ hard days        no limit in a row: Claude warns, she decides (R-SP-13 rewritten)
+ travel dates     Bordeaux Tue 20-Fri 23 Oct (flight Mon 19 evening, back Fri night)
+                  Jamaica: flight Sun 25 Oct · Mon 26-Thu 29 LIGHT (work) · Fri 30 Oct-Mon 2 Nov
+                  MORE CHALLENGING · back Mon 2 Nov (v4 said back Tue 3)
+ Cross Ops        the manual is now in Drive 02_Training_brain/cross_ops/ (her upload, 18 Oct)
 ```
 
-## Priorities until the test (12 Oct, her order)
+## Priorities until the test (12 Oct, her order; confirmed 18 Oct)
 
-1 balance · 2 racket · 3 obstacle jump · 4 hoop colours · 5 explosiveness · 6 cardio
+1 balance (bench with ball) · 2 racket · 3 obstacle jump · 4 hoop colours · 5 explosiveness · 6 cardio
 
 ## THE TABLE
 
 ```
- wk  dates          where       load  Wed                      Fri                    weekend
- 6   12-18 Oct      PARK        ■■■■  SKILL at the park        ENCHAÎNEMENT 2 storms  Sat TRAIL day
-                                      CrossFit Mon + Thu
- 7   19-25 Oct      BORDEAUX    ■■    travel kit: T1 speed · T2 mini-enchaînement ·   TRAIL day
-                                      T3 skill kit (2-3 sessions)                     (optional)
- 8   26 Oct-1 Nov   JAMAICA     ■■    travel kit: minimum T2 + T3, T1 if time         -
- 9   2-8 Nov        back Tue 3  ■■■   Tue-Wed easy (jet lag) · Thu SKILL ·            Sat CrossFit
-                                      Fri ENCHAÎNEMENT                                Sun easy run
- 10  9-15 Nov       PARK        ■■■■■ Wed ENCHAÎNEMENT 2 ·     Fri ENCHAÎNEMENT       Sat TRAIL day
-                                      CrossFit Mon             REMATCH of W6 storms
- 11  16-20 Nov                  ■     OFFLOAD: skill + mental · Fri 20 POLICE TEST
+ wk  dates            where                load    content                                  weekend
+ 6   12-18 Oct        PARK                 ■■■■    DONE (WEEK_6_FINAL v2, notes v2)
+ 7   19-25 Oct        Mon home · Tue-Fri   ■■■     Mon CrossFit · Bordeaux: park play,       Sat rest
+                      BORDEAUX · Sun fly           enchaînement (the 10 min circuit), speed  Sun flight
+ 8   26 Oct-1 Nov     KINGSTON, hotel gym  ■■ ■■■■ Mon-Thu LIGHT travel kit (work)           Fri-Sun
+                      + park                       Fri 30-Sun 1 MORE CHALLENGING             challenging
+ 9   2-8 Nov          back Mon 2 (flight)  ■■■     Mon 2 challenging if before the flight ·  Sat CrossFit
+                                                   Tue-Wed easy (jet lag) · Thu SKILL ·      Sun easy run
+                                                   Fri ENCHAÎNEMENT
+ 10  9-15 Nov         PARK                 ■■■■■   Mon CrossFit · Wed ENCHAÎNEMENT ·         Sat TRAIL day
+                                                   Fri REMATCH of the W6 storms (exception)
+ 11  16-20 Nov                             ■       OFFLOAD: skill + mental · Fri 20 POLICE TEST
 ```
+
+Weeks 7 to 11 are drafts until each is locked with her words "lock week n".
 
 ## The week shape (park weeks)
 
 ```
- Mon  CROSSFIT                      coach's class
- Tue  INTERVALS + LOW-LUNG SPRINTS  run_intervals (W6 pace 5:10 /km) + 6 × 30 m low-lung
- Wed  SKILL at the park             LEARN: obstacle volume, balance on bench with ball,
-                                    racket, hoops · then a Cross Ops WOD as cardio
- Thu  CROSSFIT (W6) / SKILL (W9)
- Fri  ENCHAÎNEMENT at the park      fresh test → STORM 7' → tired test → rest 3' →
-                                    STORM 7' → tired test (hoops + bench with ball only)
- Sat  TRAIL day
- Sun  REST
+ Mon CROSSFIT                coach's class
+ Tue INTERVALS + LOW-LUNG    run_intervals (pace set at each week build) + low-lung sprints
+ Wed SKILL at the park       LEARN fresh: obstacle, balance on bench with ball, racket, hoops
+                             · then a Cross Ops WOD as cardio (done, never skipped)
+ Thu CROSSFIT / SKILL        per the week
+ Fri ENCHAÎNEMENT            fresh test → THE 8-10 MIN CIRCUIT (R-SP-15) → fatigue test
+                             (W10 Friday: the W6 storms, rematch)
+ Sat TRAIL day
+ Sun REST
  daily 2 min one-leg balance (teeth brushing)
 ```
 
-## Rules added in v4
+## Rules
 
 ```
 R-SP-08 | hard | HARD days are LOADED: Cross Ops WODs are the reference for volume on every hard
-         day (storms, cardio blocks, travel mini-enchaînement). Claude does not under-dose them;
-         the stop rules (quality, safety) still apply. (her instruction, 12 Oct)
+         day, cited with the page number (manual in 02_Training_brain/cross_ops/). Claude does
+         not under-dose them; the stop rules (quality, safety) still apply. (12 Oct)
 R-SP-09 | hard | Warm-ups are written as one line ("warm-up about 5 min"), never detailed; priming
          (2 × 10 s sprints) is named when used. (12 Oct)
 R-SP-10 | hard | Trail: the app shows "TRAIL day" only, no distance, no detail. Her own aim: about
-         15 km with 500 m D+ by the end of November (after the test, outside this plan). (12 Oct)
-R-SP-11 | hard | Enchaînement = 2 storms of 7 min (not one 15 min block), fun Cross Ops formats
-         (ladder, "death by"), each followed by a tired test of TWO skills: hoops and balance on
-         bench with ball. Skipping is not tested (no mistakes). (12 Oct)
-R-SP-12 | hard | Wednesday (learn) and Friday (hold under stress) use the same stations on
-         purpose: Wednesday builds the skill fresh, Friday measures the GAP fresh → tired.
-R-SP-13 | soft | Three hard days in a row are accepted as an exception when the week needs it.
-R-SP-14 | hard | Park weeks only for the wall, the bench and the storms. Travel weeks use the
-         travel kit (rope · racket + balls · hoops · 1 band); hoop colours by heart + shadow
-         dribble.
+         15 km with 500 m D+ by the end of November (already passed on 17 Oct: 20 km, 628 m D+).
+R-SP-11 | hard | SUPERSEDED from W7 by R-SP-15. Kept only for the W10 Friday rematch: 2 storms of
+         7 min (ACHERON PARK, DEATH BY OBSTACLE), each followed by the tired test (hoops + bench
+         with ball). Targets to beat: lap 5, minute 5.
+R-SP-12 | hard | Wednesday (learn) and Friday (hold under stress) use the same stations on purpose:
+         Wednesday builds the skill fresh, Friday measures the GAP fresh → tired.
+R-SP-13 | soft | Hard days in a row: NO limit. Claude warns, she decides. (18 Oct, replaces "three
+         hard days in a row as an exception"; also replaces R-WS-10 in weekly_shape)
+R-SP-14 | hard | Wall, bench and storms need the park, a wall or a flat bench. Away from them, the
+         backups apply (obstacle: A wall or bench vault · B stairs 2-3 steps · C 1 full burpee +
+         1 squat jump per crossing; bench: A flat kerb, flat low wall or weight bench · B the rope
+         laid on the ground · C one leg, ball around the waist). The log names A, B or C.
+         A round or wet top is never used for the bench.
+R-SP-15 | hard | From W7, every enchaînement simulates the real test: ONE 8-10 min high-speed
+         circuit of 5-6 stations or atoms (slalom and obstacle first when available), matching
+         the breath and speed of the test, then the fatigue test right after (hoops + bench with
+         ball; racket when it fits). (18 Oct)
+R-SP-16 | hard | Bench with ball is trained FRESH and calm on a flat surface in every skill
+         session (falls were the same fresh and tired in W6: a skill gap, not a fatigue gap);
+         inside the enchaînement it is a measure only. (18 Oct)
+R-SP-17 | hard | Hoops progress by +2 after clean passes: W7 7 hoops, W8 9 if clean, W9 the full 11.
+         (W6: 0 errors fresh and tired on 5 hoops)
 ```
+
 Rules R-SP-01 to R-SP-07 of v3 stay valid where they still apply (one table, placeholders as
-named gaps, crossfit_plus counts as hard). The ghost circuit is replaced by the enchaînement.
-R-TL-07 (no full mock test) is untouched.
+named gaps, crossfit_plus counts as hard). R-TL-07 (no full mock test) is untouched: the 8-10 min
+circuit uses stand-ins and never predicts an official time.
 
 ## Still open
 
-W7 and W8 drafts to validate · W9, W10, W11 to detail · W11 "mental" to define · Jamaica hours and
-hotel · app data drop (CR-013 v5).
+W7, W8 to rebuild and lock through the standard (step 0) · W9, W10 Wednesday, W11 to build ·
+W11 "mental" to define · app data drop (CR-013 v6) after the locks.
