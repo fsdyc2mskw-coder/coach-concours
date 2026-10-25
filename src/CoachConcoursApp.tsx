@@ -57,9 +57,11 @@ import type {
 import { MEMORY_CARD_MAX, MEMORY_M4_LINE, MEMORY_VIDEO_LINE, memoryCardOfDrill, type MemoryCard } from './coach/memoryCycle';
 import { featuredCard, withMemoryCardScore, withMemoryVideo } from './coach/memoryGame';
 import { MemoryGameScreen, MemoryHome } from './MemoryGame';
-import { createDriveBackup, syncCoachState } from './infrastructure/coachDrive';
+// CHANGE_REQUEST_021 — Drive sync goes through the athlete's own script; the
+// connection code lives on the device, outside the state. No Google sign-in.
+import { BAD_KEY_MESSAGE, ScriptSyncError, createDriveBackup, pingScript, syncCoachState } from './infrastructure/coachDrive';
 import { loadCoachState, parseCoachState, saveCoachState } from './infrastructure/coachStorage';
-import { requestGoogleSession, revokeGoogleSession, type GoogleSession } from './infrastructure/googleIdentity';
+import { forgetScriptLink, loadScriptLink, parseConnectionCode, saveScriptLink, type ScriptLink } from './infrastructure/scriptLink';
 
 type Tab = 'week' | 'journey' | 'memory' | 'drive';
 
@@ -75,7 +77,6 @@ type Drill =
   // block (its score goes into that session's Retour draft).
   | { screen: 'game'; card: MemoryCard; sessionId?: string; returnTo: Drill };
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
 const AUTO_SYNC_DEBOUNCE_MS = 4_000;
 const DRAFT_SAVE_DEBOUNCE_MS = 500;
 // CHANGE_REQUEST_010 section B — weeks-left header. The police test date is
@@ -88,12 +89,14 @@ export default function CoachConcoursApp() {
   const [tab, setTabState] = useState<Tab>('week');
   const [weekIndex, setWeekIndex] = useState(0);
   const [drill, setDrill] = useState<Drill>({ screen: 'list' });
-  const [session, setSession] = useState<GoogleSession | null>(null);
+  const [link, setLink] = useState<ScriptLink | null>(null);
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
-  const sessionRef = useRef<GoogleSession | null>(null);
+  const linkRef = useRef<ScriptLink | null>(null);
+  const stateRef = useRef<CoachState | null>(null);
   const autoSyncTimer = useRef<number | null>(null);
-  sessionRef.current = session;
+  linkRef.current = link;
+  stateRef.current = state;
   // CHANGE_REQUEST_015 section A — `registerType: 'prompt'` in vite.config.ts
   // means the new worker sits ready but inactive until this banner's
   // "Recharger" button calls `updateServiceWorker(true)`. The check for a
@@ -104,67 +107,79 @@ export default function CoachConcoursApp() {
 
   const setTab = (next: Tab) => { setTabState(next); setDrill({ screen: 'list' }); };
 
-  const runSync = useCallback(async (active: GoogleSession, current: CoachState) => {
-    const result = await syncCoachState(active.accessToken, current, active.account.email);
-    await saveCoachState(result.state);
-    setState(result.state);
-    return result.state;
+  const scheduleAutoSyncRef = useRef<() => void>(() => undefined);
+
+  // CHANGE_REQUEST_021 — an edit made while a sync is in flight is never
+  // overwritten by that sync's answer: the newer local copy stays, marked
+  // pending, and goes out on the next sync.
+  const runSync = useCallback(async (active: ScriptLink, current: CoachState) => {
+    const result = await syncCoachState(active, current);
+    const latest = stateRef.current;
+    let next = result.state;
+    if (latest && latest.revision > current.revision && latest.revision >= result.state.revision) {
+      next = { ...latest, drive: { ...result.state.drive, status: 'pending' } };
+      scheduleAutoSyncRef.current();
+    }
+    stateRef.current = next;
+    setState(next);
+    void saveCoachState(next).catch(() => setNotice('La copie locale n’a pas pu être écrite.'));
+    return next;
   }, []);
 
+  // A network failure leaves the data on the phone, marked pending (pushed on
+  // `online` or at the next open); a refused code is an error.
+  const syncFailed = useCallback((error: unknown) => {
+    const refused = error instanceof ScriptSyncError && error.kind === 'bad_key';
+    const message = error instanceof Error ? error.message : 'Synchronisation Drive impossible.';
+    setState((latest) => latest && ({ ...latest, drive: { ...latest.drive, status: refused ? 'error' : 'pending', message } }));
+    return message;
+  }, []);
+
+  const syncNow = useCallback(() => {
+    const active = linkRef.current;
+    const current = stateRef.current;
+    if (active && current) void runSync(active, current).catch(syncFailed);
+  }, [runSync, syncFailed]);
+
   const scheduleAutoSync = useCallback(() => {
-    if (!sessionRef.current) return;
+    if (!linkRef.current) return;
     if (autoSyncTimer.current !== null) window.clearTimeout(autoSyncTimer.current);
     autoSyncTimer.current = window.setTimeout(() => {
       autoSyncTimer.current = null;
-      const active = sessionRef.current;
-      setState((current) => {
-        if (active && current) {
-          void runSync(active, current).catch((error: unknown) => {
-            setState((latest) => latest && ({ ...latest, drive: { ...latest.drive, status: 'error', message: error instanceof Error ? error.message : 'Synchronisation Drive impossible.' } }));
-          });
-        }
-        return current;
-      });
+      syncNow();
     }, AUTO_SYNC_DEBOUNCE_MS);
-  }, [runSync]);
+  }, [syncNow]);
+  scheduleAutoSyncRef.current = scheduleAutoSync;
 
   useEffect(() => {
-    loadCoachState().then(async (loaded) => {
+    Promise.all([loadCoachState(), loadScriptLink().catch(() => null)]).then(async ([loaded, savedLink]) => {
+      stateRef.current = loaded;
       setState(loaded);
       const today = new Date().toISOString().slice(0, 10);
       setWeekIndex(Math.max(0, loaded.weeks.findIndex((week) => today >= week.startDate && today <= week.endDate)));
-      if (loaded.drive.wasConnected && GOOGLE_CLIENT_ID) {
-        try {
-          const active = await requestGoogleSession(GOOGLE_CLIENT_ID, { silent: true });
-          setSession(active);
-          await runSync(active, loaded);
-        } catch {
-          // No live Google session to resume silently: the athlete reconnects
-          // manually from the Drive tab. Local data stays fully usable.
-        }
+      if (savedLink) {
+        // CHANGE_REQUEST_021 — a linked phone syncs on open and asks for nothing.
+        linkRef.current = savedLink;
+        setLink(savedLink);
+        await runSync(savedLink, loaded).catch(syncFailed);
       }
     }).catch((error: unknown) => setNotice(error instanceof Error ? error.message : 'Chargement impossible.'));
-  }, [runSync]);
+  }, [runSync, syncFailed]);
 
   useEffect(() => {
     const onOnline = () => {
-      const active = sessionRef.current;
-      setState((current) => {
-        if (active && current && current.drive.status === 'pending') {
-          void runSync(active, current).catch(() => undefined);
-        }
-        return current;
-      });
+      if (stateRef.current?.drive.status === 'pending') syncNow();
     };
     window.addEventListener('online', onOnline);
     return () => window.removeEventListener('online', onOnline);
-  }, [runSync]);
+  }, [syncNow]);
 
   const mutate = (change: (current: CoachState) => CoachState, message?: string) => {
     setState((current) => {
       if (!current) return current;
       const changed = change(current);
-      const next = { ...changed, revision: current.revision + 1, updatedAt: new Date().toISOString(), drive: { ...changed.drive, status: session ? 'pending' as const : 'local' as const } };
+      const next = { ...changed, revision: current.revision + 1, updatedAt: new Date().toISOString(), drive: { ...changed.drive, status: linkRef.current ? 'pending' as const : 'local' as const } };
+      stateRef.current = next;
       void saveCoachState(next).catch(() => setNotice('La copie locale n’a pas pu être écrite.'));
       return next;
     });
@@ -208,39 +223,56 @@ export default function CoachConcoursApp() {
     return { ...current, results, weeks: planWithMoves(results, current.dayMoves) };
   });
 
-  const connectAndSync = async () => {
+  // CHANGE_REQUEST_021 — "Enregistrer": check the pasted code with `ping`,
+  // keep it on the device, then the first sync. That first sync is the
+  // migration: the phone's full state goes to the script's new file.
+  const linkWithCode = async (code: string) => {
     if (!state) return;
+    const parsed = parseConnectionCode(code);
+    if (!parsed) { setNotice(BAD_KEY_MESSAGE); return; }
     setBusy(true); setNotice('');
     try {
-      const active = session ?? await requestGoogleSession(GOOGLE_CLIENT_ID);
-      setSession(active);
-      await runSync(active, state);
-      setNotice('État complet synchronisé dans Google Drive.');
+      await pingScript(parsed);
+      await saveScriptLink(parsed);
+      linkRef.current = parsed;
+      setLink(parsed);
+      await runSync(parsed, stateRef.current ?? state);
+      setNotice('Code enregistré. État complet synchronisé dans Drive.');
     } catch (error) {
-      const detail = error instanceof Error ? error.message : 'Synchronisation Drive impossible.';
-      setNotice(detail);
-      setState((current) => current && ({ ...current, drive: { ...current.drive, status: 'error', message: detail } }));
+      setNotice(error instanceof Error ? error.message : 'Synchronisation Drive impossible.');
     }
+    finally { setBusy(false); }
+  };
+
+  const syncManually = async () => {
+    const current = stateRef.current;
+    if (!link || !current) return;
+    setBusy(true); setNotice('');
+    try { await runSync(link, current); setNotice('État complet synchronisé dans Drive.'); }
+    catch (error) { setNotice(syncFailed(error)); }
     finally { setBusy(false); }
   };
 
   const backup = async () => {
-    if (!state || !session) return;
+    if (!state || !link) return;
     setBusy(true);
-    try { await createDriveBackup(session.accessToken, state); setNotice('Sauvegarde horodatée créée dans Drive.'); }
+    try { await createDriveBackup(link, state); setNotice('Sauvegarde horodatée créée dans Drive.'); }
     catch (error) { setNotice(error instanceof Error ? error.message : 'Sauvegarde impossible.'); }
     finally { setBusy(false); }
   };
 
-  const disconnect = async () => {
-    if (session) await revokeGoogleSession(session);
-    setSession(null);
+  // Removes the code from this device only; local data and the Drive file stay.
+  const forget = async () => {
+    await forgetScriptLink();
+    linkRef.current = null;
+    setLink(null);
     if (state) {
-      const next: CoachState = { ...state, drive: { ...state.drive, status: 'local', wasConnected: false, message: undefined } };
+      const next: CoachState = { ...state, drive: { ...state.drive, status: 'local', message: undefined } };
+      stateRef.current = next;
       setState(next);
-      await saveCoachState(next);
+      void saveCoachState(next).catch(() => undefined);
     }
-    setNotice('Session Google déconnectée. Les données locales restent disponibles.');
+    setNotice('Code oublié sur ce téléphone. Les données locales restent disponibles.');
   };
 
   const exportData = () => {
@@ -297,7 +329,7 @@ export default function CoachConcoursApp() {
     {tab === 'journey' && drill.screen === 'list' && <JourneyView state={state} />}
     {tab === 'memory' && drill.screen === 'list' && <MemoryHome weekNumber={currentWeekNumber(state.weeks)} featured={featuredCard(state.weeks, state.results, todayISO())}
       onPlay={(card) => openGame(card, undefined, { screen: 'list' })} />}
-    {tab === 'drive' && drill.screen === 'list' && <DriveView state={state} session={session} busy={busy} sync={connectAndSync} backup={backup} disconnect={disconnect} exportData={exportData} importData={importData} />}
+    {tab === 'drive' && drill.screen === 'list' && <DriveView state={state} linked={link !== null} busy={busy} linkWithCode={linkWithCode} sync={syncManually} backup={backup} forget={forget} exportData={exportData} importData={importData} />}
 
     {notice && <button className="notice" onClick={() => setNotice('')} type="button" aria-label="Fermer le message">{notice}<span>×</span></button>}
     {drill.screen === 'list' && <nav className="tabbar" aria-label="Navigation principale"><button className={tab === 'week' ? 'on' : ''} onClick={() => setTab('week')} aria-label="Semaine">▤</button><button className={tab === 'journey' ? 'on' : ''} onClick={() => setTab('journey')} aria-label="Parcours">↗</button><button className={tab === 'memory' ? 'on' : ''} onClick={() => setTab('memory')} aria-label="Mémoire">◈</button><button className={tab === 'drive' ? 'on' : ''} onClick={() => setTab('drive')} aria-label="Drive">☁</button></nav>}
@@ -1388,16 +1420,26 @@ function ReferenceCard({ state }: { state: CoachState }) {
   </div>;
 }
 
-function DriveView({ state, session, busy, sync, backup, disconnect, exportData, importData }: { state: CoachState; session: GoogleSession | null; busy: boolean; sync: () => void; backup: () => void; disconnect: () => void; exportData: () => void; importData: (file: File) => void }) {
-  const clientConfigured = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
+// CHANGE_REQUEST_021 — one field for the connection code; once linked,
+// "Lié au script", the last sync time and the pending count.
+function DriveView({ state, linked, busy, linkWithCode, sync, backup, forget, exportData, importData }: { state: CoachState; linked: boolean; busy: boolean; linkWithCode: (code: string) => void; sync: () => void; backup: () => void; forget: () => void; exportData: () => void; importData: (file: File) => void }) {
+  const [code, setCode] = useState('');
   const pendingCount = state.drive.lastSyncRevision !== undefined ? Math.max(0, state.revision - state.drive.lastSyncRevision) : (state.drive.status === 'local' ? 0 : state.revision);
-  return <section className="page"><p className="eyebrow">DONNÉES PERSONNELLES</p><h1>Google Drive</h1><p className="lead">Drive conserve l’état durable de Coach Concours. IndexedDB garde une copie locale pour ouvrir l’app hors connexion et mettre les changements en attente.</p><div className="driveCard"><div className="cloud">☁</div><h2>{state.drive.accountEmail ? maskEmail(state.drive.accountEmail) : 'Drive non connecté'}</h2><p>{state.drive.lastSyncAt ? `Dernière synchronisation : ${formatDateTime(state.drive.lastSyncAt)}` : 'Aucune synchronisation de données effectuée.'}</p><p>Modifications en attente : {pendingCount}</p>{state.drive.status === 'error' && state.drive.message ? <p className="fieldError">{state.drive.message}</p> : null}{!clientConfigured ? <p className="fieldError">Connexion Drive pas encore configurée (VITE_GOOGLE_CLIENT_ID absent de ce build).</p> : null}<button className="primary" disabled={busy || !clientConfigured} onClick={sync}>{busy ? 'Synchronisation…' : session ? 'Synchroniser maintenant' : 'Connecter et synchroniser'}</button>{session && <><button className="secondary" disabled={busy} onClick={backup}>Créer une sauvegarde horodatée</button><button className="textButton" onClick={disconnect}>Déconnecter</button></>}</div><div className="driveCard"><h2>Sauvegarde manuelle</h2><p>Tant que Drive n’est pas connecté, exporte régulièrement tes données en JSON. Elles restent sur ce téléphone jusqu’à l’activation de Drive.</p><button className="secondary" type="button" onClick={exportData}>Exporter les données (JSON)</button><label className="secondary" style={{ display: 'inline-block', cursor: 'pointer', textAlign: 'center' }}>Importer un export JSON<input type="file" accept="application/json" style={{ display: 'none' }} onChange={(event) => { const file = event.target.files?.[0]; if (file) importData(file); event.target.value = ''; }} /></label></div><div className="infoCard"><h3>Ce qui est conservé</h3><ul><li>plan et versions des recettes ;</li><li>séances, effort, qualité et notes ;</li><li>état de progression et adaptations.</li></ul><p>L’ancien stockage Trail Coach n’est ni effacé ni modifié. {state.migration.legacyTrailDbDetected ? 'Une copie de son enveloppe a été détectée et archivée dans ce nouvel état.' : 'Aucune ancienne base n’a été détectée dans ce navigateur.'}</p><p>Une fois connectée, la synchronisation se fait seule à l’ouverture de l’app, après chaque séance enregistrée et dès que la connexion revient.</p></div></section>;
-}
-
-function maskEmail(email: string): string {
-  const [local = '', domain = ''] = email.split('@');
-  const domainParts = domain.split('.');
-  return `${local.slice(0, 1)}•••@${domainParts[0]?.slice(0, 1) ?? ''}•••`;
+  return <section className="page"><p className="eyebrow">DONNÉES PERSONNELLES</p><h1>Google Drive</h1><p className="lead">Drive conserve l’état durable de Coach Concours. IndexedDB garde une copie locale pour ouvrir l’app hors connexion et mettre les changements en attente.</p><div className="driveCard"><div className="cloud">☁</div>
+    {linked ? <>
+      <h2>Lié au script</h2>
+      <p>{state.drive.lastSyncAt ? `Dernière synchronisation : ${formatDateTime(state.drive.lastSyncAt)}` : 'Aucune synchronisation de données effectuée.'}</p>
+      <p>Modifications en attente : {pendingCount}</p>
+      {state.drive.message && state.drive.status !== 'synced' ? <p className="fieldError">{state.drive.message}</p> : null}
+      <button className="primary" disabled={busy} onClick={sync}>{busy ? 'Synchronisation…' : 'Synchroniser maintenant'}</button>
+      <button className="secondary" disabled={busy} onClick={backup}>Créer une sauvegarde horodatée</button>
+      <button className="textButton" onClick={forget}>Oublier ce code</button>
+    </> : <>
+      <h2>Drive non lié</h2>
+      <label className="field"><span>Code de connexion</span><input type="text" autoComplete="off" autoCapitalize="off" spellCheck={false} value={code} onChange={(event) => setCode(event.target.value)} /></label>
+      <button className="primary" disabled={busy || code.trim() === ''} onClick={() => linkWithCode(code)}>{busy ? 'Vérification…' : 'Enregistrer'}</button>
+    </>}
+  </div><div className="driveCard"><h2>Sauvegarde manuelle</h2><p>Tant que Drive n’est pas connecté, exporte régulièrement tes données en JSON. Elles restent sur ce téléphone jusqu’à l’activation de Drive.</p><button className="secondary" type="button" onClick={exportData}>Exporter les données (JSON)</button><label className="secondary" style={{ display: 'inline-block', cursor: 'pointer', textAlign: 'center' }}>Importer un export JSON<input type="file" accept="application/json" style={{ display: 'none' }} onChange={(event) => { const file = event.target.files?.[0]; if (file) importData(file); event.target.value = ''; }} /></label></div><div className="infoCard"><h3>Ce qui est conservé</h3><ul><li>plan et versions des recettes ;</li><li>séances, effort, qualité et notes ;</li><li>état de progression et adaptations.</li></ul><p>L’ancien stockage Trail Coach n’est ni effacé ni modifié. {state.migration.legacyTrailDbDetected ? 'Une copie de son enveloppe a été détectée et archivée dans ce nouvel état.' : 'Aucune ancienne base n’a été détectée dans ce navigateur.'}</p><p>Une fois liée, la synchronisation se fait seule à l’ouverture de l’app, après chaque séance enregistrée et dès que la connexion revient.</p></div></section>;
 }
 
 function daysOfWeek(start: string, end: string) { const days: string[] = []; for (let time = Date.parse(`${start}T12:00:00Z`); time <= Date.parse(`${end}T12:00:00Z`); time += 86_400_000) days.push(new Date(time).toISOString().slice(0, 10)); return days; }

@@ -30,6 +30,7 @@ The thinking (rules, cards, weekly plans) lives in Google Drive; you only see it
 ## Never
 - A person's name, e-mail, hostname, device name or personal folder path in any file or
   commit. The person training is "the athlete"; anyone else is a role.
-- A secret in the repository. `VITE_GOOGLE_CLIENT_ID` and `PERSONAL_NAMES` are repository secrets.
+- A secret in the repository. `PERSONAL_NAMES` is a repository secret. No web app URL, id or
+  connection key of the athlete's sync script (CR-021) in any file.
 - A session dated after 20 November 2026. Invented heart-rate targets or loads.
 - Regenerating Week 1: it is loaded as data from `handoffs/WEEK_1_FINAL_2026-09-07_to_13.md` v3.

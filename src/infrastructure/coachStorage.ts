@@ -69,6 +69,31 @@ export function stateForDrive(state: CoachState): CoachState {
   return { ...state, drive: { ...state.drive, status: 'synced', message: undefined } };
 }
 
+// CHANGE_REQUEST_021 — small device-only values that live beside the state,
+// never inside it (the script connection code). Same IndexedDB store, same
+// localStorage fallback as the state envelope.
+export async function readDeviceValue(key: string, fallbackKey: string): Promise<string | null> {
+  const primary = await readUnknownEnvelope(DB_NAME, key).catch(() => undefined);
+  if (typeof primary === 'string') return primary;
+  try { return localStorage.getItem(fallbackKey); } catch { return null; }
+}
+
+export async function writeDeviceValue(key: string, fallbackKey: string, value: string | null): Promise<void> {
+  try {
+    if (value === null) localStorage.removeItem(fallbackKey);
+    else localStorage.setItem(fallbackKey, value);
+  } catch { /* IndexedDB remains primary. */ }
+  const database = await openDatabase().catch(() => null);
+  if (!database) return;
+  await new Promise<void>((resolve, reject) => {
+    const transaction = database.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    if (value === null) store.delete(key); else store.put(value, key);
+    transaction.oncomplete = () => { database.close(); resolve(); };
+    transaction.onerror = () => reject(transaction.error ?? new Error('Écriture locale impossible.'));
+  });
+}
+
 function openDatabase(name = DB_NAME): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     if (!('indexedDB' in globalThis)) return reject(new Error('IndexedDB indisponible.'));
