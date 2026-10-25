@@ -500,6 +500,9 @@ export interface DriveState {
   lastSyncAt?: string;
   lastSyncRevision?: number;
   wasConnected?: boolean;
+  // CHANGE_REQUEST_021 — optional, so a state written before CR-021 loads
+  // unchanged. `accountEmail` and `wasConnected` above stay but are unused.
+  transport?: 'script';
   status: 'local' | 'synced' | 'pending' | 'error';
   message?: string;
 }

@@ -14,10 +14,7 @@
 // key from the `results` record and re-saving the whole state. The second
 // test below reproduces exactly that.
 //
-// Part B: src/infrastructure/coachDrive.ts's CR-005 conflict rule ("the
-// copy with the higher revision wins, a tie keeps local") tested in
-// isolation, with GoogleDriveClient mocked — no real network/Drive calls.
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { CoachState, SessionResult } from '../coach/types';
 import { createInitialState, loadCoachState, saveCoachState } from '../infrastructure/coachStorage';
 
@@ -77,68 +74,5 @@ describe('coachStorage: save/load round trip (localStorage fallback, no IndexedD
   });
 });
 
-const driveFixture = vi.hoisted(() => ({
-  remoteFile: null as { id: string } | null,
-  remoteText: ''
-}));
-
-vi.mock('../infrastructure/googleDrive', () => {
-  class FakeGoogleDriveClient {
-    public constructor(private readonly accessToken: string) {
-      void this.accessToken;
-    }
-    public async ensureFolder(name: string) {
-      return { id: `folder-${name}`, name, mimeType: 'application/vnd.google-apps.folder' };
-    }
-    public async findFile() {
-      return driveFixture.remoteFile;
-    }
-    public async getFile(fileId: string) {
-      return { id: fileId, name: 'coach-concours-state-v2.json', mimeType: 'application/json' };
-    }
-    public async readTextFile() {
-      return driveFixture.remoteText;
-    }
-    public async upsertTextFile(options: { fileId?: string }) {
-      return { id: options.fileId ?? 'new-remote-file-id', name: 'coach-concours-state-v2.json', mimeType: 'application/json' };
-    }
-  }
-  return { GoogleDriveClient: FakeGoogleDriveClient };
-});
-
-describe('coachDrive: CR-005 conflict rule (Drive mocked, no network)', () => {
-  it('a synced remote copy with a higher revision replaces local', async () => {
-    const { syncCoachState } = await import('../infrastructure/coachDrive');
-    const { stateForDrive } = await import('../infrastructure/coachStorage');
-    const local: CoachState = { ...createInitialState(), revision: 1, athleteName: 'Locale' };
-    const remote: CoachState = { ...createInitialState(), revision: 5, athleteName: 'Depuis Drive' };
-    driveFixture.remoteFile = { id: 'remote-1' };
-    driveFixture.remoteText = JSON.stringify(stateForDrive(remote));
-
-    const result = await syncCoachState('fake-token', local, 'redacted@example.invalid');
-    expect(result.state.revision).toBe(5);
-    expect(result.state.athleteName).toBe('Depuis Drive');
-  });
-
-  it('a synced remote copy with an equal or lower revision does not replace local', async () => {
-    const { syncCoachState } = await import('../infrastructure/coachDrive');
-    const { stateForDrive } = await import('../infrastructure/coachStorage');
-
-    // Tie: keeps local.
-    const localTie: CoachState = { ...createInitialState(), revision: 5, athleteName: 'Locale' };
-    const remoteTie: CoachState = { ...createInitialState(), revision: 5, athleteName: 'Depuis Drive' };
-    driveFixture.remoteFile = { id: 'remote-2' };
-    driveFixture.remoteText = JSON.stringify(stateForDrive(remoteTie));
-    const tieResult = await syncCoachState('fake-token', localTie, 'redacted@example.invalid');
-    expect(tieResult.state.revision).toBe(5);
-    expect(tieResult.state.athleteName).toBe('Locale');
-
-    // Lower: keeps local.
-    const localHigher: CoachState = { ...createInitialState(), revision: 9, athleteName: 'Locale' };
-    const remoteLower: CoachState = { ...createInitialState(), revision: 2, athleteName: 'Ancienne copie' };
-    driveFixture.remoteText = JSON.stringify(stateForDrive(remoteLower));
-    const lowerResult = await syncCoachState('fake-token', localHigher, 'redacted@example.invalid');
-    expect(lowerResult.state.revision).toBe(9);
-    expect(lowerResult.state.athleteName).toBe('Locale');
-  });
-});
+// Part B (the CR-005 conflict rule) moved to cr021.test.ts with CHANGE_REQUEST_021:
+// the rule now lives in apps-script/Code.gs and the Google Drive client it mocked is gone.
