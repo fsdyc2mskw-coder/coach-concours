@@ -69,7 +69,15 @@ export const exerciseCards: ExerciseCard[] = [
   { id: 'BLK_roumi', stationId: 0, role: 'C', state: 'fatigued', label: 'ROUMI', what: 'Cross Ops ROUMI p 14, 10 tours chrono' },
   { id: 'BLK_acheron_park', stationId: 0, role: 'D', state: 'fatigued', label: 'ACHERON PARK', what: 'tempête, AMRAP 7 en échelle : slalom · obstacle · burpees 2-4-6-8…' },
   { id: 'BLK_death_by_obstacle', stationId: 2, role: 'D', state: 'fatigued', label: 'DEATH BY OBSTACLE', what: 'tempête, minute n = n franchissements + n burpees + n tirages, 7 min' },
-  { id: 'BLK_bordeaux_10', stationId: 0, role: 'D', state: 'fatigued', label: 'BORDEAUX 10', what: 'la simulation du test, 2 tours chrono, cap 10' }
+  { id: 'BLK_bordeaux_10', stationId: 0, role: 'D', state: 'fatigued', label: 'BORDEAUX 10', what: 'la simulation du test, 2 tours chrono, cap 10' },
+  // CHANGE_REQUEST_013 v7 — the index of 25 October 2026 (week 8, Kingston):
+  // the four new cards, and the push-up atom (in the index since 12 October,
+  // first used by a week here: the week 8 WODs, answer Q7).
+  { id: 'S00_push_up', stationId: 0, role: 'C', state: 'both', label: 'Pompe', what: 'pompe CrossFit, poitrine au sol, 10 à 20 (Cross Ops p 36)' },
+  { id: 'S00_dumbbell_thruster', stationId: 0, role: 'P', state: 'fresh', label: 'Thruster haltères', what: 'squat puis développé en un seul mouvement, 5 × 8 à 2 × 10 kg au premier passage (S8)' },
+  { id: 'S09_kingston_balance_ladder', stationId: 9, role: 'A', state: 'both', label: 'Échelle d’équilibre Kingston', what: 'une jambe sur un tapis de yoga plié, balle de tennis, 12 min ; version fatiguée 5 min' },
+  { id: 'S10_rope_mix_15', stationId: 10, role: 'A', state: 'fresh', label: 'Corde mix 15', what: 'Tabata de pieds 8 min + échelle de cartes 6 min' },
+  { id: 'BLK_kingston_10', stationId: 0, role: 'D', state: 'fatigued', label: 'KINGSTON 10', what: 'max de tours en 10 min, 6 stations dans l’ordre de l’épreuve, sans salle' }
 ];
 
 export const cardById: Record<string, ExerciseCard> = exerciseCards.reduce<Record<string, ExerciseCard>>((result, card) => {

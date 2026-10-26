@@ -128,6 +128,10 @@ export interface V4Slot {
   optional?: true;  // "optional" / "opt": shows "optionnel", never counts as missed
   lowLung?: true;   // the Tuesday low-lung sprints after the main set (section C)
   offload?: true;   // week 11
+  // CHANGE_REQUEST_013 v7 — the load of this cell when the week file sets it
+  // apart from its kind (week 8: three skill days run hard). Plan data only:
+  // the plan is rebuilt at every start, nothing here is stored.
+  load?: 'low' | 'moderate' | 'hard';
 }
 
 export interface SeasonWeekV4 {
@@ -140,7 +144,15 @@ export interface SeasonWeekV4 {
   // CHANGE_REQUEST_013 v6 — a note on a day with no session (week 7 Sunday:
   // the flight). Screen text only, never a session, never counted.
   dayNotes?: Partial<Record<WeekDay, string>>;
+  // CHANGE_REQUEST_013 v7 — Q9 of APP_REPORT_013_v5: the phase label of the
+  // week header, in place of the v3 phase of the date.
+  phaseLabel: string;
 }
+
+// CHANGE_REQUEST_013 v7 — Q9 (DECISIONS_APP_REPORT_013v5, 12 October).
+export const V4_PHASE_LABEL: Readonly<Record<number, string>> = {
+  6: 'Parc', 7: 'Voyage · entretien', 8: 'Voyage · entretien', 9: 'Reprise', 10: 'Charge', 11: 'Allègement'
+};
 
 // CHANGE_REQUEST_013 v6 — section A, MUST: Sunday 25 October shows this line only.
 export const WEEK7_SUNDAY_NOTE = 'Vol vers Kingston · repos';
@@ -149,31 +161,46 @@ export const DAILY_BALANCE_LINE = '2 min d\'équilibre sur une jambe pendant le 
 
 export const SEASON_PLAN_V4: Readonly<Record<number, SeasonWeekV4>> = {
   6: {
-    week: 6, startDate: '2026-10-12', endDate: '2026-10-18', load: 4, dailyLine: DAILY_BALANCE_LINE,
+    week: 6, startDate: '2026-10-12', endDate: '2026-10-18', load: 4, dailyLine: DAILY_BALANCE_LINE, phaseLabel: V4_PHASE_LABEL[6]!,
     days: { MON: { kind: 'crossfit_class' }, TUE: { kind: 'run_intervals', lowLung: true }, WED: { kind: 'skill_park' }, THU: { kind: 'crossfit_class' }, FRI: { kind: 'enchainement' }, SAT: { kind: 'trail_day' } }
   },
   // CHANGE_REQUEST_013 v6 — week 7 from season_plan v5 and WEEK_7_FINAL v3
   // (Bordeaux): the travel placeholders are gone from this week only; Saturday
   // is rest and Sunday carries the flight note, no session. Load ■■■ (v5).
   7: {
-    week: 7, startDate: '2026-10-19', endDate: '2026-10-25', load: 3, dailyLine: DAILY_BALANCE_LINE,
+    week: 7, startDate: '2026-10-19', endDate: '2026-10-25', load: 3, dailyLine: DAILY_BALANCE_LINE, phaseLabel: V4_PHASE_LABEL[7]!,
     days: { MON: { kind: 'crossfit_class' }, TUE: { kind: 'skill_park' }, WED: { kind: 'run_intervals' }, THU: { kind: 'enchainement' }, FRI: { kind: 'skill_park' } },
     dayNotes: { SUN: WEEK7_SUNDAY_NOTE }
   },
+  // CHANGE_REQUEST_013 v7 — week 8 from WEEK_8_FINAL_2026-10-26 (Kingston):
+  // the travel placeholders are gone. Tue, Wed and Sat take `skill_park`, the
+  // closest existing kind (a skill or balance piece with a Cross Ops WOD as
+  // cardio), loaded hard as the week file says. Load ■■■■: the higher of the
+  // two figures season_plan v5 gives week 8 (question in APP_REPORT_013_v7).
   8: {
-    week: 8, startDate: '2026-10-26', endDate: '2026-11-01', load: 2,
-    days: { TUE: { kind: 'travel_speed', optional: true }, THU: { kind: 'travel_mini_ench' }, SAT: { kind: 'travel_skill_kit' } }
+    week: 8, startDate: '2026-10-26', endDate: '2026-11-01', load: 4, dailyLine: DAILY_BALANCE_LINE, phaseLabel: V4_PHASE_LABEL[8]!,
+    days: {
+      MON: { kind: 'easy_run' },
+      TUE: { kind: 'skill_park', load: 'hard' },
+      WED: { kind: 'skill_park', load: 'hard' },
+      THU: { kind: 'run_intervals' },
+      FRI: { kind: 'enchainement' },
+      SAT: { kind: 'skill_park', load: 'hard' },
+      SUN: { kind: 'trail_day' }
+    }
   },
+  // CHANGE_REQUEST_013 v7 — season_plan v5: Monday 2 November is optional,
+  // "challenging if before the flight" (a named gap; v4 had no Monday).
   9: {
-    week: 9, startDate: '2026-11-02', endDate: '2026-11-08', load: 3,
-    days: { TUE: { kind: 'easy_run' }, WED: { kind: 'easy_run' }, THU: { kind: 'skill_park' }, FRI: { kind: 'enchainement' }, SAT: { kind: 'crossfit_class' }, SUN: { kind: 'easy_run' } }
+    week: 9, startDate: '2026-11-02', endDate: '2026-11-08', load: 3, dailyLine: DAILY_BALANCE_LINE, phaseLabel: V4_PHASE_LABEL[9]!,
+    days: { MON: { kind: 'travel_speed', optional: true }, TUE: { kind: 'easy_run' }, WED: { kind: 'easy_run' }, THU: { kind: 'skill_park' }, FRI: { kind: 'enchainement' }, SAT: { kind: 'crossfit_class' }, SUN: { kind: 'easy_run' } }
   },
   10: {
-    week: 10, startDate: '2026-11-09', endDate: '2026-11-15', load: 5,
+    week: 10, startDate: '2026-11-09', endDate: '2026-11-15', load: 5, dailyLine: DAILY_BALANCE_LINE, phaseLabel: V4_PHASE_LABEL[10]!,
     days: { MON: { kind: 'crossfit_class' }, TUE: { kind: 'run_intervals', lowLung: true }, WED: { kind: 'enchainement' }, THU: { kind: 'skill_park' }, FRI: { kind: 'enchainement' }, SAT: { kind: 'trail_day' } }
   },
   11: {
-    week: 11, startDate: '2026-11-16', endDate: '2026-11-20', load: 1,
+    week: 11, startDate: '2026-11-16', endDate: '2026-11-20', load: 1, dailyLine: DAILY_BALANCE_LINE, phaseLabel: V4_PHASE_LABEL[11]!,
     days: { MON: { kind: 'crossfit_class' }, TUE: { kind: 'run_intervals' }, WED: { kind: 'skill_park', offload: true }, FRI: { kind: 'police_event' } }
   }
 };
@@ -716,12 +743,13 @@ function isMemoryGameWeek(weekNumber: number): boolean {
   return weekNumber >= MEMORY_GAME_FROM_WEEK && memoryCycleOf(weekNumber) !== null;
 }
 
-export function memoryGameBlock(weekNumber: number, shape: SessionShape): ExerciseBlock {
-  const cycle = memoryCycleOf(weekNumber)!;
+// CHANGE_REQUEST_013 v7 — `m4` overrides the cycle's M4 for one session: Q3,
+// the week 10 rematch keeps the 4 min card of week 6, without M4.
+export function memoryGameBlock(weekNumber: number, shape: SessionShape, m4: boolean = memoryCycleOf(weekNumber)!.m4): ExerciseBlock {
   const card = memoryCardFor(weekNumber, shape)!;
-  const spec: MemoryBlockSpec = { kind: 'memory', modules: cycle.m4 ? ['M4'] : [], drills: [memoryCardDrill(card)], game: { card, m4: cycle.m4 } };
+  const spec: MemoryBlockSpec = { kind: 'memory', modules: m4 ? ['M4'] : [], drills: [memoryCardDrill(card)], game: { card, m4 } };
   return {
-    title: `Mémoire · ${MEMORY_CARD_LABEL[card]} — ${memoryBlockMinutes(cycle.m4)} min`, short: 'mémoire', kind: 'memory', spec,
+    title: `Mémoire · ${MEMORY_CARD_LABEL[card]} — ${memoryBlockMinutes(m4)} min`, short: 'mémoire', kind: 'memory', spec,
     faire: `${MEMORY_CARD_HOME[card].title} · ${MEMORY_CARD_HOME[card].line}.`,
     stationMappings: []
   };
@@ -1156,6 +1184,8 @@ export function drillsOfBlock(block: ExerciseBlock): DrillRef[] {
   if (spec.kind === 'skill_test' || spec.kind === 'storm' || spec.kind === 'low_lung') return spec.drills;
   // CHANGE_REQUEST_013 v6 — the week 7 circuit and the Luc Léger test.
   if (spec.kind === 'circuit' || spec.kind === 'luc_leger') return spec.drills;
+  // CHANGE_REQUEST_013 v7 — the week 8 strength piece.
+  if (spec.kind === 'strength') return spec.drills;
   if (spec.kind === 'cardio') return spec.drills ?? [];
   return [];
 }

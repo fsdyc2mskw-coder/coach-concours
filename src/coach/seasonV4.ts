@@ -43,6 +43,7 @@ import type {
   SkillBlock,
   SkillTestSpec,
   StormSpec,
+  StrengthSpec,
   TestMoment,
   TrainingWeek
 } from './types';
@@ -77,6 +78,9 @@ export const V4_KIND_LOAD: Readonly<Record<V4SessionKind, PlannedSession['load']
   easy_run: 'low'
 };
 
+// CHANGE_REQUEST_013 v7 — the week 9 Monday (season_plan v5), a named gap.
+export const WEEK9_MONDAY_TITLE = 'Avant le vol · optionnel';
+
 export const TO_BUILD_PREFIX = 'Contenu à construire';
 export function toBuildLabel(weekNumber: number): string {
   return `${TO_BUILD_PREFIX} (semaine ${weekNumber})`;
@@ -91,6 +95,8 @@ export const LOW_LUNG_SAFETY_LINE = 'jamais d\'hyperventilation avant · stop si
 
 // R-SP-09: a warm-up is one line. Priming is named when used.
 export const WARMUP_LINE = 'Échauffement ~5 min';
+// CHANGE_REQUEST_013 v7 — Q4 of APP_REPORT_013_v5, word for word.
+export const TUESDAY_WARMUP_LINE = 'Échauffement ~10 min (footing)';
 
 // ---------- drills ----------
 
@@ -262,7 +268,7 @@ function stormBlock(storm: 1 | 2): ExerciseBlock {
     };
 }
 
-function enchainementBlocks(weekNumber: number): ExerciseBlock[] {
+function enchainementBlocks(weekNumber: number, rematch = false): ExerciseBlock[] {
   return [
     {
       title: 'Mise en place — 3 min', short: 'mise en place', kind: 'setup',
@@ -275,7 +281,8 @@ function enchainementBlocks(weekNumber: number): ExerciseBlock[] {
       stationMappings: []
     },
     testBlock('fresh'),
-    memoryGameBlock(weekNumber, 'chain_session'),
+    // CHANGE_REQUEST_013 v7 — Q3: the rematch keeps the 4 min card, no M4.
+    rematch ? memoryGameBlock(weekNumber, 'chain_session', false) : memoryGameBlock(weekNumber, 'chain_session'),
     stormBlock(1),
     testBlock('tired1'),
     { title: 'Repos — 3 min', short: 'repos', kind: 'rest', faire: 'Marcher, longues expirations.', stationMappings: [] },
@@ -287,7 +294,7 @@ function enchainementBlocks(weekNumber: number): ExerciseBlock[] {
 const ENCHAINEMENT_COOLDOWN = '5 min : marcher, mollets, hanches, 5 respirations lentes avec une longue expiration.';
 
 function buildEnchainement(weekNumber: number, rematch: boolean): SessionRecipe {
-  const blocks = enchainementBlocks(weekNumber);
+  const blocks = enchainementBlocks(weekNumber, rematch);
   return {
     id: `enchainement-v1-week-${weekNumber}`, version: 1, kind: 'enchainement',
     title: V4_KIND_TITLE.enchainement,
@@ -355,7 +362,9 @@ function buildTuesdayV4(weekNumber: number, slot: V4Slot): SessionRecipe {
       stationMappings: [], approximation: true
     });
   }
-  const warmup = set.warmup ?? '15 min facile, puis 3 × 20 s d’accélérations progressives.';
+  // CHANGE_REQUEST_013 v7 — Q4: R-SP-09 covers the Tuesday run too (weeks 10
+  // and 11; week 6 keeps its locked line).
+  const warmup = set.warmup ?? TUESDAY_WARMUP_LINE;
   const cooldown = set.cooldown ?? '10 min facile.';
   const mainMin = set.reps * set.minutes + (set.reps - 1) * (set.jogSec / 60);
   const recipe: SessionRecipe = {
@@ -630,6 +639,264 @@ function buildWeek7Friday(): SessionRecipe {
   };
 }
 
+// ---------- CHANGE_REQUEST_013 v7: week 8, Kingston ----------
+//
+// `WEEK_8_FINAL_2026-10-26.md`, block for block, app texts in French as the
+// change request's section B writes them; the card texts are the cards' own
+// (S09_kingston_balance_ladder, S10_rope_mix_15). The durations are the FINAL
+// file's "about n min" for each day. No week 8 session carries a memory block:
+// the FINAL file has no memory slot and none is invented (KEEP section A,
+// question in APP_REPORT_013_v7). Every run of 400 m or 800 m is outdoors and
+// shows its distance only: no pace, no target (R-TL-12).
+
+/** The weeks whose locked file has no memory slot (the cycle itself is unchanged). */
+export const NO_MEMORY_SLOT_WEEKS: readonly number[] = [WEEK7_NO_MEMORY_SLOT, 8];
+
+const WEEK8_KIT = ['Tapis de yoga', '1 balle de tennis', 'Corde', 'Cerceaux', 'Raquette', 'Minuteur du téléphone', 'Eau'];
+const WEEK8_GYM = ['Haltères (2 × 10 kg)', ...WEEK8_KIT];
+
+export const WEEK8_TUESDAY_NOTICE = 'Au-dessus de la limite habituelle : signalé, tu décides (R-SP-13).';
+export const WEEK8_NO_TEST_LINE = 'Pas de test à froid ni de test fatigué cette semaine (ta décision, semaine 8 seulement).';
+
+// Section B, the card S09_kingston_balance_ladder, word for word.
+export const KINGSTON_LADDER_FAIRE = 'Tapis de yoga plié en quatre · 1 balle de tennis · un mur. 1 min de travail, 30 s de repos. Debout bien droit, genou souple, regard sur un point fixe. Le pied libre ne touche pas la jambe d’appui. '
+  + '1 Jambe droite sur le tapis. Passe la balle autour de la taille, d’une main à l’autre, sans arrêt. 1 min · '
+  + '2 Jambe gauche sur le tapis. Pareil. 1 min · '
+  + '3 Yeux fermés, au sol (pas sur le tapis), une main près du mur. 30 s jambe droite, puis 30 s gauche · '
+  + '4 Jambe droite sur le tapis, à 1 m du mur. Lance la balle par en dessous contre le mur, rattrape-la d’une main. 1 min · '
+  + '5 Jambe gauche sur le tapis. Pareil. 1 min · '
+  + '6 Refais 1 et 2. 2 min';
+export const KINGSTON_LADDER_NOTER = 'Compte : touchers (le pied libre touche le sol) + balles tombées. But : 0.';
+export const KINGSTON_LADDER_STOP = 'Stop si vertige, 3 touchers en une minute (ça compte), ou douleur à la cheville.';
+export const KINGSTON_LADDER_TIRED = 'Version fatiguée (5 min, après le cardio) : étapes 1 et 2 seulement, 30 s par jambe, 3 tours, repos 20 s.';
+
+// Section B, the card S10_rope_mix_15, word for word.
+export const ROPE_MIX_FAIRE = 'Partie A · Tabata, 8 min : 20 s de corde, 10 s de repos, 16 tours (la suite de 8 tours, deux fois) : '
+  + 'tours 1-2 pieds joints · 3-4 côté à côté (20 cm) · 5-6 avant-arrière (20 cm) · tour 7 pied gauche seul · tour 8 pied droit seul · tours 9-16 pareil. '
+  + 'Repos 1 min. '
+  + 'Partie B · échelle de cartes, 6 min : 1 min pour chaque carte, 30 s de repos ; une erreur fait recommencer le bloc en cours : '
+  + '1 5 droit · 5 gauche · 10 joints · 2 8 droit · 8 gauche · 10 joints · 3 10 droit · 10 gauche · 10 joints · 4 15 droit · 15 gauche · 15 joints';
+export const ROPE_MIX_NOTER = 'Scores : ratés sur les tours à un pied (7, 8, 15, 16) · cartes propres sur 4';
+
+function kingstonLadderBlock(): ExerciseBlock {
+  return skillBlock(9, 12, [
+    drill('S09_kingston_balance_ladder', 'balance:ladder_touchdowns', 'touchdowns', 'Touchers — échelle d’équilibre'),
+    drill('S09_kingston_balance_ladder', 'balance:ladder_drops', 'drops', 'Balles tombées — échelle d’équilibre')
+  ], {
+    title: 'Échelle d’équilibre Kingston — 12 min', short: 'équilibre',
+    faire: KINGSTON_LADDER_FAIRE,
+    regle: KINGSTON_LADDER_STOP,
+    details: KINGSTON_LADDER_TIRED,
+    noter: KINGSTON_LADDER_NOTER
+  });
+}
+
+function tiredBalanceBlock(): ExerciseBlock {
+  return skillBlock(9, 5, [
+    drill('S09_kingston_balance_ladder', 'balance:tired_touchdowns', 'touchdowns', 'Touchers — équilibre fatigué')
+  ], {
+    title: 'Équilibre fatigué — 5 min', short: 'équilibre fatigué',
+    faire: 'Échelle d’équilibre, étapes 1 et 2 seulement : 30 s par jambe, 3 tours, repos 20 s.',
+    regle: KINGSTON_LADDER_STOP,
+    noter: 'Touchers.'
+  });
+}
+
+/** A Cross Ops WOD as the cardio block: atoms that are cards, no target. */
+function crossOpsBlock(title: string, short: string, format: CardioBlock['format'], durationMin: number, atomIds: string[], faire: string, drills: DrillRef[], noter: string): ExerciseBlock {
+  const spec: CardioBlock = { kind: 'cardio', format, atoms: atomIds.map(cardRef), durationMin, target: null, drills };
+  return { title, short, kind: 'cardio', spec, faire, noter, stationMappings: [], approximation: true };
+}
+
+function buildWeek8Monday(): SessionRecipe {
+  return {
+    id: 'easy-run-v1-week-8-mon', version: 1, kind: 'easy_run',
+    title: 'Facile · journée de terrain',
+    purpose: 'Journée légère : l’échelle d’équilibre, puis un footing facile.',
+    durationMin: 45,
+    equipment: ['Tapis de yoga', '1 balle de tennis', 'Chaussures de course'],
+    warmup: null,
+    blocks: [
+      kingstonLadderBlock(),
+      { title: 'Footing facile — 30 min', short: 'footing', faire: '30 min, 8,5 km/h ou plus lent.', noter: 'Effort.', stationMappings: [] }
+    ],
+    cooldown: null
+  };
+}
+
+function buildWeek8Tuesday(): SessionRecipe {
+  const rope = skillBlock(10, 15, [
+    drill('S10_rope_mix_15', 'rope:onefoot_misses', 'misses', 'Ratés sur les tours à un pied (7, 8, 15, 16) — corde'),
+    drill('S10_rope_mix_15', 'rope:clean_cards', 'clean_cards', 'Cartes propres sur 4 — corde')
+  ], {
+    title: 'Corde mix 15 — 15 min', short: 'corde',
+    faire: ROPE_MIX_FAIRE,
+    regle: 'Stop si douleur au mollet ou au tendon d’Achille.',
+    noter: ROPE_MIX_NOTER
+  });
+  const cardioRunB = crossOpsBlock(
+    'CARDIO RUN B (Cross Ops p 14) · max de tours en 30 min', 'CARDIO RUN B', 'amrap', 30, ['S00_full_burpee'],
+    'Max de tours en 30 min : 800 m de course en extérieur · 20 burpees.',
+    [
+      drill('S00_full_burpee', 'cardio:cardiorunb_rounds', 'rounds', 'Tours faits — CARDIO RUN B'),
+      drill('S00_full_burpee', 'cardio:cardiorunb_metres', 'metres', 'Mètres du tour entamé — CARDIO RUN B')
+    ],
+    'Aucune cible. Noter : les tours + les mètres du tour entamé, et le score d’effort.'
+  );
+  return {
+    id: 'skill-park-v3-week-8-tue', version: 3, kind: 'skill_park',
+    title: 'Compétences + cardio',
+    purpose: 'L’échelle d’équilibre et la corde, frais ; puis CARDIO RUN B comme cardio, sans cible. Chaque exercice est une approximation du poste officiel.',
+    durationMin: 60,
+    equipment: WEEK8_KIT,
+    warmup: WARMUP_LINE,
+    blocks: [kingstonLadderBlock(), rope, cardioRunB],
+    cooldown: null,
+    notice: WEEK8_TUESDAY_NOTICE
+  };
+}
+
+function buildWeek8Wednesday(): SessionRecipe {
+  const spec: StrengthSpec = {
+    kind: 'strength', card: cardRef('S00_dumbbell_thruster'), sets: 5, reps: 8, restS: 90,
+    drills: [
+      drill('S00_dumbbell_thruster', 'strength:thruster_kg', 'load_kg', 'Charge (kg) — thrusters'),
+      drill('S00_dumbbell_thruster', 'strength:thruster_reps', 'reps_done', 'Répétitions faites — thrusters')
+    ]
+  };
+  const thrusters: ExerciseBlock = {
+    title: 'Thrusters haltères 5 × 8 — 12 min', short: 'thrusters', kind: 'strength', spec,
+    faire: '5 × 8, 2 × 10 kg, repos 90 s. Un haltère dans chaque main aux épaules : squat sous la parallèle, remonter et pousser les deux haltères bras tendus en un seul mouvement.',
+    regle: 'Stop si le dos s’arrondit, ou si la poussée devient une cambrure.',
+    noter: 'Charge (kg) · répétitions faites · effort.',
+    stationMappings: [], approximation: true
+  };
+  const eagle = crossOpsBlock(
+    'EAGLE (Cross Ops p 14) · max de tours en 20 min', 'EAGLE', 'amrap', 20, ['S00_jump_squats', 'S00_full_burpee'],
+    'Max de tours en 20 min : 400 m de course en extérieur · 10 squat jumps · 10 burpees.',
+    [drill('S00_full_burpee', 'cardio:eagle_rounds', 'rounds', 'Tours faits — EAGLE')],
+    'Aucune cible. Noter : les tours, et le score d’effort.'
+  );
+  return {
+    id: 'skill-park-v3-week-8-wed', version: 3, kind: 'skill_park',
+    title: 'Force + EAGLE',
+    purpose: 'Salle de l’hôtel : les thrusters, puis EAGLE comme cardio, sans cible, puis l’équilibre fatigué. Chaque exercice est une approximation du poste officiel.',
+    durationMin: 50,
+    equipment: WEEK8_GYM,
+    warmup: WARMUP_LINE,
+    blocks: [thrusters, eagle, tiredBalanceBlock()],
+    cooldown: null
+  };
+}
+
+const WEEK8_THURSDAY_ID = 'run-intervals-v3-week-8-treadmill';
+export const WEEK8_INTERVALS = { reps: 5, minutes: 3, paceSec: 300, jogSec: 120 } as const;
+
+function buildWeek8Thursday(): SessionRecipe {
+  const row: RunIntervalsRow = { week: 8, reps: WEEK8_INTERVALS.reps, minutes: WEEK8_INTERVALS.minutes, paceSec: WEEK8_INTERVALS.paceSec, jogSec: WEEK8_INTERVALS.jogSec, purpose: 'allures des intervalles de la semaine 7', treadmill: true };
+  const main: ExerciseBlock = {
+    ...runIntervalsMainBlock(row),
+    faire: '5 × 3 min à 12,0 km/h (5:00 /km), pente 1 %, 2 min de footing à 8 km/h entre.',
+    noter: '5 allures · effort.'
+  };
+  const recipe: SessionRecipe = {
+    id: WEEK8_THURSDAY_ID, version: 3, kind: 'run_intervals',
+    title: 'Fractionné · tapis',
+    purpose: 'Sur tapis, salle de l’hôtel. Puis l’équilibre fatigué. Aucune cible.',
+    durationMin: 55,
+    equipment: ['Chaussures de course', 'Tapis de course', 'Tapis de yoga', '1 balle de tennis'],
+    warmup: 'Échauffement ~15 min à 8,5 km/h + 3 × 20 s à 13 km/h.',
+    blocks: [main, tiredBalanceBlock()],
+    cooldown: 'Retour au calme 10 min facile.'
+  };
+  runIntervalsRepsById[recipe.id] = WEEK8_INTERVALS.reps;
+  return recipe;
+}
+
+export const KINGSTON10_LAPS_DRILL = 'ench:kingston10_laps';
+export const KINGSTON10_STATION_DRILL = 'ench:kingston10_station';
+
+// Section B: the six stations of one lap, in the order of the test.
+export const KINGSTON10_STATIONS = [
+  '1 navette 4 × 20 m',
+  '2 cinq fois : 1 burpee (poitrine au sol) + 1 squat jump',
+  '3 10 pompes, poitrine au sol',
+  '4 cerceaux, les 11, aller, pieds selon la couleur (erreur : retour au cerceau 1)',
+  '5 sur une jambe sur le tapis plié, balle autour de la taille : 10 s droite + 10 s gauche (un toucher : on recommence cette jambe)',
+  '6 carte de corde : 5 pied droit · 5 pied gauche · 10 pieds joints (erreur : on recommence le bloc)'
+] as const;
+
+function kingston10Block(): ExerciseBlock {
+  const spec: CircuitSpec = {
+    kind: 'circuit', card: cardRef('BLK_kingston_10'), laps: null, capMin: 10, score: 'laps_and_station',
+    // The atoms that are cards; the shuttle and the hoops pass live in the
+    // block card BLK_kingston_10.
+    atoms: ['S00_full_burpee', 'S00_jump_squats', 'S00_push_up', 'S09_kingston_balance_ladder', 'S10_rope_mix_15'].map(cardRef),
+    drills: [
+      drill('BLK_kingston_10', KINGSTON10_LAPS_DRILL, 'laps', 'Tours complets — KINGSTON 10'),
+      drill('BLK_kingston_10', KINGSTON10_STATION_DRILL, 'station_reached', 'ET station atteinte à 10:00 (1 à 6) — KINGSTON 10')
+    ]
+  };
+  return {
+    title: 'KINGSTON 10 · max de tours en 10 min', short: 'KINGSTON 10', kind: 'circuit', spec,
+    faire: `Un tour, dans l’ordre de l’épreuve : ${KINGSTON10_STATIONS.join(' · ')}.`,
+    regle: 'Pas de repos prévu · vertige → stop, ça compte · sans cerceaux : station 4 = 10 sauts de corde sur une jambe (5 par jambe).',
+    noter: 'Tours complets + station atteinte à 10:00 · effort.',
+    stationMappings: [1, 8, 9, 10], approximation: true
+  };
+}
+
+function maxBlock(): ExerciseBlock {
+  // MAX is for time: no fixed duration, so `durationMin` is 0 and the title
+  // carries no minutes. The sit-ups have no card of their own (question in
+  // APP_REPORT_013_v7); the atoms listed are the ones that are cards.
+  return crossOpsBlock(
+    'MAX (Cross Ops p 17) · 10 tours chrono', 'MAX', 'for_time', 0, ['S00_push_up', 'S00_air_squats'],
+    '10 tours chrono : 10 abdos · 10 pompes · 15 squats.',
+    [drill('S00_push_up', 'cardio:max_time_s', 'time_s', 'Temps — MAX')],
+    'Aucune cible. Noter : le temps, et le score d’effort.'
+  );
+}
+
+function buildWeek8Friday(): SessionRecipe {
+  return {
+    id: 'enchainement-v3-week-8', version: 3, kind: 'enchainement',
+    title: 'Enchaînement · KINGSTON 10',
+    purpose: 'À bloc, au parc. UN circuit : max de tours en 10 min, puis MAX. Pas de test à froid ni de test fatigué cette semaine. Le circuit est une approximation du test.',
+    durationMin: 35,
+    equipment: WEEK8_KIT,
+    warmup: null,
+    blocks: [
+      { title: `${WARMUP_LINE} + priming`, short: 'échauffement', kind: 'warmup', faire: `${WARMUP_LINE} · priming : 2 × 10 s de sprint.`, stationMappings: [] },
+      kingston10Block(),
+      maxBlock(),
+      { title: 'Marche — 5 min', short: 'marche', kind: 'rest', faire: 'Marcher.', stationMappings: [] }
+    ],
+    cooldown: null,
+    notice: WEEK8_NO_TEST_LINE,
+    noGapTests: true
+  };
+}
+
+function buildWeek8Saturday(): SessionRecipe {
+  const russian = crossOpsBlock(
+    'RUSSIAN (Cross Ops p 17) · max de tours en 20 min', 'RUSSIAN', 'amrap', 20, ['S00_push_up', 'S00_jump_squats', 'S00_full_burpee'],
+    'Max de tours en 20 min : 10 pompes (pour 10 tractions) · 10 squat jumps (pour 10 box jumps) · 10 burpees · 10 squat jumps · 400 m en extérieur.',
+    [drill('S00_full_burpee', 'cardio:russian_rounds', 'rounds', 'Tours faits — RUSSIAN')],
+    'Aucune cible. Noter : les tours, et le score d’effort.'
+  );
+  return {
+    id: 'skill-park-v3-week-8-sat', version: 3, kind: 'skill_park',
+    title: 'RUSSIAN',
+    purpose: 'L’échelle d’équilibre, frais ; puis RUSSIAN comme cardio, sans cible, puis l’équilibre fatigué. Sans salle. Chaque exercice est une approximation du poste officiel.',
+    durationMin: 45,
+    equipment: WEEK8_KIT,
+    warmup: WARMUP_LINE,
+    blocks: [kingstonLadderBlock(), russian, tiredBalanceBlock()],
+    cooldown: null
+  };
+}
+
 // ---------- the named gaps, weeks 7 to 11 ----------
 
 function buildTrailDay(weekNumber: number, slot: V4Slot): SessionRecipe {
@@ -670,6 +937,16 @@ export function buildV4Recipe(weekNumber: number, day: WeekDay, slot: V4Slot): S
     if (slot.kind === 'enchainement') return buildWeek7Thursday();
     if (slot.kind === 'skill_park') return day === 'FRI' ? buildWeek7Friday() : buildWeek7Tuesday();
   }
+  // CHANGE_REQUEST_013 v7 — week 8, block for block.
+  if (weekNumber === 8) {
+    if (slot.kind === 'easy_run') return buildWeek8Monday();
+    if (slot.kind === 'run_intervals') return buildWeek8Thursday();
+    if (slot.kind === 'enchainement') return buildWeek8Friday();
+    if (slot.kind === 'skill_park') return day === 'WED' ? buildWeek8Wednesday() : day === 'SAT' ? buildWeek8Saturday() : buildWeek8Tuesday();
+  }
+  // CHANGE_REQUEST_013 v7 — season_plan v5: the week 9 Monday, optional, a
+  // named gap ("challenging if before the flight").
+  if (weekNumber === 9 && day === 'MON') return { ...buildToBuild(9, slot.kind as Exclude<ContentKind, 'trail_day'>, slot, '-mon'), title: WEEK9_MONDAY_TITLE };
   switch (slot.kind) {
     case 'crossfit_class': return recipes.crossfit!;
     case 'police_event': return recipes.policeEvent!;
@@ -713,7 +990,8 @@ export function sessionsForV4Week(weekNumber: number, phaseFor: (date: string) =
     planned.push({
       id: `${date}:${slot.kind}`, date, dayLabel: dayLabel(date), kind: slot.kind, recipeId: recipe.id,
       status: slot.kind === 'crossfit_class' ? 'coached' : slot.kind === 'police_event' ? 'fixed_event' : 'proposed',
-      phase: phaseFor(date), load: V4_KIND_LOAD[slot.kind], volumeFactor: 1
+      // CHANGE_REQUEST_013 v7 — a cell may carry its own load (week 8).
+      phase: phaseFor(date), load: slot.load ?? V4_KIND_LOAD[slot.kind], volumeFactor: 1
     });
   });
   return planned;
@@ -833,7 +1111,11 @@ export function validateV4Week(week: TrainingWeek, weekNumber: number): string[]
       // first, fresh, then the recovery, then the interval set.
       const lucLeger = kinds.includes('luc_leger');
       const allowedLucLeger = kinds.join() === 'luc_leger,rest,main';
-      if (lucLeger ? !allowedLucLeger : !allowed) errors.push(`${label} : ${lucLeger ? 'le test Luc Léger vient en premier, puis la récupération, puis le fractionné (test_battery v3).' : 'le mardi garde échauffement + bloc principal + (sprints poumons vides) + retour au calme (R-WS-19).'}`);
+      // CHANGE_REQUEST_013 v7 — week 8 Thursday: the main set, then the tired
+      // balance (WEEK_8_FINAL), before the cool-down.
+      const tiredBalance = kinds.join() === 'main,skill_block'
+        && drillsOfBlock(recipe.blocks[1]!).every((item) => item.drillId === 'balance:tired_touchdowns');
+      if (lucLeger ? !allowedLucLeger : !(allowed || tiredBalance)) errors.push(`${label} : ${lucLeger ? 'le test Luc Léger vient en premier, puis la récupération, puis le fractionné (test_battery v3).' : 'le mardi garde échauffement + bloc principal + (sprints poumons vides) + retour au calme (R-WS-19).'}`);
       else if (!recipe.warmup || !recipe.cooldown) errors.push(`${label} : le mardi garde échauffement + bloc principal + (sprints poumons vides) + retour au calme (R-WS-19).`);
       if (lucLeger && weekNumber !== 7) errors.push(`${label} : un seul test Luc Léger, en semaine 7 (R-TB-01).`);
       if (lowLung && lowLung.regle !== LOW_LUNG_SAFETY_LINE) errors.push(`${label} : les sprints poumons vides portent la ligne de sécurité.`);
@@ -847,16 +1129,20 @@ export function validateV4Week(week: TrainingWeek, weekNumber: number): string[]
     const shape = memoryShapeOf(session.kind)!;
     // CHANGE_REQUEST_013 v6 — week 7: the FINAL file has no memory slot and
     // none is invented (KEEP section A); the cycle itself is unchanged.
-    const cycle = weekNumber === WEEK7_NO_MEMORY_SLOT ? null : memoryCycleOf(weekNumber);
-    if (weekNumber === WEEK7_NO_MEMORY_SLOT && memoryBlockOf(recipe)) errors.push(`${label} : la semaine 7 n’a pas de bloc mémoire (WEEK_7_FINAL v3).`);
+    // CHANGE_REQUEST_013 v7 — week 8 likewise (WEEK_8_FINAL has no memory slot).
+    const noSlot = NO_MEMORY_SLOT_WEEKS.includes(weekNumber);
+    const cycle = noSlot ? null : memoryCycleOf(weekNumber);
+    if (noSlot && memoryBlockOf(recipe)) errors.push(`${label} : la semaine ${weekNumber} n’a pas de bloc mémoire (WEEK_${weekNumber}_FINAL).`);
     if (cycle) {
       const expectedCard = memoryCardFor(weekNumber, shape);
       const memory = memoryBlockOf(recipe);
+      // CHANGE_REQUEST_013 v7 — Q3: the rematch keeps the 4 min card, no M4.
+      const m4 = recipe.rematchOf ? false : cycle.m4;
       if (!memory?.game || memory.game.card !== expectedCard) errors.push(`${label} : le bloc mémoire porte la carte ${expectedCard} du cycle (R-MM-03).`);
       if (!(memory?.drills ?? []).some((item) => item.measure === 'memory_card')) errors.push(`${label} : le bloc mémoire note le score de sa carte (R-MM-04).`);
-      if (memoryModulesOf(recipe).includes('M4') !== cycle.m4) errors.push(`${label} : M4 suit la carte en semaines 9 à 11 seulement (R-MM-06).`);
+      if (memoryModulesOf(recipe).includes('M4') !== m4) errors.push(`${label} : M4 suit la carte en semaines 9 à 11 seulement, sauf la revanche (R-MM-06, Q3).`);
       const minutes = minutesOf(blockOfKind(recipe, 'memory')?.title ?? null);
-      if (minutes !== memoryBlockMinutes(cycle.m4) || minutes > MEMORY_BLOCK_MAX_MIN) errors.push(`${label} : le bloc mémoire dure ${memoryBlockMinutes(cycle.m4)} min (R-MM-01).`);
+      if (minutes !== memoryBlockMinutes(m4) || minutes > MEMORY_BLOCK_MAX_MIN) errors.push(`${label} : le bloc mémoire dure ${memoryBlockMinutes(m4)} min (R-MM-01).`);
     }
 
     // R-SP-03: a named gap is the memory card and one "Contenu à construire".
@@ -885,13 +1171,28 @@ export function validateV4Week(week: TrainingWeek, weekNumber: number): string[]
       const tests = recipe.blocks.map((block) => (block.spec?.kind === 'skill_test' ? block.spec.moment : null)).filter(Boolean);
       if (kinds.filter((kind) => kind === 'circuit').length !== 1) errors.push(`${label} : un seul circuit (R-SP-15).`);
       if (kinds.includes('storm')) errors.push(`${label} : pas de tempête avec le circuit (R-SP-15).`);
-      if (tests.join() !== 'fresh,tired1' || kinds[circuitAt - 1] !== 'skill_test' || kinds[circuitAt + 1] !== 'skill_test') {
-        errors.push(`${label} : test à froid → circuit → test fatigué dans les 30 s (R-SP-15).`);
+      if (recipe.noGapTests) {
+        // CHANGE_REQUEST_013 v7 — week 8 only (the athlete's decision): no
+        // fresh test, no fatigue test, a Cross Ops block after the circuit.
+        if (weekNumber !== 8) errors.push(`${label} : un enchaînement sans test, en semaine 8 seulement (R-SP-15).`);
+        if (tests.length > 0) errors.push(`${label} : pas de test à froid ni de test fatigué cette semaine (WEEK_8_FINAL).`);
+        if (!kinds.slice(circuitAt + 1).includes('cardio')) errors.push(`${label} : un bloc Cross Ops après le circuit (R-SP-15).`);
+      } else {
+        if (tests.join() !== 'fresh,tired1' || kinds[circuitAt - 1] !== 'skill_test' || kinds[circuitAt + 1] !== 'skill_test') {
+          errors.push(`${label} : test à froid → circuit → test fatigué dans les 30 s (R-SP-15).`);
+        }
+        if (!kinds.slice(circuitAt + 2).includes('cardio')) errors.push(`${label} : un bloc Cross Ops après le test fatigué (R-SP-15).`);
       }
-      if (!kinds.slice(circuitAt + 2).includes('cardio')) errors.push(`${label} : un bloc Cross Ops après le test fatigué (R-SP-15).`);
       for (const block of recipe.blocks) {
         const spec = block.spec;
         if (spec?.kind === 'circuit' && (spec.capMin < 8 || spec.capMin > 10)) errors.push(`${label} : le circuit dure 8 à 10 min (R-SP-15).`);
+        // CHANGE_REQUEST_013 v7 — the two score shapes of a circuit.
+        if (spec?.kind === 'circuit') {
+          const measures = spec.drills.map((item) => item.measure).filter((measure) => measure !== 'backup').join();
+          const expected = spec.score === 'laps_and_station' ? 'laps,station_reached' : 'time_s,station_at_cap';
+          if (measures !== expected) errors.push(`${label} : le circuit se note ${spec.score === 'laps_and_station' ? 'tours ET station' : 'temps OU station'} (section C).`);
+          if ((spec.score === 'laps_and_station') !== (spec.laps === null)) errors.push(`${label} : un circuit en max de tours n’a pas de nombre de tours fixé.`);
+        }
         if (spec?.kind === 'skill_test' && !spec.drills.some((item) => item.drillId.endsWith(':bench_ball'))) {
           errors.push(`${label} : le test porte le banc avec balle (R-SP-15).`);
         }

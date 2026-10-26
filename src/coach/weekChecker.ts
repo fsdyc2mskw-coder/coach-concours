@@ -72,15 +72,23 @@ export function checkWeek(week: TrainingWeek): Flag[] {
   // that window would only repeat it, so those pairs are suppressed.
   const covered = new Set<number>();
   const v4 = weekNumberOf(week.startDate) >= V4_FIRST_WEEK;
+  // CHANGE_REQUEST_013 v7 — Q10 of APP_REPORT_013_v5: from week 6 the mark
+  // stays SILENT on the planned week and shows only when a move creates a new
+  // run of hard days. The planned day of a session is the date of its id
+  // (`${date}:${kind}`, never rewritten by a move), so a run whose three days
+  // each held a hard session in the plan is the planned one.
+  const plannedHard = new Set(week.sessions.filter(isHard).map((session) => session.id.split(':')[0]!));
   for (let index = 0; index + 2 < filled.length; index += 1) {
     const window = [filled[index]!, filled[index + 1]!, filled[index + 2]!];
     if (window.every((day) => day.session && isHard(day.session))) {
+      const planned = v4 && window.every((day) => plannedHard.has(day.date));
+      covered.add(index); covered.add(index + 1); covered.add(index + 2);
+      if (planned) continue;
       flags.push({
         code: 'C2', hard: !v4, date: window[2]!.date,
         lead: 'Trois journées fortes d’affilée',
         text: `(${window.map((day) => label(day.date)).join(', ')}). ${v4 ? 'Acceptées comme exception quand la semaine le demande (R-SP-13).' : 'Règle dure R-WS-10.'}`
       });
-      covered.add(index); covered.add(index + 1); covered.add(index + 2);
     }
   }
 

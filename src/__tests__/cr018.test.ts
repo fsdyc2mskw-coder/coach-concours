@@ -216,10 +216,11 @@ describe('CR-018 — MEMORY_CYCLE reproduces the table cell for cell', () => {
 describe('CR-018 — weeks 5-10 carry one memory block per police session with the right card; week 11 PLAN; weeks 3-4 unchanged', () => {
   // CHANGE_REQUEST_013 v6 — week 7 (WEEK_7_FINAL v3) has no memory slot and
   // none is invented (section A, KEEP); the cycle itself is unchanged.
-  it('weeks 5 to 10 except 7: every police session carries exactly one memory block, the cycle’s card for its side', () => {
-    for (const session of policeOf(weekNo(7))) expect(memoryBlocks(recipeById[session.recipeId]!), `week 7 ${session.id}`).toHaveLength(0);
+  // CHANGE_REQUEST_013 v7 — week 8 likewise (WEEK_8_FINAL has no memory slot).
+  it('weeks 5 to 10 except 7 and 8: every police session carries exactly one memory block, the cycle’s card for its side', () => {
+    for (const n of [7, 8]) for (const session of policeOf(weekNo(n))) expect(memoryBlocks(recipeById[session.recipeId]!), `week ${n} ${session.id}`).toHaveLength(0);
     for (let n = 5; n <= 10; n += 1) {
-      if (n === 7) continue;
+      if (n === 7 || n === 8) continue;
       const sides = new Set<string>();
       for (const session of policeOf(weekNo(n))) {
         const shape = memoryShapeOf(session.kind)!;
@@ -316,10 +317,11 @@ describe('CR-018 — the video line: first police session of weeks 5, 7, 9, 11 o
 describe('CR-018 — the M4 line in weeks 9-11 only; the block lasts 4 or 10 min, never above 12', () => {
   it('M4 rides with the card in weeks 9 to 11, and only there', () => {
     for (let n = 5; n <= 11; n += 1) {
-      if (n === 7) continue; // CHANGE_REQUEST_013 v6 — no memory block in week 7.
+      if (n === 7 || n === 8) continue; // CHANGE_REQUEST_013 v6/v7 — no memory block in weeks 7 and 8.
       for (const session of policeOf(weekNo(n))) {
         const recipe = recipeById[session.recipeId]!;
-        const m4 = n >= 9;
+        // CHANGE_REQUEST_013 v7 — Q3: the week 10 rematch keeps the 4 min card, no M4.
+        const m4 = n >= 9 && !recipe.rematchOf;
         expect(memoryBlockOf(recipe)!.game!.m4, `week ${n} ${session.kind}`).toBe(m4);
         expect(memoryModulesOf(recipe), `week ${n} ${session.kind}`).toEqual(m4 ? ['M4'] : []);
         expect(minutesOf(blockOfKind(recipe, 'memory')!), `week ${n} ${session.kind}`).toBe(m4 ? 10 : 4);

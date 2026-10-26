@@ -334,8 +334,10 @@ describe('CR-013 v2 — every placeholder has no score box and no week 3 text (R
   // CHANGE_REQUEST_013 v6 — week 7 has its content: no placeholder left there.
   it('there are placeholders to check: « Contenu à construire (semaine n) », weeks 8 to 11 (v6)', () => {
     const titles = new Set(placeholders.map((block) => block.title));
-    for (const n of [8, 9, 10, 11]) expect(titles).toContain(`Contenu à construire (semaine ${n})`);
+    // CHANGE_REQUEST_013 v7 — week 8 has its content: weeks 9 to 11.
+    for (const n of [9, 10, 11]) expect(titles).toContain(`Contenu à construire (semaine ${n})`);
     expect(titles).not.toContain('Contenu à construire (semaine 7)');
+    expect(titles).not.toContain('Contenu à construire (semaine 8)');
   });
 
   it('each one: no spec, no drill, only "À construire dans Cowork", nothing from week 3', () => {
@@ -481,12 +483,13 @@ describe('CR-013 v2 — the screens', () => {
   }
 
   // CHANGE_REQUEST_013 v5 — week 8 is a travel week of SEASON_PLAN_V4: load 2.
-  it('the week bar reads the table’s load: week 8 shows 2 of 5 squares', async () => {
+  // CHANGE_REQUEST_013 v7 — week 8 is WEEK_8_FINAL, load 4 (season_plan v5).
+  it('the week bar reads the table’s load: week 8 shows 4 of 5 squares', async () => {
     const container = await openWeek('2026-10-26');
     const bar = container.querySelector('.weekbar')!;
-    expect(bar.getAttribute('aria-label')).toBe('Charge de la semaine : 2 sur 5');
+    expect(bar.getAttribute('aria-label')).toBe('Charge de la semaine : 4 sur 5');
     expect(bar.querySelectorAll('i')).toHaveLength(5);
-    expect(bar.querySelectorAll('i.on')).toHaveLength(2);
+    expect(bar.querySelectorAll('i.on')).toHaveLength(4);
   });
 
   it('weeks 1 and 2 are not in the table and show no week bar', async () => {
@@ -496,18 +499,19 @@ describe('CR-013 v2 — the screens', () => {
 
   // CHANGE_REQUEST_013 v5 — the week 8 skill session is now the travel kit T3,
   // a named gap that still carries the cycle's card.
+  // CHANGE_REQUEST_013 v7 — week 8 has content: the week 9 skill session.
   it('a placeholder session shows "À construire dans Cowork" and no score box but the memory card', async () => {
-    await openWeek('2026-10-26');
-    const matches = await screen.findAllByText('Voyage · Kit compétences (T3)');
+    await openWeek('2026-11-02');
+    const matches = await screen.findAllByText('Compétences au parc');
     const card = matches.map((node) => node.closest('button.card')).find((node): node is HTMLButtonElement => node !== null)!;
     fireEvent.click(card);
     await screen.findByText('Ton programme');
     expect(screen.getAllByText(/À construire dans Cowork/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByText('Retour'));
-    // The Retour tab shows the memory game's score box (CR-018: week 8's skill
-    // card is QUI MANQUE), and the placeholder brings none.
-    expect(await screen.findByLabelText('QUI MANQUE ? · bonnes réponses sur 3')).toBeTruthy();
-    const placeholderGroup = screen.queryAllByText(/Contenu à construire \(semaine 8\)/).map((node) => node.closest('.grp')).find(Boolean);
+    // The Retour tab shows the memory game's score box (CR-018: week 9's skill
+    // card is PLAN), and the placeholder brings none.
+    expect(await screen.findByLabelText('PLAN · cases justes sur 11')).toBeTruthy();
+    const placeholderGroup = screen.queryAllByText(/Contenu à construire \(semaine 9\)/).map((node) => node.closest('.grp')).find(Boolean);
     expect(placeholderGroup?.querySelectorAll('input').length ?? 0).toBe(0);
   });
 });

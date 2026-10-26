@@ -21,6 +21,7 @@ import {
   LOW_LUNG_SAFETY_LINE,
   REMATCH_LINE,
   TO_BUILD_PREFIX,
+  V4_KIND_TITLE,
   enchainementGap
 } from '../coach/seasonV4';
 import {
@@ -59,13 +60,16 @@ const blockTitles = (recipe: SessionRecipe): string[] => recipe.blocks.map((bloc
 describe('CR-013 v5 — SEASON_PLAN_V4 reproduces the table of section A cell for cell', () => {
   //  wk  dates          load  Mon       Tue                Wed           Thu               Fri           Sat               Sun
   const expected: SeasonWeekV4[] = [
-    { week: 6, startDate: '2026-10-12', endDate: '2026-10-18', load: 4, dailyLine: DAILY_BALANCE_LINE, days: { MON: { kind: 'crossfit_class' }, TUE: { kind: 'run_intervals', lowLung: true }, WED: { kind: 'skill_park' }, THU: { kind: 'crossfit_class' }, FRI: { kind: 'enchainement' }, SAT: { kind: 'trail_day' } } },
+    // CHANGE_REQUEST_013 v7 — every row carries the phase label of Q9 and, from W6 to W11, the daily line (Q11).
+    { week: 6, startDate: '2026-10-12', endDate: '2026-10-18', load: 4, dailyLine: DAILY_BALANCE_LINE, phaseLabel: 'Parc', days: { MON: { kind: 'crossfit_class' }, TUE: { kind: 'run_intervals', lowLung: true }, WED: { kind: 'skill_park' }, THU: { kind: 'crossfit_class' }, FRI: { kind: 'enchainement' }, SAT: { kind: 'trail_day' } } },
     // CHANGE_REQUEST_013 v6 — week 7 rebuilt (season_plan v5, WEEK_7_FINAL v3); cr013v6.test.ts holds its content.
-    { week: 7, startDate: '2026-10-19', endDate: '2026-10-25', load: 3, dailyLine: DAILY_BALANCE_LINE, days: { MON: { kind: 'crossfit_class' }, TUE: { kind: 'skill_park' }, WED: { kind: 'run_intervals' }, THU: { kind: 'enchainement' }, FRI: { kind: 'skill_park' } }, dayNotes: { SUN: 'Vol vers Kingston · repos' } },
-    { week: 8, startDate: '2026-10-26', endDate: '2026-11-01', load: 2, days: { TUE: { kind: 'travel_speed', optional: true }, THU: { kind: 'travel_mini_ench' }, SAT: { kind: 'travel_skill_kit' } } },
-    { week: 9, startDate: '2026-11-02', endDate: '2026-11-08', load: 3, days: { TUE: { kind: 'easy_run' }, WED: { kind: 'easy_run' }, THU: { kind: 'skill_park' }, FRI: { kind: 'enchainement' }, SAT: { kind: 'crossfit_class' }, SUN: { kind: 'easy_run' } } },
-    { week: 10, startDate: '2026-11-09', endDate: '2026-11-15', load: 5, days: { MON: { kind: 'crossfit_class' }, TUE: { kind: 'run_intervals', lowLung: true }, WED: { kind: 'enchainement' }, THU: { kind: 'skill_park' }, FRI: { kind: 'enchainement' }, SAT: { kind: 'trail_day' } } },
-    { week: 11, startDate: '2026-11-16', endDate: '2026-11-20', load: 1, days: { MON: { kind: 'crossfit_class' }, TUE: { kind: 'run_intervals' }, WED: { kind: 'skill_park', offload: true }, FRI: { kind: 'police_event' } } }
+    { week: 7, startDate: '2026-10-19', endDate: '2026-10-25', load: 3, dailyLine: DAILY_BALANCE_LINE, phaseLabel: 'Voyage · entretien', days: { MON: { kind: 'crossfit_class' }, TUE: { kind: 'skill_park' }, WED: { kind: 'run_intervals' }, THU: { kind: 'enchainement' }, FRI: { kind: 'skill_park' } }, dayNotes: { SUN: 'Vol vers Kingston · repos' } },
+    // CHANGE_REQUEST_013 v7 — week 8 rebuilt (WEEK_8_FINAL_2026-10-26); cr013v7.test.ts holds its content.
+    { week: 8, startDate: '2026-10-26', endDate: '2026-11-01', load: 4, dailyLine: DAILY_BALANCE_LINE, phaseLabel: 'Voyage · entretien', days: { MON: { kind: 'easy_run' }, TUE: { kind: 'skill_park', load: 'hard' }, WED: { kind: 'skill_park', load: 'hard' }, THU: { kind: 'run_intervals' }, FRI: { kind: 'enchainement' }, SAT: { kind: 'skill_park', load: 'hard' }, SUN: { kind: 'trail_day' } } },
+    // CHANGE_REQUEST_013 v7 — season_plan v5: the W9 Monday is an optional named gap.
+    { week: 9, startDate: '2026-11-02', endDate: '2026-11-08', load: 3, dailyLine: DAILY_BALANCE_LINE, phaseLabel: 'Reprise', days: { MON: { kind: 'travel_speed', optional: true }, TUE: { kind: 'easy_run' }, WED: { kind: 'easy_run' }, THU: { kind: 'skill_park' }, FRI: { kind: 'enchainement' }, SAT: { kind: 'crossfit_class' }, SUN: { kind: 'easy_run' } } },
+    { week: 10, startDate: '2026-11-09', endDate: '2026-11-15', load: 5, dailyLine: DAILY_BALANCE_LINE, phaseLabel: 'Charge', days: { MON: { kind: 'crossfit_class' }, TUE: { kind: 'run_intervals', lowLung: true }, WED: { kind: 'enchainement' }, THU: { kind: 'skill_park' }, FRI: { kind: 'enchainement' }, SAT: { kind: 'trail_day' } } },
+    { week: 11, startDate: '2026-11-16', endDate: '2026-11-20', load: 1, dailyLine: DAILY_BALANCE_LINE, phaseLabel: 'Allègement', days: { MON: { kind: 'crossfit_class' }, TUE: { kind: 'run_intervals' }, WED: { kind: 'skill_park', offload: true }, FRI: { kind: 'police_event' } } }
   ];
 
   it('has exactly weeks 6 to 11, each equal to its row', () => {
@@ -82,7 +86,8 @@ describe('CR-013 v5 — SEASON_PLAN_V4 reproduces the table of section A cell fo
         const slot = row.days[day];
         if (!slot) return [];
         const date = new Date(Date.parse(`${row.startDate}T12:00:00Z`) + offset * 86_400_000).toISOString().slice(0, 10);
-        return [[date, slot.kind, LOAD[slot.kind]]];
+        // CHANGE_REQUEST_013 v7 — a cell may carry its own load (week 8).
+        return [[date, slot.kind, slot.load ?? LOAD[slot.kind]]];
       });
       expect(week.sessions.map((item) => [item.date, item.kind, item.load]), `week ${row.week}`).toEqual(want);
       expect(week.sessions.every((item) => item.id === `${item.date}:${item.kind}`)).toBe(true);
@@ -91,8 +96,9 @@ describe('CR-013 v5 — SEASON_PLAN_V4 reproduces the table of section A cell fo
   });
 
   it('the display names, in French', () => {
-    const titles = Object.fromEntries(weeks.slice(5).flatMap((week) => week.sessions.map((item) => [item.kind, recipeById[item.recipeId]!.title])));
-    expect(titles).toMatchObject({
+    // CHANGE_REQUEST_013 v7 — no week uses the T1-T3 placeholders any more; the
+    // names stay in the table (old results), checked here on V4_KIND_TITLE.
+    expect(V4_KIND_TITLE).toMatchObject({
       skill_park: 'Compétences au parc',
       enchainement: 'Enchaînement',
       travel_speed: 'Voyage · Vitesse (T1)',
@@ -101,6 +107,8 @@ describe('CR-013 v5 — SEASON_PLAN_V4 reproduces the table of section A cell fo
       trail_day: 'Trail',
       easy_run: 'Footing facile'
     });
+    const titles = Object.fromEntries([6, 9, 10, 11].flatMap((n) => weekNo(n).sessions.filter((item) => item.id !== '2026-11-02:travel_speed').map((item) => [item.kind, recipeById[item.recipeId]!.title])));
+    expect(titles).toMatchObject({ skill_park: 'Compétences au parc', enchainement: 'Enchaînement', trail_day: 'Trail', easy_run: 'Footing facile' });
   });
 
   it('the week bar reads the v4 load; weeks 3 to 5 keep the v3 rows', () => {
@@ -266,7 +274,8 @@ describe('CR-013 v5 — W6 Saturday has no CrossFit; W9 Monday has no CrossFit; 
   it('the three cells', () => {
     expect(on(weekNo(6), '2026-10-17')!.kind).toBe('trail_day');
     expect(weekNo(6).sessions.filter((item) => item.kind === 'crossfit_class').map((item) => item.date)).toEqual(['2026-10-12', '2026-10-15']);
-    expect(on(weekNo(9), '2026-11-02')).toBeUndefined();
+    // CHANGE_REQUEST_013 v7 — season_plan v5: Monday 2 Nov is an optional gap, still no CrossFit.
+    expect(on(weekNo(9), '2026-11-02')).toMatchObject({ kind: 'travel_speed' });
     expect(on(weekNo(9), '2026-11-07')).toMatchObject({ kind: 'crossfit_class', status: 'coached', load: 'hard' });
   });
 });
@@ -324,7 +333,8 @@ describe('CR-013 v5 — trail_day shows no distance; warm-ups are one line in W6
   it('every trail day is the label "Trail" and nothing else (R-SP-10)', () => {
     const trails = weeks.slice(5).flatMap((week) => week.sessions.filter((item) => item.kind === 'trail_day'));
     // CHANGE_REQUEST_013 v6 — the optional week 7 Sunday trail is gone (flight).
-    expect(trails.map((item) => item.date)).toEqual(['2026-10-17', '2026-11-14']);
+    // CHANGE_REQUEST_013 v7 — week 8 Sunday is a trail day (WEEK_8_FINAL).
+    expect(trails.map((item) => item.date)).toEqual(['2026-10-17', '2026-11-01', '2026-11-14']);
     for (const session of trails) {
       const recipe = recipeById[session.recipeId]!;
       expect(recipe.title).toBe('Trail');
@@ -369,7 +379,8 @@ describe('CR-013 v5 — W7-W11 sessions other than W10 Friday show "Contenu à c
   it('each one: its kind, its day, the memory card of the cycle when it is a police session, and the named gap', () => {
     let count = 0;
     // CHANGE_REQUEST_013 v6 — week 7 has its content (cr013v6.test.ts).
-    for (const n of [8, 9, 10, 11]) {
+    // CHANGE_REQUEST_013 v7 — week 8 too (cr013v7.test.ts).
+    for (const n of [9, 10, 11]) {
       for (const session of weekNo(n).sessions) {
         if (!contentKinds.includes(session.kind)) continue;
         if (session.id === '2026-11-13:enchainement') continue; // the rematch (section E)
@@ -384,7 +395,7 @@ describe('CR-013 v5 — W7-W11 sessions other than W10 Friday show "Contenu à c
         for (const text of textsOf(recipe)) expect(week6Texts.has(text), `${session.id}: ${text}`).toBe(false);
       }
     }
-    expect(count).toBe(11); // W8 3 · W9 5 · W10 2 · W11 1
+    expect(count).toBe(9); // v7: W9 6 (the optional Monday) · W10 2 · W11 1
   });
 
   it('CrossFit stays the coach’s class, the W10 and W11 Tuesdays carry the values of section C, the test stays fixed', () => {
@@ -392,21 +403,23 @@ describe('CR-013 v5 — W7-W11 sessions other than W10 Friday show "Contenu à c
     expect(recipeOn(weekNo(11), '2026-11-18').notice).toBe('Semaine d’allègement.');
   });
 
-  it('is enforced: week 6 content copied into a week 8 session is flagged (R-SP-03)', () => {
-    const recipe = recipeOn(weekNo(8), '2026-10-31');
+  // CHANGE_REQUEST_013 v7 — week 8 has content now: the check runs on week 9.
+  it('is enforced: week 6 content copied into a week 9 session is flagged (R-SP-03)', () => {
+    const recipe = recipeOn(weekNo(9), '2026-11-05');
     const original = recipe.blocks;
     try {
       recipe.blocks = [...original, recipeOn(weekNo(6), '2026-10-14').blocks[1]!];
-      expect(validateWeek(weekNo(8)).some((error) => error.includes('R-SP-03'))).toBe(true);
+      expect(validateWeek(weekNo(9)).some((error) => error.includes('R-SP-03'))).toBe(true);
     } finally {
       recipe.blocks = original;
     }
   });
 
-  it('W8 "opt" is marked optional and never counts as missed (v6: the W7 optional trail is gone)', () => {
-    expect(recipeOn(weekNo(8), '2026-10-27').optional).toBe(true);
+  // CHANGE_REQUEST_013 v7 — the W8 optional T1 is gone; the W9 Monday is optional (season_plan v5).
+  it('W9 "optional" Monday is marked optional and never counts as missed (v6: the W7 optional trail is gone)', () => {
+    expect(recipeOn(weekNo(9), '2026-11-02').optional).toBe(true);
     const optional = weeks.slice(5).flatMap((week) => week.sessions).filter((item) => recipeById[item.recipeId]!.optional).map((item) => item.id);
-    expect(optional).toEqual(['2026-10-27:travel_speed']);
+    expect(optional).toEqual(['2026-11-02:travel_speed']);
   });
 });
 
@@ -459,7 +472,8 @@ describe('CR-013 v5 — W6 Tuesday shows 5 × 4 @ 5:10, jog 2, and the low-lung 
     const w11 = recipeOn(weekNo(11), '2026-11-17');
     expect(w11.blocks.map((block) => block.faire)).toEqual(['4 × 1 min à 5:00 /km, récupération 2 min en trottinant']);
     // CHANGE_REQUEST_013 v6 — week 7 Wednesday is the Luc Léger test + intervals.
-    for (const n of [8, 9]) expect(weekNo(n).sessions.some((item) => item.kind === 'run_intervals'), `week ${n}`).toBe(false);
+    // CHANGE_REQUEST_013 v7 — week 8 Thursday is the treadmill intervals (cr013v7.test.ts).
+    for (const n of [9]) expect(weekNo(n).sessions.some((item) => item.kind === 'run_intervals'), `week ${n}`).toBe(false);
   });
 
   it('volumeFactor never changes reps, length or pace (R-WS-20)', () => {
@@ -470,11 +484,10 @@ describe('CR-013 v5 — W6 Tuesday shows 5 × 4 @ 5:10, jog 2, and the low-lung 
 // ---------- 10. three hard days ----------
 
 describe('CR-013 v5 — three hard days are flagged, never blocked (R-SP-13)', () => {
-  it('week 10, Mon CrossFit · Tue intervals · Wed enchaînement: flagged amber, not a validation error', () => {
-    const flags = checkWeek(weekNo(10)).filter((flag) => flag.code === 'C2');
-    expect(flags).toHaveLength(1);
-    expect(flags[0]!.hard).toBe(false);
-    expect(flags[0]!.text).toContain('R-SP-13');
+  // CHANGE_REQUEST_013 v7 — Q10: the mark is SILENT on the planned week; it
+  // shows only after a move creates a new run (next test).
+  it('week 10, Mon CrossFit · Tue intervals · Wed enchaînement: silent as planned (Q10), not a validation error', () => {
+    expect(checkWeek(weekNo(10)).filter((flag) => flag.code === 'C2')).toHaveLength(0);
     expect(validateWeek(weekNo(10))).toEqual([]);
   });
 
@@ -507,11 +520,13 @@ describe('CR-013 v5 — no text predicts an official time; no full mock test', (
 // ---------- the memory cycle (KEEP) ----------
 
 describe('CR-013 v5 — the CR-018 cycle is kept on the v4 police sessions', () => {
-  it('police sessions from W6 are skill_park, enchainement, travel_mini_ench, travel_skill_kit', () => {
+  // CHANGE_REQUEST_013 v7 — the travel kinds are no longer used by any week
+  // (kept in the union for old results); week 8 has no memory slot either.
+  it('police sessions from W6 are skill_park and enchainement (v7: no travel kind left)', () => {
     const kinds = new Set(weeks.slice(5).flatMap((week) => week.sessions.filter((item) => isPoliceSession(item.kind)).map((item) => item.kind)));
-    expect([...kinds].sort()).toEqual(['enchainement', 'skill_park', 'travel_mini_ench', 'travel_skill_kit']);
+    expect([...kinds].sort()).toEqual(['enchainement', 'skill_park']);
     for (let n = 6; n <= 11; n += 1) {
-      if (n === 7) continue; // CHANGE_REQUEST_013 v6 — no memory slot in WEEK_7_FINAL v3.
+      if (n === 7 || n === 8) continue; // CHANGE_REQUEST_013 v6/v7 — no memory slot in WEEK_7_FINAL v3 nor WEEK_8_FINAL.
       for (const session of weekNo(n).sessions.filter((item) => isPoliceSession(item.kind))) {
         const side = memoryShapeOf(session.kind) === 'skill_session' ? 'skill' : 'chain';
         expect(memoryBlockOf(recipeById[session.recipeId]!)!.game!.card, session.id).toBe(MEMORY_CYCLE[n]![side]);
@@ -617,23 +632,19 @@ describe('CR-013 v5 — the screens', () => {
 
   // CHANGE_REQUEST_013 v6 — week 7 is now WEEK_7_FINAL v3: the week 8
   // travel placeholders keep this check (cr013v6.test.ts holds week 7).
-  it('week 8: the travel placeholders, Tuesday optional', async () => {
+  // CHANGE_REQUEST_013 v7 — week 8 is WEEK_8_FINAL now: its screen test is in cr013v7.test.ts.
+  it('week 8: no travel placeholder left', async () => {
     const container = await openWeek('2026-10-26');
     const days = Object.fromEntries(dayTexts(container));
-    expect(days['2026-10-26']).toBe('Repos');
-    expect(days['2026-10-27']).toContain('Voyage · Vitesse (T1)');
-    expect(days['2026-10-27']).toContain('optionnel');
-    expect(days['2026-10-29']).toContain('Voyage · Mini-enchaînement (T2)');
-    expect(days['2026-10-31']).toContain('Voyage · Kit compétences (T3)');
-    for (const date of ['2026-10-27', '2026-10-29', '2026-10-31']) expect(days[date]).toContain('contenu à construire');
-    // the optional Tuesday never counts as missed
-    expect(container.querySelector('.prog b')!.textContent).toBe('Séances 0/2');
+    for (const text of Object.values(days)) expect(text).not.toMatch(/Voyage · (Vitesse|Mini-enchaînement|Kit compétences)/);
   });
 
-  it('week 9: Monday empty, Tuesday and Wednesday easy runs, Saturday CrossFit', async () => {
+  // CHANGE_REQUEST_013 v7 — the W9 Monday is an optional named gap (season_plan v5).
+  it('week 9: Monday optional gap, Tuesday and Wednesday easy runs, Saturday CrossFit', async () => {
     const container = await openWeek('2026-11-02');
     const days = Object.fromEntries(dayTexts(container));
-    expect(days['2026-11-02']).toBe('Repos');
+    expect(days['2026-11-02']).toContain('Avant le vol · optionnel');
+    expect(days['2026-11-02']).toContain('contenu à construire');
     expect(days['2026-11-03']).toContain('Footing facile');
     expect(days['2026-11-04']).toContain('Footing facile');
     expect(days['2026-11-07']).toContain('CrossFit coaché');

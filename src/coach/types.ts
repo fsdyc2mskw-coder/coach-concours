@@ -69,7 +69,10 @@ export type BlockKind =
   // CHANGE_REQUEST_013 v6 — `circuit` (the one 8-10 min circuit of the
   // enchaînement from week 7, R-SP-15) and `luc_leger` (the test block of
   // the week 7 Wednesday, test_battery.md v3, before the interval set).
-  | 'circuit' | 'luc_leger';
+  | 'circuit' | 'luc_leger'
+  // CHANGE_REQUEST_013 v7 — `strength` (the week 8 dumbbell thrusters, a
+  // strength piece before a Cross Ops WOD; never the session's cardio block).
+  | 'strength';
 
 export type CardioFormat = 'emom' | 'amrap' | 'for_time';
 
@@ -98,7 +101,12 @@ export type DrillMeasure =
   // field): the Luc Léger stage and leg, a time in seconds (the circuit, ROUMI),
   // the circuit station reached at the cap, the backup used (A 1, B 2, C 3),
   // a turn done on the bench (1 yes, 0 no) and the clean minutes of an EMOM.
-  | 'stage' | 'leg' | 'time_s' | 'station_at_cap' | 'backup' | 'turn_done' | 'clean_minutes';
+  | 'stage' | 'leg' | 'time_s' | 'station_at_cap' | 'backup' | 'turn_done' | 'clean_minutes'
+  // CHANGE_REQUEST_013 v7 — week 8, still in `drillScores` (no new stored
+  // field): the laps and the station reached of KINGSTON 10 (entered
+  // together), the metres of a lap begun, the load and reps of a strength
+  // piece, the misses on the one-foot rope rounds and the clean rope cards.
+  | 'laps' | 'station_reached' | 'metres' | 'load_kg' | 'reps_done' | 'misses' | 'clean_cards';
 
 // A card of `02_Training_brain/exercise_cards/00_INDEX.md`, referenced by its
 // id. `CardRef` and `DrillRef` are named but not defined by the change
@@ -218,12 +226,30 @@ export interface StormSpec {
 // CHANGE_REQUEST_013 v6 — the one circuit of the enchaînement from week 7
 // (R-SP-15): one block card, its stations in order, laps for time under a cap.
 // Scored by the total time OR the station reached at the cap, never both.
+// CHANGE_REQUEST_013 v7 — a second score shape: `laps_and_station` (KINGSTON
+// 10, max laps under the cap), the laps completed AND the station reached at
+// the cap, entered together. `laps` is then null (no fixed lap count).
+// Absent `score` means `time_or_station`, the v6 shape (BORDEAUX 10).
+export type CircuitScore = 'time_or_station' | 'laps_and_station';
 export interface CircuitSpec {
   kind: 'circuit';
   card: CardRef;
   atoms: CardRef[];
-  laps: number;
+  laps: number | null;
   capMin: number;
+  drills: DrillRef[];
+  score?: CircuitScore;
+}
+
+// CHANGE_REQUEST_013 v7 — a strength piece (the week 8 dumbbell thrusters):
+// one card, sets × reps at a load the week file gives, scored by the load and
+// the reps done. The load is the FINAL file's, never computed here.
+export interface StrengthSpec {
+  kind: 'strength';
+  card: CardRef;
+  sets: number;
+  reps: number;
+  restS: number;
   drills: DrillRef[];
 }
 
@@ -291,7 +317,8 @@ export type BlockSpec =
   | StormSpec
   | LowLungSpec
   | CircuitSpec
-  | LucLegerSpec;
+  | LucLegerSpec
+  | StrengthSpec;
 
 // CHANGE_REQUEST_013 section C — one numeric score per drill, stored per
 // session id. The fresh-to-fatigued gap is NOT here: it is computed from
@@ -391,6 +418,10 @@ export interface SessionRecipe {
   optional?: boolean;
   notice?: string;
   rematchOf?: string;
+  // CHANGE_REQUEST_013 v7 — an enchaînement run WITHOUT the fresh and fatigue
+  // tests (week 8 only, the athlete's decision): no GAP is computed and
+  // nothing shows as missing. Screen data, never stored.
+  noGapTests?: true;
 }
 
 export interface PlannedSession {

@@ -589,7 +589,7 @@ function WeekScreen({ state, weekIndex, setWeekIndex, openSession, setDayMoves }
   const principal = week.sessions.find((planned) => isPoliceSession(planned.kind))
     ?? week.sessions.find((planned) => planned.kind.startsWith('police_'))
     ?? week.sessions[0];
-  const headline = principal ? recipeById[principal.recipeId]!.title : phaseLabel(week.phase);
+  const headline = principal ? recipeById[principal.recipeId]!.title : weekPhaseLabel(week);
   const weeksToTrail = weeksUntil(week.startDate, TRAIL_EVENT_DATE);
   const weeksToPolice = weeksUntil(week.startDate, state.planEndDate);
   // CHANGE_REQUEST_013 v2 — the week bar reads the season table's `load`
@@ -622,7 +622,7 @@ function WeekScreen({ state, weekIndex, setWeekIndex, openSession, setDayMoves }
 
   return <>
     <section className="heroHead">
-      <div className="kicker">{phaseLabel(week.phase)} · semaine {weekIndex + 1} / {state.weeks.length}</div>
+      <div className="kicker">{weekPhaseLabel(week)} · semaine {weekIndex + 1} / {state.weeks.length}</div>
       <h2>{headline}</h2>
       <p>{weeksToTrail} semaine{weeksToTrail > 1 ? 's' : ''} avant le trail · {weeksToPolice} avant le test police</p>
       {load !== null && <div className="weekbar" role="img" aria-label={`Charge de la semaine : ${load} sur 5`}>
@@ -1401,7 +1401,7 @@ function BlockScreen({ weeks, planned, blockIndex, back, openGame, openRetour }:
 
 // ---------- Journey / Drive (CHANGE_REQUEST_010 section G — theme only, content unchanged) ----------
 
-function JourneyView({ state }: { state: CoachState }) { const total = Object.values(state.results).filter((result) => result.status === 'done').length; return <section className="page"><p className="eyebrow">JUSQU’AU 20 NOVEMBRE</p><h1>Ton parcours</h1><p className="lead">{total} séances terminées. Les semaines futures se recalculent à partir de tes retours sans ajouter de sixième jour.</p><div className="timeline">{state.weeks.map((week, index) => { const done = week.sessions.filter((session) => state.results[session.id]?.status === 'done').length; const counted = week.sessions.filter((session) => countsInWeek(session, state.results)).length; return <div className="timelineRow" key={week.id}><span>{String(index + 1).padStart(2, '0')}</span><div><b>{phaseLabel(week.phase)}</b><p>{formatRange(week.startDate, week.endDate)}</p></div><strong>{done}/{counted}</strong></div>; })}</div><ReferenceCard state={state} /><GapHistory state={state} /></section>; }
+function JourneyView({ state }: { state: CoachState }) { const total = Object.values(state.results).filter((result) => result.status === 'done').length; return <section className="page"><p className="eyebrow">JUSQU’AU 20 NOVEMBRE</p><h1>Ton parcours</h1><p className="lead">{total} séances terminées. Les semaines futures se recalculent à partir de tes retours sans ajouter de sixième jour.</p><div className="timeline">{state.weeks.map((week, index) => { const done = week.sessions.filter((session) => state.results[session.id]?.status === 'done').length; const counted = week.sessions.filter((session) => countsInWeek(session, state.results)).length; return <div className="timelineRow" key={week.id}><span>{String(index + 1).padStart(2, '0')}</span><div><b>{weekPhaseLabel(week)}</b><p>{formatRange(week.startDate, week.endDate)}</p></div><strong>{done}/{counted}</strong></div>; })}</div><ReferenceCard state={state} /><GapHistory state={state} /></section>; }
 
 // CHANGE_REQUEST_017 section C — the "Référence" card. Recorded values only:
 // a test with no number simply has no row, and the card itself is absent
@@ -1444,6 +1444,9 @@ function DriveView({ state, linked, busy, linkWithCode, sync, backup, forget, ex
 
 function daysOfWeek(start: string, end: string) { const days: string[] = []; for (let time = Date.parse(`${start}T12:00:00Z`); time <= Date.parse(`${end}T12:00:00Z`); time += 86_400_000) days.push(new Date(time).toISOString().slice(0, 10)); return days; }
 function formatRange(start: string, end: string) { const a = new Date(`${start}T12:00:00Z`); const b = new Date(`${end}T12:00:00Z`); return `${a.getUTCDate()} ${a.toLocaleDateString('fr-CH', { month: 'short', timeZone: 'UTC' })} – ${b.getUTCDate()} ${b.toLocaleDateString('fr-CH', { month: 'short', year: 'numeric', timeZone: 'UTC' })}`.replace(/\./g, ''); }
+// CHANGE_REQUEST_013 v7 — Q9: weeks 6 to 11 show the season table's own
+// phase label; the other weeks keep the phase of their dates.
+function weekPhaseLabel(week: CoachState['weeks'][number]) { return seasonWeekV4(weekNumberOf(week.startDate))?.phaseLabel ?? phaseLabel(week.phase); }
 function phaseLabel(phase: CoachState['weeks'][number]['phase']) { return ({ learn: 'Apprendre', combine: 'Combiner', trail_event: 'Semaine trail', reset: 'Récupérer', integrate: 'Intégrer', peak: 'Pic spécifique', taper: 'Alléger' } as const)[phase]; }
 // CHANGE_REQUEST_017 section C — the Référence card's number formats, written
 // as the change request draws them ("212 cm", "4.12 s", "1 040 m",
