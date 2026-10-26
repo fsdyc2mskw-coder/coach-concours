@@ -196,7 +196,11 @@ describe('CR-014 checkWeek', () => {
       '2026-10-05': ['C3'],
       '2026-10-12': ['C1', 'C3'],
       '2026-11-02': ['C1', 'C3'],
-      '2026-11-09': ['C2', 'C3']
+      // CHANGE_REQUEST_013 v7 — Q10: three hard days stay silent on the
+      // planned week (week 10 Mon-Wed, week 8 Tue-Sat); week 8 trains every
+      // day, so the seven days without rest are still flagged (C3, R-SP-13).
+      '2026-10-26': ['C3'],
+      '2026-11-09': ['C3']
     };
     for (const week of generatePlan()) {
       expect(codes(week), `flags on ${week.startDate}`).toEqual(expectedBySeasonPlan[week.startDate] ?? []);

@@ -165,8 +165,9 @@ describe('CR-013 v6 — weeks 3, 4, 5, 6, 8, 9, 10, 11 reproduce their current f
   // before this change. Results are stored by session id.
   const FIXTURE: Record<number, string[]> = {
     6: ['2026-10-12:crossfit_class|crossfit-coached-v1', '2026-10-13:run_intervals|run-intervals-v2-week-6', '2026-10-14:skill_park|skill-park-v1-week-6', '2026-10-15:crossfit_class|crossfit-coached-v1', '2026-10-16:enchainement|enchainement-v1-week-6', '2026-10-17:trail_day|trail-day-v1-week-6'],
-    8: ['2026-10-27:travel_speed|travel-speed-to-build-week-8', '2026-10-29:travel_mini_ench|travel-mini-ench-to-build-week-8', '2026-10-31:travel_skill_kit|travel-skill-kit-to-build-week-8'],
-    9: ['2026-11-03:easy_run|easy-run-to-build-week-9', '2026-11-04:easy_run|easy-run-to-build-week-9', '2026-11-05:skill_park|skill-park-to-build-week-9', '2026-11-06:enchainement|enchainement-to-build-week-9', '2026-11-07:crossfit_class|crossfit-coached-v1', '2026-11-08:easy_run|easy-run-to-build-week-9'],
+    // CHANGE_REQUEST_013 v7 — week 8 is WEEK_8_FINAL (cr013v7.test.ts); week 9
+    // gains its optional Monday (season_plan v5), the other ids are unchanged.
+    9: ['2026-11-02:travel_speed|travel-speed-to-build-week-9-mon', '2026-11-03:easy_run|easy-run-to-build-week-9', '2026-11-04:easy_run|easy-run-to-build-week-9', '2026-11-05:skill_park|skill-park-to-build-week-9', '2026-11-06:enchainement|enchainement-to-build-week-9', '2026-11-07:crossfit_class|crossfit-coached-v1', '2026-11-08:easy_run|easy-run-to-build-week-9'],
     10: ['2026-11-09:crossfit_class|crossfit-coached-v1', '2026-11-10:run_intervals|run-intervals-v2-week-10', '2026-11-11:enchainement|enchainement-to-build-week-10-wed', '2026-11-12:skill_park|skill-park-to-build-week-10', '2026-11-13:enchainement|enchainement-v1-week-10', '2026-11-14:trail_day|trail-day-v1-week-10'],
     11: ['2026-11-16:crossfit_class|crossfit-coached-v1', '2026-11-17:run_intervals|run-intervals-v2-week-11', '2026-11-18:skill_park|skill-park-to-build-week-11', '2026-11-20:police_event|police-event-2026-11-20']
   };
@@ -198,8 +199,9 @@ describe('CR-013 v6 — week 7 has no travel placeholder; week 8 still has its t
     expect(W7().sessions.some((item) => TRAVEL.includes(item.kind) || item.kind === 'trail_day')).toBe(false);
     for (const session of W7().sessions) expect(recipeById[session.recipeId]!.blocks.some((block) => block.kind === 'to_build'), session.id).toBe(false);
   });
+  // CHANGE_REQUEST_013 v7 — week 8 has no travel placeholder either.
   it('week 8', () => {
-    expect(weekNo(8).sessions.map((item) => item.kind)).toEqual(TRAVEL);
+    expect(weekNo(8).sessions.some((item) => TRAVEL.includes(item.kind))).toBe(false);
   });
 });
 

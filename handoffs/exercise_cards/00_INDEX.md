@@ -2,8 +2,8 @@
 
 One line per card. Rewritten at every station closer and whenever a card's status changes.
 Ledger: project file `claude/exercise-library-workflow.md`. Week table: `rules/season_plan.md` v5.
-Rewritten 19 October 2026 (second time that day): the Luc Léger test card replaces the 4 × 1 min
-shuttles card, which was not the Luc Léger format (archived).
+Rewritten 25 October 2026 (week 8 lock, Kingston): four new cards (Kingston balance ladder, rope mix 15,
+dumbbell thruster, KINGSTON 10). Skipping EMOM 8 kept but replaced in W8 by rope mix 15 (her call).
 
 ```
  card id                           st  role  state     what it is
@@ -18,7 +18,8 @@ shuttles card, which was not the Luc Léger format (archived).
  S00_bar_row                       0   C     both      row under a park bar, 6-12; wall bars / rope stand-in
  S00_push_up                       0   C     both      CrossFit-style push-up, 10-20 (Cross Ops p 36)
  S00_low_lung_sprint               0   C     fresh     sprint after a full exhale; 6 × 40 m (not in W7)
- S00_luc_leger_test                0   C     fresh     NEW 19 Oct: the real 20 m multistage shuttle run, continuous, to the end (W7 Wed, once)
+ S00_dumbbell_thruster             0   P     fresh     NEW 25 Oct: squat to press, 5 × 8 at 2 × 10 kg first pass (W8)
+ S00_luc_leger_test                0   C     fresh     NEW 19 Oct: the real 20 m multistage shuttle run, continuous, to the end (W7 Wed, once); W7: stage 6, 10.5 km/h, 5 min
  S01_slalom_18m                    1   A     fresh     straight out 18 m, slalom back, 10 x 25 s, 1 min rest
  S01_carioca_footwork              1   A     fresh     lateral crossover footwork, 18 m course
  S01_uphill_intervals              1   C     fresh     uphill 1 min, jog down (IDLE: no slope confirmed)
@@ -32,11 +33,13 @@ shuttles card, which was not the Luc Léger format (archived).
  S08_chain_out                     8   A     fresh     hoops, feet by colour, ball in the arms (W7: the full 11)
  S08_return_dribble_same_side      8   A     fresh     return leg, dribble on the landing-foot side
  S09_balance_ladder                9   A     both      4 x 1 min, one leg → eyes closed → ball → board
- S09_bench_walk_with_ball          9   A     both      "balance on bench with ball", FLAT low wall, official swap, turns
+ S09_kingston_balance_ladder       9   A     both      NEW 25 Oct: one leg on a folded yoga mat, tennis ball, 12 min; tired 5 min
+ S09_bench_walk_with_ball          9   A     both      "balance on bench with ball", FLAT low wall, official swap, turns (a flat gym bench: too easy, 25 Oct)
  S09_bench_backup_rope_line        9   A     both      backup B, rope laid on the ground, swap and turn
  S09_bench_backup_one_leg_ball     9   A     both      backup C, one leg, ball around the waist
  S10_block_switch_fresh            10  A     both      official card 5 R · 5 L · 10 together
  S10_skipping_emom_8               10  A     both      EMOM 8, one card per minute, clean minutes
+ S10_rope_mix_15                   10  A     fresh     NEW 25 Oct: Tabata footwork 8 min + card ladder 6 min
  S10_single_foot_after_legs        10  C     fatigued  NOT CONFIRMED by the athlete. Unusable.
  S11_racket_obstacles              11  A     fresh     45 s flat, 30 s obstacles, 45 s flat
  S11_racket_on_board               11  A     fresh     ball on racket, standing on the wobble board
@@ -50,6 +53,7 @@ shuttles card, which was not the Luc Léger format (archived).
  BLK_acheron_park                  0   D     fatigued  storm, ladder AMRAP 7 (W6, W10 rematch)
  BLK_death_by_obstacle             2   D     fatigued  storm, minute n = n crossings + n burpees + n rows (W6, W10)
  BLK_bordeaux_10                   0   D     fatigued  the test simulation, 2 laps for time, cap 10
+ BLK_kingston_10                   0   D     fatigued  NEW 25 Oct: max laps in 10 min, 6 stations in test order, no gym
 
  REFERENCE FILES (not cards)
  S08_SETUP_official_hoop_line      8   -     -         the official hoop line, colour order, code, spacing
@@ -74,7 +78,7 @@ proposed for W8-W10, not decided.
 
 **Backups** (R-SP-14): the log names A, B or C; a B score is never compared with an A score.
 
-**Round 1 progress (18 Oct): seven of eleven stations with cards (1, 2, 3, 8, 9, 10, 11).**
+**Round 1 progress (25 Oct, unchanged since 18 Oct): seven of eleven stations with cards (1, 2, 3, 8, 9, 10, 11).**
 Stations 4, 5, 6, 7 stay without a dedicated card (her decision, 12 Oct); bar rows stand in for the
 pulling.
 
